@@ -207,7 +207,7 @@ def git_reset(repo: Repo, mode: Optional[str] = None, target: Optional[str] = No
                     status_before = f"staged files: {', '.join(staged_files[:5])}"
                     if len(staged_files) > 5:
                         status_before += f" (and {len(staged_files) - 5} more)"
-            except:
+            except Exception:
                 pass
 
         if mode == "hard":
@@ -218,7 +218,7 @@ def git_reset(repo: Repo, mode: Optional[str] = None, target: Optional[str] = No
                     if len(modified_files) > 5:
                         mod_status += f" (and {len(modified_files) - 5} more)"
                     status_before = f"{status_before}, {mod_status}" if status_before else mod_status
-            except:
+            except Exception:
                 pass
 
         # Execute reset
