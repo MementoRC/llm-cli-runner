@@ -156,7 +156,7 @@ def git_commit(
                 # Fall back to git config
                 try:
                     config_key = repo.config_reader().get_value("user", "signingkey")
-                    force_key_id = config_key
+                    force_key_id = str(config_key)
                 except Exception:
                     return "❌ Could not determine GPG signing key. Please configure GPG_SIGNING_KEY env var"
 
@@ -288,7 +288,7 @@ def git_reset(
         status_before = ""
         if mode in ["mixed", "hard"] or not mode:
             try:
-                staged_files = [item.a_path for item in repo.index.diff("HEAD")]
+                staged_files = [item.a_path for item in repo.index.diff("HEAD") if item.a_path]
                 if staged_files:
                     status_before = f"staged files: {', '.join(staged_files[:5])}"
                     if len(staged_files) > 5:
@@ -298,7 +298,7 @@ def git_reset(
 
         if mode == "hard":
             try:
-                modified_files = [item.a_path for item in repo.index.diff(None)]
+                modified_files = [item.a_path for item in repo.index.diff(None) if item.a_path]
                 if modified_files:
                     mod_status = f"modified files: {', '.join(modified_files[:5])}"
                     if len(modified_files) > 5:
@@ -328,6 +328,9 @@ def git_reset(
         elif mode == "hard":
             target_msg = f" to {target}" if target else ""
             return f"✅ Hard reset{target_msg} - {status_before if status_before else 'no changes'} discarded"
+        else:
+            # Fallback return (should not reach here)
+            return "✅ Reset completed"
 
     except GitCommandError as e:
         return f"❌ Reset failed: {str(e)}"
