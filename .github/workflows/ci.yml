@@ -34,7 +34,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
 
     - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.25.0
+      uses: prefix-dev/setup-pixi@v0.8.10
       with:
         pixi-version: v0.49.0
 
@@ -82,7 +82,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.25.0
+      uses: prefix-dev/setup-pixi@v0.8.10
       with:
         pixi-version: v0.49.0
 
@@ -147,7 +147,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
 
     - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.25.0
+      uses: prefix-dev/setup-pixi@v0.8.10
       with:
         pixi-version: v0.49.0
 
@@ -410,7 +410,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
 
     - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.25.0
+      uses: prefix-dev/setup-pixi@v0.8.10
       with:
         pixi-version: v0.49.0
 
@@ -456,7 +456,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
 
     - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.25.0
+      uses: prefix-dev/setup-pixi@v0.8.10
       with:
         pixi-version: v0.49.0
 
