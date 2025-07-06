@@ -2401,7 +2401,7 @@ Provide specific, actionable recommendations for each area."""
                         repo,
                         arguments.get("mode"),
                         arguments.get("target"),
-                        arguments.get("files")
+                        arguments.get("files"),
                     )
                     return [TextContent(type="text", text=result)]
 
@@ -2607,6 +2607,7 @@ Provide specific, actionable recommendations for each area."""
                 # GitHub CLI Tools
                 case GitTools.GITHUB_CLI_CREATE_PR:
                     from mcp_server_git.github.cli import gh_create_pr
+
                     result = gh_create_pr(
                         arguments["repo_path"],
                         arguments["title"],
@@ -2620,6 +2621,7 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.GITHUB_CLI_EDIT_PR:
                     from mcp_server_git.github.cli import gh_edit_pr
+
                     result = gh_edit_pr(
                         arguments["repo_path"],
                         arguments["pr_number"],
@@ -2637,6 +2639,7 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.GITHUB_CLI_MERGE_PR:
                     from mcp_server_git.github.cli import gh_merge_pr
+
                     result = gh_merge_pr(
                         arguments["repo_path"],
                         arguments["pr_number"],
@@ -2648,6 +2651,7 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.GITHUB_CLI_CLOSE_PR:
                     from mcp_server_git.github.cli import gh_close_pr
+
                     result = gh_close_pr(
                         arguments["repo_path"],
                         arguments["pr_number"],
@@ -2657,6 +2661,7 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.GITHUB_CLI_REOPEN_PR:
                     from mcp_server_git.github.cli import gh_reopen_pr
+
                     result = gh_reopen_pr(
                         arguments["repo_path"],
                         arguments["pr_number"],
@@ -2666,6 +2671,7 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.GITHUB_CLI_READY_PR:
                     from mcp_server_git.github.cli import gh_ready_pr
+
                     result = gh_ready_pr(
                         arguments["repo_path"],
                         arguments["pr_number"],
