@@ -60,6 +60,10 @@ tasks.json
 # UV lock file (using pixi for package management)
 uv.lock
 
+# Pixi environment and cache files
+.pixi/
+.ruff_cache/
+
 # Data directory (temporary/cache files)
 data/
 
