@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 import git
+from git import Repo
 from mcp.types import TextContent
 
 from .tools import GitToolRouter, ToolRegistry
@@ -271,10 +272,10 @@ class CallToolHandler:
         def handler(**kwargs):
             if requires_repo:
                 repo_path = Path(kwargs["repo_path"])
-                repo = git.Repo(repo_path)
+                repo: Repo = git.Repo(repo_path)
 
                 # Build arguments
-                args = [repo]
+                args: List[Any] = [repo]
                 if extra_args:
                     for arg in extra_args:
                         if arg in kwargs:
@@ -368,9 +369,9 @@ class CallToolHandler:
 
         def handler(**kwargs):
             repo_path = Path(kwargs["repo_path"])
-            repo = git.Repo(repo_path)
+            repo: Repo = git.Repo(repo_path)
 
-            args = [repo]
+            args: List[Any] = [repo]
             if extra_args:
                 for arg in extra_args:
                     if arg == "strict_mode":

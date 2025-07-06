@@ -6,17 +6,16 @@ This script provides a simplified MCP server without complex initialization
 that might interfere with MCP handshake.
 """
 
+import asyncio
 import sys
+import click
 from pathlib import Path
 
-# Add the source directory to the path BEFORE any other imports to avoid E402
+# Add the source directory to the path BEFORE project imports
 src_dir = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_dir))
 
-# Now, import everything else
-import asyncio
-import click
-from mcp_server_git.server_simple import main_simple
+from mcp_server_git.server_simple import main_simple  # noqa: E402
 
 
 @click.command()
