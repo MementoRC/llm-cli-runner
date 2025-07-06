@@ -36,12 +36,12 @@ jobs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.10
       with:
-        pixi-version: v0.49.0
+        pixi-version: v0.43.0
 
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi
-        pixi install
+        pixi install --frozen
 
     - name: Run ruff linting (critical violations)
       run: |
@@ -84,12 +84,12 @@ jobs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.10
       with:
-        pixi-version: v0.49.0
+        pixi-version: v0.43.0
 
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi
-        pixi install
+        pixi install --frozen
 
     - name: Configure Git for testing
       run: |
@@ -149,7 +149,7 @@ jobs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.10
       with:
-        pixi-version: v0.49.0
+        pixi-version: v0.43.0
 
     - name: Install dependencies
       run: pixi install
@@ -412,7 +412,7 @@ jobs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.10
       with:
-        pixi-version: v0.49.0
+        pixi-version: v0.43.0
 
     - name: Install dependencies
       run: pixi install
@@ -458,7 +458,7 @@ jobs:
     - name: Install pixi
       uses: prefix-dev/setup-pixi@v0.8.10
       with:
-        pixi-version: v0.49.0
+        pixi-version: v0.43.0
 
     - name: Install dependencies
       run: pixi install
