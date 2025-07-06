@@ -636,8 +636,13 @@ def git_abort(repo: Repo, operation: str) -> str:
         if operation not in valid_operations:
             return f"❌ Invalid operation '{operation}'. Valid operations: {', '.join(valid_operations)}"
 
-        # Perform abort
-        repo.git.execute(["git", f"{operation}", "--abort"])
+        # Perform abort using the same pattern as other operations
+        if operation == "rebase":
+            result = repo.git.rebase("--abort")
+        elif operation == "merge":
+            result = repo.git.merge("--abort")
+        elif operation == "cherry-pick":
+            result = repo.git.cherry_pick("--abort")
 
         return f"✅ Successfully aborted {operation}"
 
@@ -654,8 +659,13 @@ def git_continue(repo: Repo, operation: str) -> str:
         if operation not in valid_operations:
             return f"❌ Invalid operation '{operation}'. Valid operations: {', '.join(valid_operations)}"
 
-        # Perform continue
-        repo.git.execute(["git", f"{operation}", "--continue"])
+        # Perform continue using the same pattern as other operations
+        if operation == "rebase":
+            result = repo.git.rebase("--continue")
+        elif operation == "merge":
+            result = repo.git.merge("--continue")
+        elif operation == "cherry-pick":
+            result = repo.git.cherry_pick("--continue")
 
         return f"✅ Successfully continued {operation}"
 
