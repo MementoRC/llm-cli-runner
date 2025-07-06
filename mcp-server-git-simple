@@ -15,7 +15,7 @@ from pathlib import Path
 src_dir = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_dir))
 
-from mcp_server_git.server_simple import main_simple
+from mcp_server_git.server_simple import main_simple  # noqa: E402
 
 
 @click.command()
