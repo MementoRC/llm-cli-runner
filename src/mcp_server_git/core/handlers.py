@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional
 
 import git
 from git import Repo
