@@ -6,7 +6,7 @@ requirements for all type definitions in the MCP Git server.
 
 Test Structure:
 - test_git_types.py: Git domain type specifications
-- test_github_types.py: GitHub API type specifications  
+- test_github_types.py: GitHub API type specifications
 - test_mcp_types.py: MCP protocol type specifications
 - test_validation_types.py: Validation and error handling specifications
 

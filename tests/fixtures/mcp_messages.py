@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 class MCPMessageFactory:
     """Factory for creating MCP protocol messages."""
-    
+
     @staticmethod
     def initialize_request(protocol_version: str = "2024-11-05") -> Dict[str, Any]:
         """Create an MCP initialize request."""
@@ -22,19 +22,11 @@ class MCPMessageFactory:
             "method": "initialize",
             "params": {
                 "protocolVersion": protocol_version,
-                "capabilities": {
-                    "roots": {
-                        "listChanged": True
-                    },
-                    "sampling": {}
-                },
-                "clientInfo": {
-                    "name": "test-client",
-                    "version": "1.0.0"
-                }
-            }
+                "capabilities": {"roots": {"listChanged": True}, "sampling": {}},
+                "clientInfo": {"name": "test-client", "version": "1.0.0"},
+            },
         }
-    
+
     @staticmethod
     def initialize_response(server_name: str = "mcp-server-git") -> Dict[str, Any]:
         """Create an MCP initialize response."""
@@ -47,26 +39,21 @@ class MCPMessageFactory:
                     "tools": {},
                     "resources": {},
                     "prompts": {},
-                    "logging": {}
+                    "logging": {},
                 },
-                "serverInfo": {
-                    "name": server_name,
-                    "version": "0.6.3"
-                }
-            }
+                "serverInfo": {"name": server_name, "version": "0.6.3"},
+            },
         }
-    
+
     @staticmethod
     def list_tools_request() -> Dict[str, Any]:
         """Create a tools/list request."""
-        return {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list"
-        }
-    
+        return {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
+
     @staticmethod
-    def list_tools_response(tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def list_tools_response(
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """Create a tools/list response."""
         if tools is None:
             tools = [
@@ -78,22 +65,16 @@ class MCPMessageFactory:
                         "properties": {
                             "repo_path": {
                                 "type": "string",
-                                "description": "Path to Git repository"
+                                "description": "Path to Git repository",
                             }
                         },
-                        "required": ["repo_path"]
-                    }
+                        "required": ["repo_path"],
+                    },
                 }
             ]
-        
-        return {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "result": {
-                "tools": tools
-            }
-        }
-    
+
+        return {"jsonrpc": "2.0", "id": 2, "result": {"tools": tools}}
+
     @staticmethod
     def call_tool_request(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Create a tools/call request."""
@@ -101,12 +82,9 @@ class MCPMessageFactory:
             "jsonrpc": "2.0",
             "id": 3,
             "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
+            "params": {"name": tool_name, "arguments": arguments},
         }
-    
+
     @staticmethod
     def call_tool_response(content: str, is_error: bool = False) -> Dict[str, Any]:
         """Create a tools/call response."""
@@ -114,39 +92,32 @@ class MCPMessageFactory:
             "jsonrpc": "2.0",
             "id": 3,
             "result": {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": content
-                    }
-                ],
-                "isError": is_error
-            }
+                "content": [{"type": "text", "text": content}],
+                "isError": is_error,
+            },
         }
-    
+
     @staticmethod
-    def error_response(error_code: int, error_message: str, request_id: int = 1) -> Dict[str, Any]:
+    def error_response(
+        error_code: int, error_message: str, request_id: int = 1
+    ) -> Dict[str, Any]:
         """Create an error response."""
         return {
             "jsonrpc": "2.0",
             "id": request_id,
-            "error": {
-                "code": error_code,
-                "message": error_message
-            }
+            "error": {"code": error_code, "message": error_message},
         }
-    
+
     @staticmethod
-    def notification(method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def notification(
+        method: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Create an MCP notification."""
-        message = {
-            "jsonrpc": "2.0",
-            "method": method
-        }
-        
+        message = {"jsonrpc": "2.0", "method": method}
+
         if params is not None:
             message["params"] = params
-            
+
         return message
 
 
@@ -160,12 +131,12 @@ def mcp_message_factory():
 def mock_mcp_transport():
     """Create a mock MCP transport."""
     transport = MagicMock()
-    
+
     # Configure transport methods
     transport.send_message = MagicMock()
     transport.receive_message = MagicMock()
     transport.close = MagicMock()
-    
+
     return transport
 
 
@@ -177,12 +148,13 @@ def mcp_protocol_messages():
         "initialized": MCPMessageFactory.notification("notifications/initialized"),
         "list_tools": MCPMessageFactory.list_tools_request(),
         "call_git_status": MCPMessageFactory.call_tool_request(
-            "git_status", 
-            {"repo_path": "/tmp/test-repo"}
+            "git_status", {"repo_path": "/tmp/test-repo"}
         ),
         "server_error": MCPMessageFactory.error_response(-32603, "Internal error"),
         "invalid_params": MCPMessageFactory.error_response(-32602, "Invalid params"),
-        "method_not_found": MCPMessageFactory.error_response(-32601, "Method not found")
+        "method_not_found": MCPMessageFactory.error_response(
+            -32601, "Method not found"
+        ),
     }
 
 
@@ -196,5 +168,7 @@ def mcp_test_session():
         MCPMessageFactory.list_tools_request(),
         MCPMessageFactory.list_tools_response(),
         MCPMessageFactory.call_tool_request("git_status", {"repo_path": "/tmp/test"}),
-        MCPMessageFactory.call_tool_response("On branch main\nnothing to commit, working tree clean")
+        MCPMessageFactory.call_tool_response(
+            "On branch main\nnothing to commit, working tree clean"
+        ),
     ]

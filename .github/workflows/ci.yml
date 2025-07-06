@@ -101,12 +101,13 @@ jobs:
       run: |
         # Run tests with pixi environment (includes all dependencies)
         pixi run -e dev python -m pytest --verbose --tb=short \
-          --timeout=300 \
+          --timeout=60 \
           --cov=src/mcp_server_git \
           --cov-report=xml \
           --cov-report=term-missing \
           --junit-xml=pytest-results.xml \
           -m "not ci_skip and not e2e and not slow and not stress" \
+          tests/unit/ tests/integration/ \
           -x
 
     - name: Upload test results
