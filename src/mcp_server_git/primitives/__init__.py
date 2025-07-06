@@ -44,10 +44,13 @@ See also:
     - constants: Constants and configuration values
 """
 
-# Placeholder exports - will be populated as modules are implemented
+# Import git primitives
+from . import git_primitives
+
+# Exports
 __all__: list[str] = [
-    # Git primitive operations - to be implemented in Task 19
-    # "git_primitives",
+    # Git primitive operations - implemented in Task 19
+    "git_primitives",
     # GitHub primitive operations - to be implemented in Task 20
     # "github_primitives",
     # Validation primitive operations - to be implemented
