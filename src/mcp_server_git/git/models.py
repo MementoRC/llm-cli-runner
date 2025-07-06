@@ -87,6 +87,8 @@ class GitDiffBranches(BaseModel):
     repo_path: str
     base_branch: str
     compare_branch: str
+    stat_only: Optional[bool] = False
+    max_lines: Optional[int] = None
 
 
 class GitRebase(BaseModel):

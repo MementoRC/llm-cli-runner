@@ -493,8 +493,14 @@ def git_pull(repo: Repo, remote: str = "origin", branch: Optional[str] = None) -
         return f"❌ Pull error: {str(e)}"
 
 
-def git_diff_branches(repo: Repo, base_branch: str, compare_branch: str) -> str:
-    """Show differences between two branches"""
+def git_diff_branches(
+    repo: Repo, 
+    base_branch: str, 
+    compare_branch: str,
+    stat_only: bool = False,
+    max_lines: Optional[int] = None
+) -> str:
+    """Show differences between two branches with size limiting options"""
     try:
         # Verify branches exist
         all_branches = [branch.name for branch in repo.branches] + [
@@ -506,11 +512,37 @@ def git_diff_branches(repo: Repo, base_branch: str, compare_branch: str) -> str:
         if compare_branch not in all_branches:
             return f"❌ Compare branch '{compare_branch}' not found"
 
-        # Get diff between branches
-        diff_output = repo.git.diff(f"{base_branch}...{compare_branch}")
+        # Build diff command arguments
+        diff_range = f"{base_branch}...{compare_branch}"
+        
+        if stat_only:
+            # Return only file statistics
+            diff_output = repo.git.diff("--stat", diff_range)
+            if not diff_output.strip():
+                return f"No differences between {base_branch} and {compare_branch}"
+            return f"Diff statistics between {base_branch} and {compare_branch}:\n{diff_output}"
+        
+        # Get full diff
+        diff_output = repo.git.diff(diff_range)
 
         if not diff_output.strip():
             return f"No differences between {base_branch} and {compare_branch}"
+
+        # Apply line limit if specified
+        if max_lines and max_lines > 0:
+            lines = diff_output.split('\n')
+            if len(lines) > max_lines:
+                truncated_output = '\n'.join(lines[:max_lines])
+                truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
+                truncated_output += f"\nUse --stat flag for summary or increase max_lines for more content"
+                return truncated_output
+        
+        # Check if output is extremely large and warn
+        if len(diff_output) > 50000:  # 50KB threshold
+            lines_count = len(diff_output.split('\n'))
+            warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
+            warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+            return warning + diff_output
 
         return diff_output
 

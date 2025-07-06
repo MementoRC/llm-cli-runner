@@ -463,7 +463,11 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.DIFF_BRANCHES:
                         branches_diff = git_diff_branches(
-                            repo, arguments["base_branch"], arguments["compare_branch"]
+                            repo, 
+                            arguments["base_branch"], 
+                            arguments["compare_branch"],
+                            arguments.get("stat_only", False),
+                            arguments.get("max_lines")
                         )
                         result = [
                             TextContent(
