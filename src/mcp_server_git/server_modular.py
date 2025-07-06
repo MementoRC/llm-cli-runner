@@ -723,4 +723,4 @@ async def serve_modular(repository: Path | None = None):
     logger.info(f"📡 Server listening (startup took {initialization_time:.2f}s)")
 
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, raise_exceptions=False)
+        await server.run(read_stream, write_stream, initialization_options={}, raise_exceptions=False)
