@@ -351,13 +351,13 @@ async def serve_modular(repository: Path | None = None):
                             modular_git_diff_unstaged(
                                 repo,
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                             if USE_MODULAR_GIT
                             else git_diff_unstaged(
                                 repo,
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                         )
                         result = [
@@ -369,13 +369,13 @@ async def serve_modular(repository: Path | None = None):
                             modular_git_diff_staged(
                                 repo,
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                             if USE_MODULAR_GIT
                             else git_diff_staged(
                                 repo,
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                         )
                         result = [
@@ -385,17 +385,17 @@ async def serve_modular(repository: Path | None = None):
                     case GitTools.DIFF:
                         diff = (
                             modular_git_diff(
-                                repo, 
+                                repo,
                                 arguments["target"],
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                             if USE_MODULAR_GIT
                             else git_diff(
-                                repo, 
+                                repo,
                                 arguments["target"],
                                 arguments.get("stat_only", False),
-                                arguments.get("max_lines")
+                                arguments.get("max_lines"),
                             )
                         )
                         result = [
@@ -463,10 +463,10 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.SHOW:
                         show_result = git_show(
-                            repo, 
+                            repo,
                             arguments["revision"],
                             arguments.get("stat_only", False),
-                            arguments.get("max_lines")
+                            arguments.get("max_lines"),
                         )
                         result = [
                             TextContent(
@@ -494,11 +494,11 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.DIFF_BRANCHES:
                         branches_diff = git_diff_branches(
-                            repo, 
-                            arguments["base_branch"], 
+                            repo,
+                            arguments["base_branch"],
                             arguments["compare_branch"],
                             arguments.get("stat_only", False),
-                            arguments.get("max_lines")
+                            arguments.get("max_lines"),
                         )
                         result = [
                             TextContent(
@@ -723,4 +723,6 @@ async def serve_modular(repository: Path | None = None):
     logger.info(f"📡 Server listening (startup took {initialization_time:.2f}s)")
 
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, initialization_options={}, raise_exceptions=False)
+        await server.run(
+            read_stream, write_stream, initialization_options={}, raise_exceptions=False
+        )

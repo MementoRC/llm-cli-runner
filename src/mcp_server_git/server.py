@@ -2370,7 +2370,7 @@ Provide specific, actionable recommendations for each area."""
                     diff = git_diff_unstaged(
                         repo,
                         arguments.get("stat_only", False),
-                        arguments.get("max_lines")
+                        arguments.get("max_lines"),
                     )
                     return [TextContent(type="text", text=f"Unstaged changes:\n{diff}")]
 
@@ -2378,16 +2378,16 @@ Provide specific, actionable recommendations for each area."""
                     diff = git_diff_staged(
                         repo,
                         arguments.get("stat_only", False),
-                        arguments.get("max_lines")
+                        arguments.get("max_lines"),
                     )
                     return [TextContent(type="text", text=f"Staged changes:\n{diff}")]
 
                 case GitTools.DIFF:
                     diff = git_diff(
-                        repo, 
+                        repo,
                         arguments["target"],
                         arguments.get("stat_only", False),
-                        arguments.get("max_lines")
+                        arguments.get("max_lines"),
                     )
                     return [
                         TextContent(
@@ -2440,10 +2440,10 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.SHOW:
                     result = git_show(
-                        repo, 
+                        repo,
                         arguments["revision"],
                         arguments.get("stat_only", False),
-                        arguments.get("max_lines")
+                        arguments.get("max_lines"),
                     )
                     return [TextContent(type="text", text=result)]
 
@@ -2465,11 +2465,11 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.DIFF_BRANCHES:
                     result = git_diff_branches(
-                        repo, 
-                        arguments["base_branch"], 
+                        repo,
+                        arguments["base_branch"],
                         arguments["compare_branch"],
                         arguments.get("stat_only", False),
-                        arguments.get("max_lines", None)
+                        arguments.get("max_lines", None),
                     )
                     return [TextContent(type="text", text=result)]
 
