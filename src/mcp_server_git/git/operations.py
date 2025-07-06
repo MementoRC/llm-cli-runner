@@ -42,7 +42,7 @@ def _apply_diff_size_limiting(
     # Check if output is extremely large and warn
     if len(diff_output) > 50000:  # 50KB threshold
         lines_count = len(diff_output.split("\n"))
-        warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
+        warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output) // 1000}KB)\n"
         warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
         return warning + diff_output
 
@@ -479,7 +479,7 @@ def git_show(
         # Check if output is extremely large and warn
         if len(show_output) > 50000:  # 50KB threshold
             lines_count = len(show_output.split("\n"))
-            warning = f"⚠️  Large commit detected ({lines_count} lines, ~{len(show_output)//1000}KB)\n"
+            warning = f"⚠️  Large commit detected ({lines_count} lines, ~{len(show_output) // 1000}KB)\n"
             warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
             return warning + show_output
 
@@ -667,7 +667,7 @@ def git_diff_branches(
         # Check if output is extremely large and warn
         if len(diff_output) > 50000:  # 50KB threshold
             lines_count = len(diff_output.split("\n"))
-            warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
+            warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output) // 1000}KB)\n"
             warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
             return warning + diff_output
 
