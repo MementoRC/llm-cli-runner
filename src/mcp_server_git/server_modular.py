@@ -348,9 +348,17 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.DIFF_UNSTAGED:
                         diff = (
-                            modular_git_diff_unstaged(repo)
+                            modular_git_diff_unstaged(
+                                repo,
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                             if USE_MODULAR_GIT
-                            else git_diff_unstaged(repo)
+                            else git_diff_unstaged(
+                                repo,
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                         )
                         result = [
                             TextContent(type="text", text=f"Unstaged changes:\n{diff}")
@@ -358,9 +366,17 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.DIFF_STAGED:
                         diff = (
-                            modular_git_diff_staged(repo)
+                            modular_git_diff_staged(
+                                repo,
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                             if USE_MODULAR_GIT
-                            else git_diff_staged(repo)
+                            else git_diff_staged(
+                                repo,
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                         )
                         result = [
                             TextContent(type="text", text=f"Staged changes:\n{diff}")
@@ -368,9 +384,19 @@ async def serve_modular(repository: Path | None = None):
 
                     case GitTools.DIFF:
                         diff = (
-                            modular_git_diff(repo, arguments["target"])
+                            modular_git_diff(
+                                repo, 
+                                arguments["target"],
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                             if USE_MODULAR_GIT
-                            else git_diff(repo, arguments["target"])
+                            else git_diff(
+                                repo, 
+                                arguments["target"],
+                                arguments.get("stat_only", False),
+                                arguments.get("max_lines")
+                            )
                         )
                         result = [
                             TextContent(
@@ -436,7 +462,12 @@ async def serve_modular(repository: Path | None = None):
                         result = [TextContent(type="text", text=checkout_result)]
 
                     case GitTools.SHOW:
-                        show_result = git_show(repo, arguments["revision"])
+                        show_result = git_show(
+                            repo, 
+                            arguments["revision"],
+                            arguments.get("stat_only", False),
+                            arguments.get("max_lines")
+                        )
                         result = [
                             TextContent(
                                 type="text", text=f"Commit details:\n{show_result}"

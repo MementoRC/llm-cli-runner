@@ -2367,15 +2367,28 @@ Provide specific, actionable recommendations for each area."""
                     ]
 
                 case GitTools.DIFF_UNSTAGED:
-                    diff = git_diff_unstaged(repo)
+                    diff = git_diff_unstaged(
+                        repo,
+                        arguments.get("stat_only", False),
+                        arguments.get("max_lines")
+                    )
                     return [TextContent(type="text", text=f"Unstaged changes:\n{diff}")]
 
                 case GitTools.DIFF_STAGED:
-                    diff = git_diff_staged(repo)
+                    diff = git_diff_staged(
+                        repo,
+                        arguments.get("stat_only", False),
+                        arguments.get("max_lines")
+                    )
                     return [TextContent(type="text", text=f"Staged changes:\n{diff}")]
 
                 case GitTools.DIFF:
-                    diff = git_diff(repo, arguments["target"])
+                    diff = git_diff(
+                        repo, 
+                        arguments["target"],
+                        arguments.get("stat_only", False),
+                        arguments.get("max_lines")
+                    )
                     return [
                         TextContent(
                             type="text",
@@ -2426,7 +2439,12 @@ Provide specific, actionable recommendations for each area."""
                     return [TextContent(type="text", text=result)]
 
                 case GitTools.SHOW:
-                    result = git_show(repo, arguments["revision"])
+                    result = git_show(
+                        repo, 
+                        arguments["revision"],
+                        arguments.get("stat_only", False),
+                        arguments.get("max_lines")
+                    )
                     return [TextContent(type="text", text=result)]
 
                 case GitTools.PUSH:

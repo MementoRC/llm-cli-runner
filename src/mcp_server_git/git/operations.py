@@ -14,6 +14,39 @@ from git import (
 logger = logging.getLogger(__name__)
 
 
+def _apply_diff_size_limiting(
+    diff_output: str, 
+    operation_name: str,
+    stat_only: bool = False,
+    max_lines: Optional[int] = None
+) -> str:
+    """Apply size limiting to diff outputs with consistent formatting"""
+    if not diff_output.strip():
+        return f"No changes detected in {operation_name}"
+    
+    if stat_only:
+        # This should be handled by the caller using --stat flag
+        return diff_output
+    
+    # Apply line limit if specified
+    if max_lines and max_lines > 0:
+        lines = diff_output.split('\n')
+        if len(lines) > max_lines:
+            truncated_output = '\n'.join(lines[:max_lines])
+            truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
+            truncated_output += f"\nUse stat_only=true for summary or increase max_lines for more content"
+            return truncated_output
+    
+    # Check if output is extremely large and warn
+    if len(diff_output) > 50000:  # 50KB threshold
+        lines_count = len(diff_output.split('\n'))
+        warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
+        warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+        return warning + diff_output
+    
+    return diff_output
+
+
 def git_status(repo: Repo, porcelain: bool = False) -> str:
     """Get repository status in either human-readable or machine-readable format.
 
@@ -30,19 +63,65 @@ def git_status(repo: Repo, porcelain: bool = False) -> str:
         return repo.git.status()
 
 
-def git_diff_unstaged(repo: Repo) -> str:
-    """Get unstaged changes diff"""
-    return repo.git.diff()
+def git_diff_unstaged(
+    repo: Repo, 
+    stat_only: bool = False, 
+    max_lines: Optional[int] = None
+) -> str:
+    """Get unstaged changes diff with size limiting options"""
+    try:
+        if stat_only:
+            diff_output = repo.git.diff("--stat")
+            return f"Unstaged changes summary:\n{diff_output}" if diff_output.strip() else "No unstaged changes"
+        
+        diff_output = repo.git.diff()
+        return _apply_diff_size_limiting(diff_output, "unstaged changes", stat_only, max_lines)
+    
+    except GitCommandError as e:
+        return f"❌ Diff unstaged failed: {str(e)}"
+    except Exception as e:
+        return f"❌ Diff unstaged error: {str(e)}"
 
 
-def git_diff_staged(repo: Repo) -> str:
-    """Get staged changes diff"""
-    return repo.git.diff("--cached")
+def git_diff_staged(
+    repo: Repo, 
+    stat_only: bool = False, 
+    max_lines: Optional[int] = None
+) -> str:
+    """Get staged changes diff with size limiting options"""
+    try:
+        if stat_only:
+            diff_output = repo.git.diff("--cached", "--stat")
+            return f"Staged changes summary:\n{diff_output}" if diff_output.strip() else "No staged changes"
+        
+        diff_output = repo.git.diff("--cached")
+        return _apply_diff_size_limiting(diff_output, "staged changes", stat_only, max_lines)
+    
+    except GitCommandError as e:
+        return f"❌ Diff staged failed: {str(e)}"
+    except Exception as e:
+        return f"❌ Diff staged error: {str(e)}"
 
 
-def git_diff(repo: Repo, target: str) -> str:
-    """Get diff against target ref"""
-    return repo.git.diff(target)
+def git_diff(
+    repo: Repo, 
+    target: str, 
+    stat_only: bool = False, 
+    max_lines: Optional[int] = None
+) -> str:
+    """Get diff against target ref with size limiting options"""
+    try:
+        if stat_only:
+            diff_output = repo.git.diff("--stat", target)
+            return f"Diff against {target} summary:\n{diff_output}" if diff_output.strip() else f"No differences against {target}"
+        
+        diff_output = repo.git.diff(target)
+        return _apply_diff_size_limiting(diff_output, f"diff against {target}", stat_only, max_lines)
+    
+    except GitCommandError as e:
+        return f"❌ Diff failed: {str(e)}"
+    except Exception as e:
+        return f"❌ Diff error: {str(e)}"
 
 
 def git_commit(
@@ -353,11 +432,38 @@ def git_checkout(repo: Repo, branch_name: str) -> str:
         return f"❌ Checkout error: {str(e)}"
 
 
-def git_show(repo: Repo, revision: str) -> str:
-    """Show commit details with diff"""
+def git_show(
+    repo: Repo, 
+    revision: str, 
+    stat_only: bool = False, 
+    max_lines: Optional[int] = None
+) -> str:
+    """Show commit details with diff and size limiting options"""
     try:
-        # Get commit details
+        if stat_only:
+            # Return only commit info and file statistics
+            show_output = repo.git.show("--stat", revision)
+            return f"Commit details for {revision}:\n{show_output}"
+        
+        # Get full commit details
         show_output = repo.git.show(revision)
+
+        # Apply line limit if specified
+        if max_lines and max_lines > 0:
+            lines = show_output.split('\n')
+            if len(lines) > max_lines:
+                truncated_output = '\n'.join(lines[:max_lines])
+                truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
+                truncated_output += f"\nUse stat_only=true for summary or increase max_lines for more content"
+                return truncated_output
+        
+        # Check if output is extremely large and warn
+        if len(show_output) > 50000:  # 50KB threshold
+            lines_count = len(show_output.split('\n'))
+            warning = f"⚠️  Large commit detected ({lines_count} lines, ~{len(show_output)//1000}KB)\n"
+            warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+            return warning + show_output
+
         return show_output
 
     except GitCommandError as e:

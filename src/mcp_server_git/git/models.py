@@ -11,15 +11,21 @@ class GitStatus(BaseModel):
 
 class GitDiffUnstaged(BaseModel):
     repo_path: str
+    stat_only: Optional[bool] = False
+    max_lines: Optional[int] = None
 
 
 class GitDiffStaged(BaseModel):
     repo_path: str
+    stat_only: Optional[bool] = False
+    max_lines: Optional[int] = None
 
 
 class GitDiff(BaseModel):
     repo_path: str
     target: str
+    stat_only: Optional[bool] = False
+    max_lines: Optional[int] = None
 
 
 class GitCommit(BaseModel):
@@ -63,6 +69,8 @@ class GitCheckout(BaseModel):
 class GitShow(BaseModel):
     repo_path: str
     revision: str
+    stat_only: Optional[bool] = False
+    max_lines: Optional[int] = None
 
 
 class GitInit(BaseModel):
