@@ -34,14 +34,14 @@ def _apply_diff_size_limiting(
         if len(lines) > max_lines:
             truncated_output = '\n'.join(lines[:max_lines])
             truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
-            truncated_output += f"\nUse stat_only=true for summary or increase max_lines for more content"
+            truncated_output += "\nUse stat_only=true for summary or increase max_lines for more content"
             return truncated_output
     
     # Check if output is extremely large and warn
     if len(diff_output) > 50000:  # 50KB threshold
         lines_count = len(diff_output.split('\n'))
         warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
-        warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+        warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
         return warning + diff_output
     
     return diff_output
@@ -454,14 +454,14 @@ def git_show(
             if len(lines) > max_lines:
                 truncated_output = '\n'.join(lines[:max_lines])
                 truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
-                truncated_output += f"\nUse stat_only=true for summary or increase max_lines for more content"
+                truncated_output += "\nUse stat_only=true for summary or increase max_lines for more content"
                 return truncated_output
         
         # Check if output is extremely large and warn
         if len(show_output) > 50000:  # 50KB threshold
             lines_count = len(show_output.split('\n'))
             warning = f"⚠️  Large commit detected ({lines_count} lines, ~{len(show_output)//1000}KB)\n"
-            warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+            warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
             return warning + show_output
 
         return show_output
@@ -640,14 +640,14 @@ def git_diff_branches(
             if len(lines) > max_lines:
                 truncated_output = '\n'.join(lines[:max_lines])
                 truncated_output += f"\n\n... [Truncated: showing {max_lines} of {len(lines)} lines]"
-                truncated_output += f"\nUse --stat flag for summary or increase max_lines for more content"
+                truncated_output += "\nUse --stat flag for summary or increase max_lines for more content"
                 return truncated_output
         
         # Check if output is extremely large and warn
         if len(diff_output) > 50000:  # 50KB threshold
             lines_count = len(diff_output.split('\n'))
             warning = f"⚠️  Large diff detected ({lines_count} lines, ~{len(diff_output)//1000}KB)\n"
-            warning += f"Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
+            warning += "Consider using stat_only=true for summary or max_lines parameter to limit output\n\n"
             return warning + diff_output
 
         return diff_output
@@ -776,11 +776,11 @@ def git_abort(repo: Repo, operation: str) -> str:
 
         # Perform abort using the same pattern as other operations
         if operation == "rebase":
-            result = repo.git.rebase("--abort")
+            repo.git.rebase("--abort")
         elif operation == "merge":
-            result = repo.git.merge("--abort")
+            repo.git.merge("--abort")
         elif operation == "cherry-pick":
-            result = repo.git.cherry_pick("--abort")
+            repo.git.cherry_pick("--abort")
 
         return f"✅ Successfully aborted {operation}"
 
@@ -799,11 +799,11 @@ def git_continue(repo: Repo, operation: str) -> str:
 
         # Perform continue using the same pattern as other operations
         if operation == "rebase":
-            result = repo.git.rebase("--continue")
+            repo.git.rebase("--continue")
         elif operation == "merge":
-            result = repo.git.merge("--continue")
+            repo.git.merge("--continue")
         elif operation == "cherry-pick":
-            result = repo.git.cherry_pick("--continue")
+            repo.git.cherry_pick("--continue")
 
         return f"✅ Successfully continued {operation}"
 
