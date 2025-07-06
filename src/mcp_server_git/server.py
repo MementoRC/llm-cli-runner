@@ -2447,7 +2447,11 @@ Provide specific, actionable recommendations for each area."""
 
                 case GitTools.DIFF_BRANCHES:
                     result = git_diff_branches(
-                        repo, arguments["base_branch"], arguments["compare_branch"]
+                        repo, 
+                        arguments["base_branch"], 
+                        arguments["compare_branch"],
+                        arguments.get("stat_only", False),
+                        arguments.get("max_lines", None)
                     )
                     return [TextContent(type="text", text=result)]
 
