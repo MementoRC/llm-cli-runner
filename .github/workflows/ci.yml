@@ -3,9 +3,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop, development]
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop, development]
 
 env:
   PYTHONNOUSERSITE: 1
