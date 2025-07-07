@@ -5,9 +5,9 @@ These tests define the behavioral requirements for atomic Git operations
 that serve as the foundation for higher-level Git functionality.
 
 CRITICAL: These tests are IMMUTABLE once complete. They define the interface
-and behavior that the git_primitives module MUST implement. 
+and behavior that the git_primitives module MUST implement.
 
-DO NOT modify these tests to match implementation - implementation must 
+DO NOT modify these tests to match implementation - implementation must
 satisfy these tests to prevent the LLM compliance issue.
 """
 
@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import subprocess
 
-# Import the primitives we expect to be implemented  
+# Import the primitives we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.primitives.git_primitives import (
@@ -36,6 +36,7 @@ try:
         GitRepositoryError,
         GitValidationError,
     )
+
     PRIMITIVES_AVAILABLE = True
 except ImportError:
     PRIMITIVES_AVAILABLE = False
@@ -52,13 +53,16 @@ class TestExecuteGitCommand:
             mock_result.returncode = 0
             mock_result.stdout = "On branch main\nnothing to commit, working tree clean"
             mock_result.stderr = ""
-            
+
             # ACT & ASSERT: Should execute command successfully
-            with patch('subprocess.run', return_value=mock_result):
+            with patch("subprocess.run", return_value=mock_result):
                 result = execute_git_command("/tmp/repo", ["status", "--porcelain"])
-                
+
                 assert result.success is True
-                assert result.output == "On branch main\nnothing to commit, working tree clean"
+                assert (
+                    result.output
+                    == "On branch main\nnothing to commit, working tree clean"
+                )
                 assert result.error is None
                 assert result.return_code == 0
         else:
@@ -72,11 +76,11 @@ class TestExecuteGitCommand:
             mock_result.returncode = 128
             mock_result.stdout = ""
             mock_result.stderr = "fatal: not a git repository"
-            
+
             # ACT & ASSERT: Should handle failure gracefully
-            with patch('subprocess.run', return_value=mock_result):
+            with patch("subprocess.run", return_value=mock_result):
                 result = execute_git_command("/tmp/not-repo", ["status"])
-                
+
                 assert result.success is False
                 assert result.error == "fatal: not a git repository"
                 assert result.return_code == 128
@@ -87,7 +91,7 @@ class TestExecuteGitCommand:
             # ACT & ASSERT: Should raise error for non-existent path
             with pytest.raises(GitRepositoryError) as exc_info:
                 execute_git_command("/does/not/exist", ["status"])
-            
+
             assert "repository path does not exist" in str(exc_info.value).lower()
 
     def test_should_validate_git_command_format(self):
@@ -96,17 +100,19 @@ class TestExecuteGitCommand:
             # ACT & ASSERT: Should raise error for invalid commands
             with pytest.raises(GitCommandError) as exc_info:
                 execute_git_command("/tmp/repo", [])  # Empty command
-            
+
             assert "invalid git command" in str(exc_info.value).lower()
 
     def test_should_handle_command_timeout(self):
         """execute_git_command should handle command timeouts."""
         if PRIMITIVES_AVAILABLE:
             # ARRANGE: Mock timeout
-            with patch('subprocess.run', side_effect=subprocess.TimeoutExpired("git", 30)):
+            with patch(
+                "subprocess.run", side_effect=subprocess.TimeoutExpired("git", 30)
+            ):
                 # ACT & ASSERT: Should handle timeout gracefully
                 result = execute_git_command("/tmp/repo", ["log"], timeout=30)
-                
+
                 assert result.success is False
                 assert "timeout" in result.error.lower()
 
@@ -158,7 +164,7 @@ class TestRepositoryValidation:
             # ACT & ASSERT: Should raise validation error
             with pytest.raises(GitValidationError) as exc_info:
                 validate_repository_path("/does/not/exist")
-            
+
             assert "invalid repository path" in str(exc_info.value).lower()
 
 
@@ -172,11 +178,14 @@ class TestRepositoryStatus:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = ""  # Empty porcelain output = clean
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get repository status
                 status = get_repository_status("/tmp/repo")
-                
+
                 # ASSERT: Should indicate clean repository
                 assert status.is_clean is True
                 assert len(status.modified_files) == 0
@@ -190,11 +199,14 @@ class TestRepositoryStatus:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = " M file1.py\n?? file2.py\nA  file3.py"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get repository status
                 status = get_repository_status("/tmp/repo")
-                
+
                 # ASSERT: Should parse all file statuses correctly
                 assert status.is_clean is False
                 assert "file1.py" in status.modified_files
@@ -207,12 +219,17 @@ class TestRepositoryStatus:
             # ARRANGE: Mock git status output with staged files
             mock_result = MagicMock()
             mock_result.success = True
-            mock_result.output = "A  staged1.py\nM  staged2.py\n M unstaged.py\n?? untracked.py"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+            mock_result.output = (
+                "A  staged1.py\nM  staged2.py\n M unstaged.py\n?? untracked.py"
+            )
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get staged files
                 staged_files = get_staged_files("/tmp/repo")
-                
+
                 # ASSERT: Should return only staged files
                 assert "staged1.py" in staged_files
                 assert "staged2.py" in staged_files
@@ -225,12 +242,17 @@ class TestRepositoryStatus:
             # ARRANGE: Mock git status output with unstaged files
             mock_result = MagicMock()
             mock_result.success = True
-            mock_result.output = "A  staged.py\n M unstaged1.py\n D unstaged2.py\n?? untracked.py"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+            mock_result.output = (
+                "A  staged.py\n M unstaged1.py\n D unstaged2.py\n?? untracked.py"
+            )
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get unstaged files
                 unstaged_files = get_unstaged_files("/tmp/repo")
-                
+
                 # ASSERT: Should return only unstaged modified files
                 assert "unstaged1.py" in unstaged_files
                 assert "unstaged2.py" in unstaged_files
@@ -243,12 +265,17 @@ class TestRepositoryStatus:
             # ARRANGE: Mock git status output with untracked files
             mock_result = MagicMock()
             mock_result.success = True
-            mock_result.output = "A  staged.py\n M modified.py\n?? untracked1.py\n?? untracked2.py"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+            mock_result.output = (
+                "A  staged.py\n M modified.py\n?? untracked1.py\n?? untracked2.py"
+            )
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get untracked files
                 untracked_files = get_untracked_files("/tmp/repo")
-                
+
                 # ASSERT: Should return only untracked files
                 assert "untracked1.py" in untracked_files
                 assert "untracked2.py" in untracked_files
@@ -266,11 +293,14 @@ class TestBranchOperations:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = "main"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get current branch
                 branch = get_current_branch("/tmp/repo")
-                
+
                 # ASSERT: Should return branch name
                 assert branch == "main"
 
@@ -281,11 +311,14 @@ class TestBranchOperations:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = "HEAD detached at a1b2c3d"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get current branch
                 branch = get_current_branch("/tmp/repo")
-                
+
                 # ASSERT: Should return None or special indicator for detached HEAD
                 assert branch is None or branch == "HEAD"
 
@@ -300,11 +333,14 @@ class TestCommitOperations:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = "a1b2c3d4e5f6789012345678901234567890abcd"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get commit hash
                 commit_hash = get_commit_hash("/tmp/repo")
-                
+
                 # ASSERT: Should return full commit hash
                 assert commit_hash == "a1b2c3d4e5f6789012345678901234567890abcd"
                 assert len(commit_hash) == 40
@@ -316,11 +352,14 @@ class TestCommitOperations:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.output = "a1b2c3d"
-            
-            with patch('mcp_server_git.primitives.git_primitives.execute_git_command', return_value=mock_result):
+
+            with patch(
+                "mcp_server_git.primitives.git_primitives.execute_git_command",
+                return_value=mock_result,
+            ):
                 # ACT: Get short commit hash
                 commit_hash = get_commit_hash("/tmp/repo", short=True)
-                
+
                 # ASSERT: Should return short commit hash
                 assert commit_hash == "a1b2c3d"
                 assert len(commit_hash) == 7
@@ -339,10 +378,10 @@ D  file3.py
 ?? file4.py
 R  file5.py -> file6.py
 C  file7.py -> file8.py"""
-            
+
             # ACT: Parse status output
             parsed = parse_git_status_output(status_output)
-            
+
             # ASSERT: Should correctly categorize all files
             assert "file1.py" in parsed.modified_files
             assert "file2.py" in parsed.added_files
@@ -369,10 +408,10 @@ Author: Jane Smith <jane@example.com>
 Date:   Sun Nov 30 15:30:00 2023 +0000
 
     fix: resolve memory leak in cache manager"""
-            
+
             # ACT: Parse log output
             commits = parse_git_log_output(log_output)
-            
+
             # ASSERT: Should parse all commit information
             assert len(commits) == 2
             assert commits[0].hash == "a1b2c3d4e5f6789012345678901234567890abcd"
@@ -388,13 +427,15 @@ class TestErrorHandling:
         """format_git_error should create human-readable error messages."""
         if PRIMITIVES_AVAILABLE:
             # ARRANGE: Raw git error
-            raw_error = "fatal: not a git repository (or any of the parent directories): .git"
+            raw_error = (
+                "fatal: not a git repository (or any of the parent directories): .git"
+            )
             command = ["git", "status"]
             repo_path = "/tmp/not-repo"
-            
+
             # ACT: Format error
             formatted = format_git_error(raw_error, command, repo_path)
-            
+
             # ASSERT: Should provide helpful error message
             assert "git repository" in formatted.message.lower()
             assert repo_path in formatted.context
@@ -406,7 +447,9 @@ class TestErrorHandling:
         if PRIMITIVES_AVAILABLE:
             # ACT & ASSERT: Should provide debug context
             try:
-                raise GitCommandError("Command failed", command=["git", "status"], repo_path="/tmp/repo")
+                raise GitCommandError(
+                    "Command failed", command=["git", "status"], repo_path="/tmp/repo"
+                )
             except GitCommandError as e:
                 assert hasattr(e, "command")
                 assert hasattr(e, "repo_path")
@@ -418,7 +461,9 @@ class TestErrorHandling:
         if PRIMITIVES_AVAILABLE:
             # ACT & ASSERT: Should provide repository context
             try:
-                raise GitRepositoryError("Repository not found", repo_path="/tmp/missing")
+                raise GitRepositoryError(
+                    "Repository not found", repo_path="/tmp/missing"
+                )
             except GitRepositoryError as e:
                 assert hasattr(e, "repo_path")
                 assert hasattr(e, "suggested_action")
@@ -428,7 +473,9 @@ class TestErrorHandling:
         if PRIMITIVES_AVAILABLE:
             # ACT & ASSERT: Should provide validation details
             try:
-                raise GitValidationError("Invalid branch name", field="branch", value="invalid..name")
+                raise GitValidationError(
+                    "Invalid branch name", field="branch", value="invalid..name"
+                )
             except GitValidationError as e:
                 assert hasattr(e, "field")
                 assert hasattr(e, "value")
@@ -444,7 +491,7 @@ class TestPrimitiveIntegration:
         if PRIMITIVES_AVAILABLE:
             # ARRANGE: Mock repository
             repo_path = "/tmp/test-repo"
-            
+
             with (
                 patch("pathlib.Path.exists", return_value=True),
                 patch("pathlib.Path.is_dir", return_value=True),
@@ -453,7 +500,7 @@ class TestPrimitiveIntegration:
                 # ACT: Use multiple primitives together
                 is_valid = is_git_repository(repo_path)
                 validated_path = validate_repository_path(repo_path)
-                
+
                 # ASSERT: Should work together seamlessly
                 assert is_valid is True
                 assert validated_path.is_valid is True
@@ -463,14 +510,14 @@ class TestPrimitiveIntegration:
         if PRIMITIVES_AVAILABLE:
             # Test that all functions handle invalid repository paths consistently
             invalid_path = "/does/not/exist"
-            
+
             # All these should raise appropriate errors
             with pytest.raises((GitRepositoryError, GitValidationError)):
                 get_repository_status(invalid_path)
-            
+
             with pytest.raises((GitRepositoryError, GitValidationError)):
                 get_current_branch(invalid_path)
-            
+
             with pytest.raises((GitRepositoryError, GitValidationError)):
                 get_commit_hash(invalid_path)
 

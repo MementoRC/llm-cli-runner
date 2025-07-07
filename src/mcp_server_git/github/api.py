@@ -802,7 +802,9 @@ async def github_create_issue(
 
         result = await response.json()
         logger.info(f"✅ Successfully created issue #{result['number']}")
-        return f"✅ Successfully created issue #{result['number']}: {result['html_url']}"
+        return (
+            f"✅ Successfully created issue #{result['number']}: {result['html_url']}"
+        )
 
     except Exception as e:
         logger.error(f"❌ Failed to create issue: {e}", exc_info=True)
@@ -882,17 +884,17 @@ async def github_list_issues(
             state_emoji = {"open": "🟢", "closed": "🔴"}.get(issue.get("state"), "❓")
             output.append(f"{state_emoji} #{issue['number']}: {issue['title']}")
             output.append(f"   Author: {issue.get('user', {}).get('login', 'N/A')}")
-            
+
             # Show labels if any
             if issue.get("labels"):
-                label_names = [label['name'] for label in issue['labels']]
+                label_names = [label["name"] for label in issue["labels"]]
                 output.append(f"   Labels: {', '.join(label_names)}")
-            
+
             # Show assignees if any
             if issue.get("assignees"):
-                assignee_names = [assignee['login'] for assignee in issue['assignees']]
+                assignee_names = [assignee["login"] for assignee in issue["assignees"]]
                 output.append(f"   Assignees: {', '.join(assignee_names)}")
-            
+
             output.append(f"   Created: {issue.get('created_at', 'N/A')}")
             output.append("")
 
@@ -945,9 +947,7 @@ async def github_update_issue(
             payload["milestone"] = milestone
 
         if not payload:
-            return (
-                "⚠️ No update parameters provided. Please specify title, body, state, labels, assignees, or milestone."
-            )
+            return "⚠️ No update parameters provided. Please specify title, body, state, labels, assignees, or milestone."
 
         response = await client.patch(
             f"/repos/{repo_owner}/{repo_name}/issues/{issue_number}", json=payload
@@ -959,7 +959,9 @@ async def github_update_issue(
 
         result = await response.json()
         logger.info(f"✅ Successfully updated issue #{issue_number}")
-        return f"✅ Successfully updated issue #{result['number']}: {result['html_url']}"
+        return (
+            f"✅ Successfully updated issue #{result['number']}: {result['html_url']}"
+        )
 
     except Exception as e:
         logger.error(f"❌ Failed to update issue #{issue_number}: {e}", exc_info=True)
@@ -977,11 +979,11 @@ async def github_edit_pr_description(
 ) -> str:
     """Edit a pull request's description/body."""
     logger.debug(f"🚀 Updating PR #{pr_number} description in {repo_owner}/{repo_name}")
-    
+
     # Use the existing github_update_pr function to update just the body
     return await github_update_pr(
         repo_owner=repo_owner,
         repo_name=repo_name,
         pr_number=pr_number,
-        body=description
+        body=description,
     )

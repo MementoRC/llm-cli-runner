@@ -197,13 +197,13 @@ class CallToolHandler:
                 # Fallback for missing functions
                 async def github_create_issue(*args, **kwargs):
                     return "❌ github_create_issue not implemented in server.py"
-                
+
                 async def github_list_issues(*args, **kwargs):
                     return "❌ github_list_issues not implemented in server.py"
-                
+
                 async def github_update_issue(*args, **kwargs):
                     return "❌ github_update_issue not implemented in server.py"
-                
+
                 async def github_edit_pr_description(*args, **kwargs):
                     return "❌ github_edit_pr_description not implemented in server.py"
 

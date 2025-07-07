@@ -44,7 +44,7 @@ class GitTools(str, Enum):
     GITHUB_LIST_PULL_REQUESTS = "github_list_pull_requests"
     GITHUB_GET_PR_STATUS = "github_get_pr_status"
     GITHUB_GET_PR_FILES = "github_get_pr_files"
-    
+
     # GitHub Issues API tools
     GITHUB_CREATE_ISSUE = "github_create_issue"
     GITHUB_LIST_ISSUES = "github_list_issues"
