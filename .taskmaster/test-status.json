@@ -4,13 +4,13 @@
   "test_phases": {
     "phase_1_foundation": {
       "description": "Core type system and basic structures",
-      "status": "in_progress", 
+      "status": "in_progress",
       "expected_passing": [
         "tests/unit/test_server.py::test_server_initialization",
-        "tests/unit/test_server.py::test_basic_git_operations"
+        "tests/unit/test_server.py::test_basic_git_operations",
+        "tests/unit/types/test_git_types.py::TestGitRepositoryPath::*"
       ],
       "expected_failing": [
-        "tests/unit/types/test_git_types.py::TestGitRepositoryPath::*",
         "tests/unit/types/test_github_types.py::TestGitHubRepository::*",
         "tests/unit/types/test_mcp_types.py::TestMCPRequest::*",
         "tests/unit/types/test_validation_types.py::TestValidationError::*",
@@ -44,6 +44,6 @@
     }
   },
   "current_phase": "phase_1_foundation",
-  "last_updated": "2025-07-03T10:30:00Z",
+  "last_updated": "2025-07-07T11:12:06.321206",
   "commit_hash": "f40e7546"
 }
