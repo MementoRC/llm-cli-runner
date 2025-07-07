@@ -15,14 +15,18 @@ Example:
 """
 
 import os
-import tomllib
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 import structlog
 from pydantic import BaseModel, Field, ValidationError
 
-from mcp_server_cheap_llm.core.models import ProviderConfig, ProviderType
+from mcp_server_cheap_llm.core.models import ProviderConfig
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
 
 
@@ -50,7 +54,7 @@ class ServerConfig(BaseModel):
     max_concurrent_requests: int = Field(default=10, ge=1, le=100)
     request_timeout_seconds: int = Field(default=30, ge=1, le=300)
     enable_metrics: bool = True
-    log_level: str = Field(default="INFO", regex=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     providers: List[ProviderConfig] = Field(default_factory=list)
     
     def get_debug_state(self) -> Dict[str, Any]:
