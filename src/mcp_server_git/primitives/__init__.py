@@ -44,15 +44,16 @@ See also:
     - constants: Constants and configuration values
 """
 
-# Import git primitives
+# Import primitive modules
 from . import git_primitives
+from . import github_primitives
 
 # Exports
 __all__: list[str] = [
     # Git primitive operations - implemented in Task 19
     "git_primitives",
-    # GitHub primitive operations - to be implemented in Task 20
-    # "github_primitives",
+    # GitHub primitive operations - implemented in Task 20
+    "github_primitives",
     # Validation primitive operations - to be implemented
     # "validation_primitives",
     # Type primitive operations - to be implemented
