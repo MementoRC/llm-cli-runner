@@ -141,6 +141,7 @@ async def test_massive_concurrent_clients(stress_session_manager, stress_test_co
 
 @pytest.mark.stress
 @pytest.mark.ci_skip  # Too intensive for CI
+@pytest.mark.timeout(25)  # Prevent infinite loops
 @pytest.mark.asyncio
 async def test_high_throughput_message_processing(
     stress_session_manager, stress_test_config
@@ -182,7 +183,9 @@ async def test_high_throughput_message_processing(
         start_time = time.time()
 
         try:
-            while time.time() - start_time < test_duration_seconds:
+            loop_count = 0
+            max_loops = test_duration_seconds * messages_per_client_per_second
+            while time.time() - start_time < test_duration_seconds and loop_count < max_loops:
                 second_start = time.time()
 
                 # Send target number of messages in this second
@@ -212,6 +215,8 @@ async def test_high_throughput_message_processing(
                 elapsed = time.time() - second_start
                 if elapsed < 1.0:
                     await asyncio.sleep(1.0 - elapsed)
+                
+                loop_count += 1
 
         except Exception as e:
             logger.error(f"Throughput client {client_idx} failed: {e}")

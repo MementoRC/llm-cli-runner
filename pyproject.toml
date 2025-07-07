@@ -41,7 +41,8 @@ python_functions = "test_*"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["src"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --timeout=30"
+timeout = 30
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "e2e: marks tests as end-to-end tests (deselect with '-m \"not e2e\"')",
