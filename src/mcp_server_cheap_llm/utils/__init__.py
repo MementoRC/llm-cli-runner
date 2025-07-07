@@ -1,0 +1,38 @@
+"""Utility modules for MCP Server Cheap LLM.
+
+This package provides core utilities for configuration, logging, and error handling.
+All utilities follow atomic design principles with clear responsibilities.
+
+Modules:
+    config: Configuration management and validation
+    logging: Structured logging setup and utilities  
+    errors: Custom exception classes
+
+Example:
+    >>> from mcp_server_cheap_llm.utils import get_logger, ConfigManager
+    >>> logger = get_logger(__name__)
+    >>> config = ConfigManager()
+"""
+
+from mcp_server_cheap_llm.utils.config import ConfigManager
+from mcp_server_cheap_llm.utils.errors import (
+    CheapLLMError,
+    ConfigurationError,
+    ProviderError,
+    RateLimitError,
+    SecurityError,
+    ValidationError,
+)
+from mcp_server_cheap_llm.utils.logging import get_logger, setup_logging
+
+__all__ = [
+    "ConfigManager",
+    "CheapLLMError",
+    "ConfigurationError", 
+    "ProviderError",
+    "RateLimitError",
+    "SecurityError",
+    "ValidationError",
+    "get_logger",
+    "setup_logging",
+]

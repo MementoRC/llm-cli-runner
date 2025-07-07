@@ -1,0 +1,166 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHONNOUSERSITE: 1
+
+jobs:
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.20.1
+
+      - name: Install dependencies
+        run: |
+          pixi install
+          pixi run install-editable
+
+      - name: Run format check
+        run: pixi run format-check
+
+      - name: Run linting (ZERO-TOLERANCE)
+        run: |
+          pixi run lint
+          if [ $? -ne 0 ]; then
+            echo "::error::Critical lint violations detected - ZERO TOLERANCE POLICY"
+            exit 1
+          fi
+
+      - name: Run type checking
+        run: pixi run typecheck
+
+      - name: Run unit tests with coverage
+        run: |
+          pixi run test-cov
+          if [ $? -ne 0 ]; then
+            echo "::error::Unit tests failed - ZERO TOLERANCE POLICY"
+            exit 1
+          fi
+
+      - name: Run security scan
+        run: |
+          pixi run -e dev bandit -r src/ --severity-level high
+          pixi run -e dev safety check
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: quality-gates
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+
+      - name: Install dependencies
+        run: |
+          pixi install
+          pixi run install-editable
+
+      - name: Run integration tests
+        run: pixi run test-integration
+
+      - name: Run property-based tests
+        run: pixi run test-property
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+
+      - name: Install dependencies
+        run: |
+          pixi install
+          pixi run install-editable
+
+      - name: Run Bandit security scan
+        run: |
+          pixi run -e dev bandit -r src/ -f sarif -o bandit-results.sarif
+
+      - name: Upload Bandit results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit-results.sarif
+
+      - name: Run pip-audit
+        run: pixi run -e dev pip-audit --format=json --output=pip-audit.json
+
+  build-test:
+    name: Build and Package Test
+    runs-on: ubuntu-latest
+    needs: quality-gates
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+
+      - name: Install dependencies
+        run: |
+          pixi install
+          pixi run install-editable
+
+      - name: Build package
+        run: |
+          pixi run -e dev python -m build
+
+      - name: Test package installation
+        run: |
+          pip install dist/*.whl
+          mcp-server-cheap-llm --help

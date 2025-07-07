@@ -1,0 +1,149 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-server-cheap-llm"
+version = "0.1.0"
+description = "A Model Context Protocol server providing access to cheap LLM alternatives (Gemini CLI, Codex, LLaMA)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Anthropic, PBC." }]
+maintainers = [{ name = "Claude Code Team", email = "noreply@anthropic.com" }]
+keywords = ["mcp", "llm", "gemini", "codex", "llama", "ai", "cheap"]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "aiohttp>=3.8.0",
+    "click>=8.1.7",
+    "httpx>=0.24.0",
+    "llama-cpp-python>=0.2.0",
+    "mcp>=1.10.0",
+    "psutil>=5.9.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.0.0",
+]
+
+[project.scripts]
+mcp-server-cheap-llm = "mcp_server_cheap_llm:main"
+
+[project.urls]
+Homepage = "https://github.com/MementoRC/mcp-server-cheap-llm"
+Repository = "https://github.com/MementoRC/mcp-server-cheap-llm"
+Issues = "https://github.com/MementoRC/mcp-server-cheap-llm/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
+addopts = "-v --tb=short --timeout=30"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "e2e: marks tests as end-to-end tests",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "property: marks tests as property-based tests",
+    "performance: marks tests as performance tests",
+    "requires_gemini: tests that require Gemini CLI access",
+    "requires_llama: tests that require LLaMA models",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E9", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["F821", "F401", "F841"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.10"
+aiohttp = ">=3.8.0"
+click = ">=8.1.7"
+httpx = ">=0.24.0"
+llama-cpp-python = ">=0.2.0"
+mcp = ">=1.10.0"
+psutil = ">=5.9.0"
+pydantic = ">=2.0.0"
+python-dotenv = ">=1.0.0"
+structlog = ">=24.0.0"
+
+[tool.pixi.pypi-dependencies]
+mcp-server-cheap-llm = { path = ".", editable = true }
+
+[tool.pixi.feature.dev.dependencies]
+pytest = ">=8.0.0"
+pytest-asyncio = ">=0.21.0"
+pytest-cov = ">=4.0.0"
+pytest-timeout = ">=2.1.0"
+ruff = ">=0.7.3"
+pre-commit = "*"
+hypothesis = ">=6.0.0"
+pyright = ">=1.1.402"
+
+[tool.pixi.feature.dev.pypi-dependencies]
+
+[tool.pixi.environments]
+dev = ["dev"]
+
+[tool.pixi.tasks]
+# Core development tasks
+test = "pytest tests/ -v --tb=short"
+test-unit = "pytest tests/unit/ -v"
+test-integration = "pytest tests/integration/ -v"
+test-e2e = "pytest tests/e2e/ -v"
+test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=html --cov-report=term"
+test-property = "pytest tests/ -m property -v"
+
+# Quality gates (ZERO-TOLERANCE)
+lint = "ruff check src/ tests/ --select=F,E9"
+lint-fix = "ruff check --fix src/ tests/"
+format = "ruff format src/ tests/"
+format-check = "ruff format --check src/ tests/"
+typecheck = "pyright src/"
+
+# Combined quality check
+quality = { depends-on = ["test", "lint", "typecheck"] }
+
+# Pre-commit integration
+pre-commit = "pre-commit run --all-files"
+install-pre-commit = "pre-commit install"
+
+# Maintenance
+clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
+
+# MCP server execution
+serve = "python -m mcp_server_cheap_llm"
+serve-debug = { cmd = "python -m mcp_server_cheap_llm --debug", env = { LOG_LEVEL = "DEBUG" } }
+
+# Installation
+install-editable = "pip install -e ."
