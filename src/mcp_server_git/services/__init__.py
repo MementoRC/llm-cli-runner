@@ -72,10 +72,13 @@ See also:
     - protocols: Interfaces implemented by services
 """
 
-# Placeholder exports - will be populated as modules are implemented
+# Import implemented modules
+from . import git_service
+
+# Service exports
 __all__: list[str] = [
-    # Git service - to be implemented in Task 23
-    # "git_service",
+    # Git service - implemented in Task 23
+    "git_service",
     # GitHub service - to be implemented in Task 24
     # "github_service",
     # Session service - to be implemented
