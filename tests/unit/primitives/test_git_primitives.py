@@ -399,7 +399,7 @@ Author: John Doe <john@example.com>
 Date:   Mon Dec 1 10:00:00 2023 +0000
 
     feat: add new authentication system
-    
+
     This commit adds a comprehensive authentication system
     with support for multiple providers.
 
