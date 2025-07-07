@@ -41,7 +41,7 @@ jobs:
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi
-        pixi install --frozen
+        pixi install --frozen --environment dev
 
     - name: Run ruff linting (critical violations)
       run: |
@@ -89,7 +89,7 @@ jobs:
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi
-        pixi install --frozen
+        pixi install --frozen --environment dev
 
     - name: Configure Git for testing
       run: |
@@ -152,7 +152,7 @@ jobs:
         pixi-version: v0.43.0
 
     - name: Install dependencies
-      run: pixi install
+      run: pixi install --environment dev
 
     - name: Configure Git for MCP testing
       run: |
@@ -415,7 +415,7 @@ jobs:
         pixi-version: v0.43.0
 
     - name: Install dependencies
-      run: pixi install
+      run: pixi install --environment dev
 
     - name: Run safety check for known vulnerabilities
       run: |
@@ -461,7 +461,7 @@ jobs:
         pixi-version: v0.43.0
 
     - name: Install dependencies
-      run: pixi install
+      run: pixi install --environment dev
 
     - name: Configure Git for performance testing
       run: |
