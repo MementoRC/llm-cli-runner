@@ -67,9 +67,15 @@ class TestGitRepositoryPath:
 
         # ACT & ASSERT: Should convert Path to GitRepositoryPath
         if TYPES_AVAILABLE:
-            repo_path = GitRepositoryPath(path_obj)
-            assert isinstance(repo_path.path, Path)
-            assert str(repo_path) == str(path_obj)
+            with (
+                patch("pathlib.Path.exists", return_value=True),
+                patch("pathlib.Path.is_dir", return_value=True),
+                patch("pathlib.Path.is_file", return_value=False),
+                patch.object(Path, "glob", return_value=[Path(".git")]),
+            ):
+                repo_path = GitRepositoryPath(path_obj)
+                assert isinstance(repo_path.path, Path)
+                assert str(repo_path) == str(path_obj)
 
     def test_should_reject_non_git_directories(self):
         """GitRepositoryPath should reject directories without .git."""
