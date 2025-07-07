@@ -84,9 +84,30 @@ class TestGitRepositoryPath:
 
         # ACT & ASSERT: Should raise validation error
         if TYPES_AVAILABLE:
-            with pytest.raises(GitValidationError) as exc_info:
-                GitRepositoryPath(non_git_path)
-            assert "not a git repository" in str(exc_info.value).lower()
+            # Mock path operations to simulate a directory without .git
+            def mock_exists_side_effect(self):
+                # Path itself exists
+                if str(self) == non_git_path:
+                    return True
+                # .git doesn't exist
+                if str(self).endswith("/.git"):
+                    return False
+                # objects and refs don't exist (not a bare repo)
+                if str(self).endswith("/objects") or str(self).endswith("/refs"):
+                    return False
+                # HEAD and config don't exist
+                if str(self).endswith("/HEAD") or str(self).endswith("/config"):
+                    return False
+                return False
+
+            with (
+                patch.object(Path, "exists", mock_exists_side_effect),
+                patch("pathlib.Path.is_dir", return_value=True),
+                patch("pathlib.Path.is_file", return_value=False),
+            ):
+                with pytest.raises(GitValidationError) as exc_info:
+                    GitRepositoryPath(non_git_path)
+                assert "not a git repository" in str(exc_info.value).lower()
 
     def test_should_reject_non_existent_paths(self):
         """GitRepositoryPath should reject non-existent paths."""
