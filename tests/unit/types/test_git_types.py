@@ -470,23 +470,29 @@ class TestGitTypeIntegration:
     def test_git_types_should_work_together(self):
         """Different Git types should integrate seamlessly."""
         if TYPES_AVAILABLE:
-            # ARRANGE: Create integrated git objects
-            repo_path = GitRepositoryPath("/tmp/test-repo")
-            branch = GitBranch("feature/integration-test")
-            commit_hash = GitCommitHash("a1b2c3d4e5f")
+            # ARRANGE: Create integrated git objects with mocking
+            with (
+                patch("pathlib.Path.exists", return_value=True),
+                patch("pathlib.Path.is_dir", return_value=True),
+                patch("pathlib.Path.is_file", return_value=False),
+                patch.object(Path, "glob", return_value=[Path(".git")]),
+            ):
+                repo_path = GitRepositoryPath("/tmp/test-repo")
+                branch = GitBranch("feature/integration-test")
+                commit_hash = GitCommitHash("a1b2c3d4e5f")
 
-            # ACT: Use them together in status result
-            status = GitStatusResult(
-                is_clean=True,
-                current_branch=branch,
-                modified_files=[],
-                untracked_files=[],
-                staged_files=[],
-            )
+                # ACT: Use them together in status result
+                status = GitStatusResult(
+                    is_clean=True,
+                    current_branch=branch,
+                    modified_files=[],
+                    untracked_files=[],
+                    staged_files=[],
+                )
 
-            # ASSERT: Should work seamlessly together
-            assert status.current_branch == branch
-            assert str(status.current_branch) == "feature/integration-test"
+                # ASSERT: Should work seamlessly together
+                assert status.current_branch == branch
+                assert str(status.current_branch) == "feature/integration-test"
 
     def test_type_conversions_should_be_safe(self):
         """Type conversions between Git types should be type-safe."""
