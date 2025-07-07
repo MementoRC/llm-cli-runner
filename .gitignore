@@ -72,3 +72,4 @@ data/
 .aider.tags.cache.v4
 .claude/
 ai_docs/
+# CI trigger
