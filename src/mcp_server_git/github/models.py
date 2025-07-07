@@ -110,3 +110,49 @@ class GitHubCLIReopenPR(BaseModel):
 class GitHubCLIReadyPR(BaseModel):
     repo_path: str
     pr_number: int
+
+
+# GitHub Issues Models
+class GitHubCreateIssue(BaseModel):
+    repo_owner: str
+    repo_name: str
+    title: str
+    body: Optional[str] = None
+    labels: Optional[list[str]] = None
+    assignees: Optional[list[str]] = None
+    milestone: Optional[int] = None
+
+
+class GitHubListIssues(BaseModel):
+    repo_owner: str
+    repo_name: str
+    state: str = "open"  # open, closed, all
+    labels: Optional[list[str]] = None
+    assignee: Optional[str] = None
+    creator: Optional[str] = None
+    mentioned: Optional[str] = None
+    milestone: Optional[str] = None
+    sort: str = "created"  # created, updated, comments
+    direction: str = "desc"  # asc, desc
+    since: Optional[str] = None
+    per_page: int = 30
+    page: int = 1
+
+
+class GitHubUpdateIssue(BaseModel):
+    repo_owner: str
+    repo_name: str
+    issue_number: int
+    title: Optional[str] = None
+    body: Optional[str] = None
+    state: Optional[str] = None  # open, closed
+    labels: Optional[list[str]] = None
+    assignees: Optional[list[str]] = None
+    milestone: Optional[int] = None
+
+
+class GitHubEditPRDescription(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    description: str

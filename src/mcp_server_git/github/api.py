@@ -759,3 +759,229 @@ async def github_reopen_pr(repo_owner: str, repo_name: str, pr_number: int) -> s
     """Reopen a closed pull request."""
     logger.debug(f"🚀 Reopening PR #{pr_number} in {repo_owner}/{repo_name}")
     return await github_update_pr(repo_owner, repo_name, pr_number, state="open")
+
+
+# GitHub Issues API Functions
+async def github_create_issue(
+    repo_owner: str,
+    repo_name: str,
+    title: str,
+    body: Optional[str] = None,
+    labels: Optional[list[str]] = None,
+    assignees: Optional[list[str]] = None,
+    milestone: Optional[int] = None,
+) -> str:
+    """Create a new GitHub issue."""
+    logger.debug(f"🚀 Creating issue in {repo_owner}/{repo_name}: {title}")
+
+    client = None
+    try:
+        client = get_github_client()
+        if not client:
+            return (
+                "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
+            )
+
+        payload = {"title": title}
+        if body is not None:
+            payload["body"] = body
+        if labels is not None:
+            payload["labels"] = labels
+        if assignees is not None:
+            payload["assignees"] = assignees
+        if milestone is not None:
+            payload["milestone"] = milestone
+
+        response = await client.post(
+            f"/repos/{repo_owner}/{repo_name}/issues", json=payload
+        )
+
+        if response.status != 201:
+            error_text = await response.text()
+            return f"❌ Failed to create issue: {response.status} - {error_text}"
+
+        result = await response.json()
+        logger.info(f"✅ Successfully created issue #{result['number']}")
+        return f"✅ Successfully created issue #{result['number']}: {result['html_url']}"
+
+    except Exception as e:
+        logger.error(f"❌ Failed to create issue: {e}", exc_info=True)
+        return f"❌ Error creating issue: {str(e)}"
+    finally:
+        if client and client.session:
+            await client.session.close()
+
+
+async def github_list_issues(
+    repo_owner: str,
+    repo_name: str,
+    state: str = "open",
+    labels: Optional[list[str]] = None,
+    assignee: Optional[str] = None,
+    creator: Optional[str] = None,
+    mentioned: Optional[str] = None,
+    milestone: Optional[str] = None,
+    sort: str = "created",
+    direction: str = "desc",
+    since: Optional[str] = None,
+    per_page: int = 30,
+    page: int = 1,
+) -> str:
+    """List issues for a repository."""
+    logger.debug(f"🔍 Listing issues for {repo_owner}/{repo_name}")
+
+    client = None
+    try:
+        client = get_github_client()
+        if not client:
+            return (
+                "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
+            )
+
+        params = {
+            "state": state,
+            "sort": sort,
+            "direction": direction,
+            "per_page": per_page,
+            "page": page,
+        }
+
+        if labels:
+            params["labels"] = ",".join(labels)
+        if assignee:
+            params["assignee"] = assignee
+        if creator:
+            params["creator"] = creator
+        if mentioned:
+            params["mentioned"] = mentioned
+        if milestone:
+            params["milestone"] = milestone
+        if since:
+            params["since"] = since
+
+        response = await client.get(
+            f"/repos/{repo_owner}/{repo_name}/issues", params=params
+        )
+
+        if response.status != 200:
+            error_text = await response.text()
+            return f"❌ Failed to list issues: {response.status} - {error_text}"
+
+        issues = await response.json()
+
+        if not issues:
+            return f"No {state} issues found"
+
+        output = [f"{state.title()} Issues for {repo_owner}/{repo_name}:\n"]
+
+        for issue in issues:
+            # Skip pull requests (they appear in issues API but have 'pull_request' key)
+            if issue.get("pull_request"):
+                continue
+
+            state_emoji = {"open": "🟢", "closed": "🔴"}.get(issue.get("state"), "❓")
+            output.append(f"{state_emoji} #{issue['number']}: {issue['title']}")
+            output.append(f"   Author: {issue.get('user', {}).get('login', 'N/A')}")
+            
+            # Show labels if any
+            if issue.get("labels"):
+                label_names = [label['name'] for label in issue['labels']]
+                output.append(f"   Labels: {', '.join(label_names)}")
+            
+            # Show assignees if any
+            if issue.get("assignees"):
+                assignee_names = [assignee['login'] for assignee in issue['assignees']]
+                output.append(f"   Assignees: {', '.join(assignee_names)}")
+            
+            output.append(f"   Created: {issue.get('created_at', 'N/A')}")
+            output.append("")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list issues: {e}", exc_info=True)
+        return f"❌ Error listing issues: {str(e)}"
+    finally:
+        if client and client.session:
+            await client.session.close()
+
+
+async def github_update_issue(
+    repo_owner: str,
+    repo_name: str,
+    issue_number: int,
+    title: Optional[str] = None,
+    body: Optional[str] = None,
+    state: Optional[str] = None,
+    labels: Optional[list[str]] = None,
+    assignees: Optional[list[str]] = None,
+    milestone: Optional[int] = None,
+) -> str:
+    """Update a GitHub issue."""
+    logger.debug(f"🚀 Updating issue #{issue_number} in {repo_owner}/{repo_name}")
+
+    client = None
+    try:
+        client = get_github_client()
+        if not client:
+            return (
+                "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
+            )
+
+        payload = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        if state is not None:
+            if state not in ["open", "closed"]:
+                return "❌ State must be 'open' or 'closed'"
+            payload["state"] = state
+        if labels is not None:
+            payload["labels"] = labels
+        if assignees is not None:
+            payload["assignees"] = assignees
+        if milestone is not None:
+            payload["milestone"] = milestone
+
+        if not payload:
+            return (
+                "⚠️ No update parameters provided. Please specify title, body, state, labels, assignees, or milestone."
+            )
+
+        response = await client.patch(
+            f"/repos/{repo_owner}/{repo_name}/issues/{issue_number}", json=payload
+        )
+
+        if response.status != 200:
+            error_text = await response.text()
+            return f"❌ Failed to update issue #{issue_number}: {response.status} - {error_text}"
+
+        result = await response.json()
+        logger.info(f"✅ Successfully updated issue #{issue_number}")
+        return f"✅ Successfully updated issue #{result['number']}: {result['html_url']}"
+
+    except Exception as e:
+        logger.error(f"❌ Failed to update issue #{issue_number}: {e}", exc_info=True)
+        return f"❌ Error updating issue: {str(e)}"
+    finally:
+        if client and client.session:
+            await client.session.close()
+
+
+async def github_edit_pr_description(
+    repo_owner: str,
+    repo_name: str,
+    pr_number: int,
+    description: str,
+) -> str:
+    """Edit a pull request's description/body."""
+    logger.debug(f"🚀 Updating PR #{pr_number} description in {repo_owner}/{repo_name}")
+    
+    # Use the existing github_update_pr function to update just the body
+    return await github_update_pr(
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        pr_number=pr_number,
+        body=description
+    )

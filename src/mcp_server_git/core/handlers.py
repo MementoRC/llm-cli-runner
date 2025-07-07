@@ -171,19 +171,41 @@ class CallToolHandler:
                 github_list_pull_requests,
                 github_get_pr_status,
                 github_get_pr_files,
+                github_create_issue,
+                github_list_issues,
+                github_update_issue,
+                github_edit_pr_description,
             )
 
             logger.debug("Using modular GitHub API")
         except ImportError:
-            from ..server import (
-                github_get_pr_checks,
-                github_get_failing_jobs,
-                github_get_workflow_run,
-                github_get_pr_details,
-                github_list_pull_requests,
-                github_get_pr_status,
-                github_get_pr_files,
-            )
+            try:
+                from ..server import (
+                    github_get_pr_checks,
+                    github_get_failing_jobs,
+                    github_get_workflow_run,
+                    github_get_pr_details,
+                    github_list_pull_requests,
+                    github_get_pr_status,
+                    github_get_pr_files,
+                    github_create_issue,
+                    github_list_issues,
+                    github_update_issue,
+                    github_edit_pr_description,
+                )
+            except ImportError:
+                # Fallback for missing functions
+                async def github_create_issue(*args, **kwargs):
+                    return "❌ github_create_issue not implemented in server.py"
+                
+                async def github_list_issues(*args, **kwargs):
+                    return "❌ github_list_issues not implemented in server.py"
+                
+                async def github_update_issue(*args, **kwargs):
+                    return "❌ github_update_issue not implemented in server.py"
+                
+                async def github_edit_pr_description(*args, **kwargs):
+                    return "❌ github_edit_pr_description not implemented in server.py"
 
             logger.debug("Using original GitHub API")
 
@@ -242,6 +264,59 @@ class CallToolHandler:
                     "per_page",
                     "page",
                     "include_patch",
+                ],
+            ),
+            "github_create_issue": self._create_github_handler(
+                github_create_issue,
+                [
+                    "repo_owner",
+                    "repo_name",
+                    "title",
+                    "body",
+                    "labels",
+                    "assignees",
+                    "milestone",
+                ],
+            ),
+            "github_list_issues": self._create_github_handler(
+                github_list_issues,
+                [
+                    "repo_owner",
+                    "repo_name",
+                    "state",
+                    "labels",
+                    "assignee",
+                    "creator",
+                    "mentioned",
+                    "milestone",
+                    "sort",
+                    "direction",
+                    "since",
+                    "per_page",
+                    "page",
+                ],
+            ),
+            "github_update_issue": self._create_github_handler(
+                github_update_issue,
+                [
+                    "repo_owner",
+                    "repo_name",
+                    "issue_number",
+                    "title",
+                    "body",
+                    "state",
+                    "labels",
+                    "assignees",
+                    "milestone",
+                ],
+            ),
+            "github_edit_pr_description": self._create_github_handler(
+                github_edit_pr_description,
+                [
+                    "repo_owner",
+                    "repo_name",
+                    "pr_number",
+                    "description",
                 ],
             ),
         }
