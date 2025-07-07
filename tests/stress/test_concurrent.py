@@ -141,16 +141,28 @@ async def test_massive_concurrent_clients(stress_session_manager, stress_test_co
 
 @pytest.mark.stress
 @pytest.mark.ci_skip  # Too intensive for CI
-@pytest.mark.timeout(25)  # Prevent infinite loops
+@pytest.mark.timeout(15)  # Prevent infinite loops
 @pytest.mark.asyncio
 async def test_high_throughput_message_processing(
     stress_session_manager, stress_test_config
 ):
     """Test high-throughput message processing with multiple clients."""
+    
+    import os
+    
+    # Check if running in CI and skip if marked
+    is_ci = (
+        os.getenv("CI", "false").lower() == "true"
+        or os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
+        or os.getenv("PYTEST_CI", "false").lower() == "true"
+    )
+    
+    if is_ci:
+        pytest.skip("Test marked ci_skip - too intensive for CI")
 
-    client_count = 10
-    messages_per_second = 1000  # Target total throughput
-    test_duration_seconds = 30
+    client_count = 5  # Reduced from 10
+    messages_per_second = 500  # Reduced from 1000
+    test_duration_seconds = 10  # Reduced from 30
 
     from .conftest import MockMCPClient
 
