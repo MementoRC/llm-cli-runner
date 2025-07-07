@@ -281,6 +281,40 @@ class GitBranch:
             return False
         
         return True
+    
+    def __str__(self) -> str:
+        """Return the branch name as string."""
+        return str(self.name)
+    
+    def is_valid(self) -> bool:
+        """Check if this is a valid branch."""
+        return self._is_valid_branch_name(str(self.name))
+    
+    def is_feature_branch(self) -> bool:
+        """Check if this is a feature branch."""
+        return str(self.name).startswith('feature/')
+    
+    def is_main_branch(self) -> bool:
+        """Check if this is a main branch."""
+        return str(self.name) in ['main', 'master', 'develop']
+    
+    def is_release_branch(self) -> bool:
+        """Check if this is a release branch."""
+        return str(self.name).startswith('release/')
+    
+    @property
+    def parent_branch(self) -> Optional[str]:
+        """Get the parent branch name."""
+        if '/' in str(self.name):
+            return str(self.name).split('/')[0]
+        return None
+    
+    @property
+    def namespace(self) -> Optional[str]:
+        """Get the branch namespace."""
+        if '/' in str(self.name):
+            return str(self.name).split('/')[0]
+        return None
 
 
 @dataclass
@@ -316,6 +350,21 @@ class GitCommitHash:
             return False
     
     def __str__(self) -> str:
+        return self.hash
+    
+    def is_valid(self) -> bool:
+        """Check if this is a valid commit hash."""
+        return self._is_valid_commit_hash(self.hash)
+    
+    def short(self) -> str:
+        """Return short version of the hash (7 characters)."""
+        return self.hash[:7]
+    
+    def full(self) -> str:
+        """Return full version of the hash (40 characters)."""
+        if len(self.hash) == 40:
+            return self.hash
+        # For short hashes, we can't expand to full, so return what we have
         return self.hash
 
 
