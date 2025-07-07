@@ -59,10 +59,13 @@ See also:
     - types: Type definitions for operation parameters and results
 """
 
-# Placeholder exports - will be populated as modules are implemented
+# Module imports
+from . import git_operations
+
+# Exports - modules implemented and ready for use
 __all__: list[str] = [
-    # Git operations - to be implemented in Task 21
-    # "git_operations",
+    # Git operations - implemented in Task 21
+    "git_operations",
     # GitHub operations - to be implemented in Task 22
     # "github_operations",
     # Session operations - to be implemented
