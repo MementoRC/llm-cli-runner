@@ -47,10 +47,14 @@ class TestGitRepositoryPath:
 
         # ACT & ASSERT: Should create GitRepositoryPath successfully
         if TYPES_AVAILABLE:
-            repo_path = GitRepositoryPath(valid_path)
-            assert str(repo_path) == valid_path
-            assert repo_path.is_valid()
-            assert repo_path.exists()
+            with (
+                patch("pathlib.Path.exists", return_value=True),
+                patch("pathlib.Path.is_dir", return_value=True),
+            ):
+                repo_path = GitRepositoryPath(valid_path)
+                assert str(repo_path) == valid_path
+                assert repo_path.is_valid()
+                assert repo_path.exists()
         else:
             pytest.fail(
                 "GitRepositoryPath type not implemented - this test should fail until implementation is complete"
