@@ -108,9 +108,15 @@ pytest-timeout = ">=2.1.0"
 ruff = ">=0.7.3"
 pre-commit = "*"
 hypothesis = ">=6.0.0"
-pyright = ">=1.1.402"
+bandit = ">=1.7.0"
+safety = ">=2.3.0"
+build = ">=1.0.0"
+twine = ">=4.0.0"
+pip-audit = ">=2.6.0"
 
 [tool.pixi.feature.dev.pypi-dependencies]
+pyright = ">=1.1.402"
+toml = ">=0.10.2"  # For test fixtures
 
 [tool.pixi.environments]
 dev = ["dev"]
@@ -121,7 +127,7 @@ test = "pytest tests/ -v --tb=short"
 test-unit = "pytest tests/unit/ -v"
 test-integration = "pytest tests/integration/ -v"
 test-e2e = "pytest tests/e2e/ -v"
-test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=html --cov-report=term"
+test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --cov-report=html --cov-report=term"
 test-property = "pytest tests/ -m property -v"
 
 # Quality gates (ZERO-TOLERANCE)
