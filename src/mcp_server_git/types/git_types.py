@@ -22,7 +22,6 @@ Design principles:
 from pathlib import Path
 from typing import NewType, TypedDict, Literal, Optional, List, Dict, Any, Union
 from dataclasses import dataclass
-from datetime import datetime
 
 
 # Basic Git Type Aliases
@@ -46,10 +45,16 @@ GitOperationStatus = Literal["success", "failure", "timeout", "cancelled"]
 class GitValidationError(Exception):
     """Exception raised when Git type validation fails."""
     
-    def __init__(self, message: str, value: Any = None, context: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, value: Any = None, context: Optional[Dict[str, Any]] = None,
+                 field_name: Optional[str] = None, validation_rule: Optional[str] = None,
+                 suggested_fix: Optional[str] = None):
         self.message = message
         self.value = value
         self.context = context or {}
+        self.invalid_value = value  # Alias for compatibility
+        self.field_name = field_name
+        self.validation_rule = validation_rule
+        self.suggested_fix = suggested_fix
         super().__init__(message)
     
     def __str__(self) -> str:
@@ -117,11 +122,17 @@ class GitRepositoryPath:
         
         # Check if path exists
         if not normalized_path.exists():
-            raise GitValidationError(
+            error = GitValidationError(
                 f"Path does not exist: {normalized_path}",
                 value=path,
-                context={"resolved_path": str(normalized_path)}
+                context={"resolved_path": str(normalized_path)},
+                field_name="path",
+                validation_rule="Path must exist on filesystem",
+                suggested_fix="Ensure the path exists and is accessible"
             )
+            # Add error chaining for this validation error
+            error.__cause__ = OSError(f"Path not found: {normalized_path}")
+            raise error
         
         # Validate Git repository
         git_dir, work_tree, is_bare = self._validate_git_repository(normalized_path)
@@ -259,7 +270,13 @@ class GitBranch:
     def __init__(self, name: str, **kwargs):
         """Initialize GitBranch with validation."""
         if not self._is_valid_branch_name(name):
-            raise GitValidationError(f"Invalid branch name: {name}", value=name)
+            raise GitValidationError(
+                f"Invalid branch name: {name}", 
+                value=name,
+                field_name="name",
+                validation_rule="Git branch name rules: no '..' sequences, cannot start with '.', cannot end with '/', no special characters",
+                suggested_fix="Use alphanumeric characters, hyphens, and forward slashes for namespaces"
+            )
         
         self.name = GitBranchName(name)
         for key, value in kwargs.items():
@@ -269,7 +286,7 @@ class GitBranch:
     @staticmethod
     def _is_valid_branch_name(name: str) -> bool:
         """Validate Git branch name according to Git rules."""
-        if not name:
+        if not name or name.isspace():
             return False
         
         # Basic checks - can be extended
@@ -277,7 +294,9 @@ class GitBranch:
         if any(char in name for char in invalid_chars):
             return False
         
-        if name.startswith('-') or name.endswith('.') or '..' in name:
+        if (name.startswith('-') or name.startswith('.') or 
+            name.endswith('.') or name.endswith('/') or 
+            '..' in name):
             return False
         
         return True
@@ -372,17 +391,17 @@ class GitCommitHash:
 class GitFileStatus:
     """Representation of Git file status."""
     
-    path: str
     status: GitFileStatusType
+    path: Optional[str] = None
     old_path: Optional[str] = None  # For renamed files
     
-    def __init__(self, path: str, status: GitFileStatusType, old_path: Optional[str] = None):
+    def __init__(self, status: GitFileStatusType, path: Optional[str] = None, old_path: Optional[str] = None):
         if status not in ["modified", "added", "deleted", "renamed", "copied", 
                          "unmerged", "untracked", "ignored", "staged"]:
             raise GitValidationError(f"Invalid file status: {status}", value=status)
         
-        self.path = path
         self.status = status
+        self.path = path
         self.old_path = old_path
     
     def is_modified(self) -> bool:
@@ -396,23 +415,83 @@ class GitFileStatus:
     
     def is_staged(self) -> bool:
         return self.status == "staged"
+    
+    def is_untracked(self) -> bool:
+        return self.status == "untracked"
+    
+    def needs_commit(self) -> bool:
+        return self.status in ["modified", "added", "deleted", "renamed", "copied", "staged"]
+    
+    def is_valid(self) -> bool:
+        return self.status in ["modified", "added", "deleted", "renamed", "copied", 
+                              "unmerged", "untracked", "ignored", "staged"]
+    
+    def __str__(self) -> str:
+        return str(self.status)
 
 
-@dataclass
 class GitOperationResult:
     """Result of a Git operation."""
     
-    success: bool
-    message: str
-    command: Optional[str] = None
-    exit_code: Optional[int] = None
-    output: Optional[str] = None
-    error: Optional[str] = None
-    duration: Optional[float] = None
-    
-    def __post_init__(self):
+    def __init__(self, success: bool, message: str, command: Optional[str] = None,
+                 exit_code: Optional[int] = None, output: Optional[str] = None,
+                 error: Optional[str] = None, error_code: Optional[str] = None,
+                 operation: Optional[str] = None, duration: Optional[float] = None):
+        self.success = success
+        self.message = message
+        self.command = command
+        self.exit_code = exit_code
+        self.output = output
+        self.error = error
+        self.error_code = error_code
+        self.operation = operation
+        self.duration = duration
+        
         if not self.success and not self.error:
             raise GitValidationError("Failed operations must include error information")
+    
+    @classmethod
+    def success(cls, output: str, operation: str, **kwargs) -> 'GitOperationResult':
+        """Create a successful operation result."""
+        return cls(
+            success=True,
+            message="Operation completed successfully",
+            output=output,
+            operation=operation,
+            **kwargs
+        )
+    
+    @classmethod
+    def error(cls, error: str, operation: str, error_code: Optional[str] = None, **kwargs) -> 'GitOperationResult':
+        """Create an error operation result."""
+        return cls(
+            success=False,
+            message=error,
+            error=error,
+            operation=operation,
+            error_code=error_code,
+            **kwargs
+        )
+    
+    def is_success(self) -> bool:
+        """Check if operation was successful."""
+        return self.success
+    
+    def is_error(self) -> bool:
+        """Check if operation failed."""
+        return not self.success
+    
+    def then(self, func) -> 'GitOperationResult':
+        """Apply function if operation was successful."""
+        if self.success:
+            return func(self)
+        return self
+    
+    def map(self, func) -> 'GitOperationResult':
+        """Transform the result if operation was successful."""
+        if self.success:
+            return func(self)
+        return self
     
     def raise_for_status(self) -> None:
         """Raise GitOperationError if operation failed."""
@@ -430,15 +509,59 @@ class GitOperationResult:
         return other
 
 
-class GitStatusResult(TypedDict):
+class GitStatusResult:
     """Result of git status operation."""
-    branch: Optional[str]
-    is_clean: bool
-    staged_files: List[GitFileStatus]
-    modified_files: List[GitFileStatus]
-    untracked_files: List[str]
-    deleted_files: List[str]
-    renamed_files: List[GitFileStatus]
+    
+    def __init__(self, is_clean: bool, current_branch: 'GitBranch', 
+                 modified_files: List[str] = None, untracked_files: List[str] = None,
+                 staged_files: List[str] = None, deleted_files: List[str] = None,
+                 renamed_files: List[str] = None):
+        self.is_clean = is_clean
+        self.current_branch = current_branch
+        self.modified_files = modified_files or []
+        self.untracked_files = untracked_files or []
+        self.staged_files = staged_files or []
+        self.deleted_files = deleted_files or []
+        self.renamed_files = renamed_files or []
+    
+    def has_no_changes(self) -> bool:
+        """Check if repository has no changes."""
+        return (self.is_clean and 
+                not self.modified_files and 
+                not self.untracked_files and 
+                not self.staged_files and
+                not self.deleted_files and
+                not self.renamed_files)
+    
+    def needs_commit(self) -> bool:
+        """Check if repository needs commit."""
+        return bool(self.staged_files or self.modified_files or self.deleted_files)
+    
+    def summary(self) -> str:
+        """Get human-readable status summary."""
+        if self.is_clean:
+            return "Repository is clean"
+        
+        parts = []
+        if self.modified_files:
+            parts.append(f"{len(self.modified_files)} modified")
+        if self.staged_files:
+            parts.append(f"{len(self.staged_files)} staged")
+        if self.untracked_files:
+            parts.append(f"{len(self.untracked_files)} untracked")
+        if self.deleted_files:
+            parts.append(f"{len(self.deleted_files)} deleted")
+        
+        return f"Repository has changes: {', '.join(parts)}"
+    
+    def file_count(self) -> int:
+        """Get total count of changed files."""
+        return (len(self.modified_files) + len(self.untracked_files) + 
+                len(self.staged_files) + len(self.deleted_files) + len(self.renamed_files))
+    
+    def needs_attention(self) -> bool:
+        """Check if repository needs attention."""
+        return not self.is_clean
 
 
 class GitDiffResult(TypedDict):
@@ -456,16 +579,52 @@ class GitLogResult(TypedDict):
     has_more: bool
 
 
-class GitCommitInfo(TypedDict):
+class GitCommitInfo:
     """Complete commit information."""
-    hash: GitCommitHash
-    author: str
-    author_email: str
-    committer: str
-    committer_email: str
-    message: str
-    timestamp: datetime
-    parent_hashes: List[GitCommitHash]
+    
+    def __init__(self, hash: GitCommitHash, author_name: str, author_email: str,
+                 message: str, timestamp: str, parent_hashes: List[GitCommitHash] = None,
+                 committer: str = None, committer_email: str = None):
+        # Validate email
+        if "@" not in author_email or "." not in author_email:
+            raise GitValidationError(f"Invalid email address: {author_email}")
+        
+        # Validate message
+        if not message or not message.strip():
+            raise GitValidationError("Commit message cannot be empty")
+        
+        self.hash = hash
+        self.author_name = author_name
+        self.author_email = author_email
+        self.message = message
+        self.timestamp = timestamp
+        self.parent_hashes = parent_hashes or []
+        self.committer = committer or author_name
+        self.committer_email = committer_email or author_email
+    
+    def is_feature(self) -> bool:
+        """Check if this is a feature commit."""
+        return self.message.lower().startswith(('feat:', 'feature:'))
+    
+    def is_bugfix(self) -> bool:
+        """Check if this is a bugfix commit."""
+        return self.message.lower().startswith(('fix:', 'bugfix:', 'bug:'))
+    
+    def is_breaking_change(self) -> bool:
+        """Check if this is a breaking change."""
+        return ('BREAKING CHANGE' in self.message or 
+                '!' in self.message.split(':')[0] if ':' in self.message else False)
+    
+    def one_line_summary(self) -> str:
+        """Get one-line summary of the commit."""
+        return f"{self.hash.short()}: {self.message.split(chr(10))[0][:50]}"
+    
+    def detailed_summary(self) -> str:
+        """Get detailed summary of the commit."""
+        return f"""Commit: {self.hash.hash}
+Author: {self.author_name} <{self.author_email}>
+Date: {self.timestamp}
+Message: {self.message}"""
 
 
 class GitBranchInfo(TypedDict):
