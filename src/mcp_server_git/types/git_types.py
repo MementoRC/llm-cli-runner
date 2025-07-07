@@ -25,16 +25,23 @@ from dataclasses import dataclass
 
 
 # Basic Git Type Aliases
-GitBranchName = NewType('GitBranchName', str)
-GitCommitHash = NewType('GitCommitHash', str)
-GitRemoteName = NewType('GitRemoteName', str)
-GitTagName = NewType('GitTagName', str)
+GitBranchName = NewType("GitBranchName", str)
+GitCommitHash = NewType("GitCommitHash", str)
+GitRemoteName = NewType("GitRemoteName", str)
+GitTagName = NewType("GitTagName", str)
 
 
 # Git File Status Types
 GitFileStatusType = Literal[
-    "modified", "added", "deleted", "renamed", "copied", 
-    "unmerged", "untracked", "ignored", "staged"
+    "modified",
+    "added",
+    "deleted",
+    "renamed",
+    "copied",
+    "unmerged",
+    "untracked",
+    "ignored",
+    "staged",
 ]
 
 
@@ -44,10 +51,16 @@ GitOperationStatus = Literal["success", "failure", "timeout", "cancelled"]
 
 class GitValidationError(Exception):
     """Exception raised when Git type validation fails."""
-    
-    def __init__(self, message: str, value: Any = None, context: Optional[Dict[str, Any]] = None,
-                 field_name: Optional[str] = None, validation_rule: Optional[str] = None,
-                 suggested_fix: Optional[str] = None):
+
+    def __init__(
+        self,
+        message: str,
+        value: Any = None,
+        context: Optional[Dict[str, Any]] = None,
+        field_name: Optional[str] = None,
+        validation_rule: Optional[str] = None,
+        suggested_fix: Optional[str] = None,
+    ):
         self.message = message
         self.value = value
         self.context = context or {}
@@ -56,15 +69,20 @@ class GitValidationError(Exception):
         self.validation_rule = validation_rule
         self.suggested_fix = suggested_fix
         super().__init__(message)
-    
+
     def __str__(self) -> str:
         return f"Git validation error: {self.message}"
 
 
 class GitOperationError(Exception):
     """Exception raised when Git operations fail."""
-    
-    def __init__(self, message: str, command: Optional[str] = None, exit_code: Optional[int] = None):
+
+    def __init__(
+        self,
+        message: str,
+        command: Optional[str] = None,
+        exit_code: Optional[int] = None,
+    ):
         self.message = message
         self.command = command
         self.exit_code = exit_code
@@ -75,17 +93,17 @@ class GitOperationError(Exception):
 class GitRepositoryPath:
     """
     Type-safe representation of a Git repository path.
-    
+
     Validates that the path points to a valid Git repository and provides
     metadata about the repository structure and state.
-    
+
     Attributes:
         path: The normalized absolute path to the repository
         is_bare: Whether this is a bare repository
         git_dir: Path to the .git directory
         work_tree: Path to the working tree (None for bare repos)
     """
-    
+
     path: Path
     is_bare: bool = False
     git_dir: Optional[Path] = None
@@ -93,14 +111,14 @@ class GitRepositoryPath:
     current_branch: Optional[str] = None
     remotes: Optional[List[str]] = None
     is_clean: bool = True
-    
+
     def __init__(self, path: Union[str, Path]):
         """
         Initialize GitRepositoryPath with validation.
-        
+
         Args:
             path: Path to the Git repository (string or Path object)
-            
+
         Raises:
             GitValidationError: If path is not a valid Git repository
         """
@@ -109,17 +127,15 @@ class GitRepositoryPath:
             path_obj = Path(path)
         else:
             path_obj = path
-        
+
         # Resolve to absolute path
         try:
             normalized_path = path_obj.resolve()
         except (OSError, ValueError) as e:
             raise GitValidationError(
-                f"Invalid path: {path}",
-                value=path,
-                context={"error": str(e)}
+                f"Invalid path: {path}", value=path, context={"error": str(e)}
             )
-        
+
         # Check if path exists
         if not normalized_path.exists():
             error = GitValidationError(
@@ -128,15 +144,15 @@ class GitRepositoryPath:
                 context={"resolved_path": str(normalized_path)},
                 field_name="path",
                 validation_rule="Path must exist on filesystem",
-                suggested_fix="Ensure the path exists and is accessible"
+                suggested_fix="Ensure the path exists and is accessible",
             )
             # Add error chaining for this validation error
             error.__cause__ = OSError(f"Path not found: {normalized_path}")
             raise error
-        
+
         # Validate Git repository
         git_dir, work_tree, is_bare = self._validate_git_repository(normalized_path)
-        
+
         # Set attributes
         self.path = normalized_path
         self.git_dir = git_dir
@@ -145,24 +161,23 @@ class GitRepositoryPath:
         self.current_branch = None  # Will be populated on demand
         self.remotes = []  # Will be populated on demand
         self.is_clean = True  # Will be populated on demand
-    
+
     def _validate_git_repository(self, path: Path) -> tuple[Path, Optional[Path], bool]:
         """
         Validate that the path is a valid Git repository.
-        
+
         Returns:
             Tuple of (git_dir, work_tree, is_bare)
-            
+
         Raises:
             GitValidationError: If not a valid Git repository
         """
         # Check for .git directory or bare repository
         if path.is_file():
             raise GitValidationError(
-                f"Path is a file, not a directory: {path}",
-                value=path
+                f"Path is a file, not a directory: {path}", value=path
             )
-        
+
         # Check for .git subdirectory (normal repository)
         git_subdir = path / ".git"
         if git_subdir.exists():
@@ -179,7 +194,7 @@ class GitRepositoryPath:
                         return git_dir_path.resolve(), path, False
                 except (OSError, ValueError):
                     pass
-        
+
         # Check if this is a bare repository
         if (path / "objects").exists() and (path / "refs").exists():
             # Additional checks for bare repository
@@ -187,7 +202,7 @@ class GitRepositoryPath:
             config_file = path / "config"
             if head_file.exists() and config_file.exists():
                 return path, None, True
-        
+
         # Check if we're inside a git repository (search parent directories)
         current = path
         while current != current.parent:
@@ -207,42 +222,42 @@ class GitRepositoryPath:
                     except (OSError, ValueError):
                         pass
             current = current.parent
-        
+
         raise GitValidationError(
             f"Path is not a Git repository: {path}",
             value=path,
-            context={"searched_parents": True}
+            context={"searched_parents": True},
         )
-    
+
     def __str__(self) -> str:
         return str(self.path)
-    
+
     def __fspath__(self) -> str:
         """Support os.PathLike protocol."""
         return str(self.path)
-    
+
     def is_valid(self) -> bool:
         """
         Check if this is a valid git repository path.
-        
+
         Returns:
             True if the path is a valid git repository
         """
         return self.git_dir is not None and self.git_dir.exists()
-    
+
     def exists(self) -> bool:
         """
         Check if the repository path exists.
-        
+
         Returns:
             True if the path exists
         """
         return self.path.exists()
-    
+
     def get_repository_info(self) -> Dict[str, Any]:
         """
         Get metadata about the repository.
-        
+
         Returns:
             Dictionary containing repository information
         """
@@ -252,133 +267,139 @@ class GitRepositoryPath:
             "work_tree": str(self.work_tree) if self.work_tree else None,
             "is_bare": self.is_bare,
             "exists": self.path.exists(),
-            "is_git_repository": True
+            "is_git_repository": True,
         }
 
 
 @dataclass
 class GitBranch:
     """Type-safe representation of a Git branch."""
-    
+
     name: GitBranchName
     is_current: bool = False
     is_remote: bool = False
     remote_name: Optional[GitRemoteName] = None
     upstream: Optional[str] = None
     commit_hash: Optional[GitCommitHash] = None
-    
+
     def __init__(self, name: str, **kwargs):
         """Initialize GitBranch with validation."""
         if not self._is_valid_branch_name(name):
             raise GitValidationError(
-                f"Invalid branch name: {name}", 
+                f"Invalid branch name: {name}",
                 value=name,
                 field_name="name",
                 validation_rule="Git branch name rules: no '..' sequences, cannot start with '.', cannot end with '/', no special characters",
-                suggested_fix="Use alphanumeric characters, hyphens, and forward slashes for namespaces"
+                suggested_fix="Use alphanumeric characters, hyphens, and forward slashes for namespaces",
             )
-        
+
         self.name = GitBranchName(name)
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-    
+
     @staticmethod
     def _is_valid_branch_name(name: str) -> bool:
         """Validate Git branch name according to Git rules."""
         if not name or name.isspace():
             return False
-        
+
         # Basic checks - can be extended
-        invalid_chars = [' ', '~', '^', ':', '?', '*', '[', '\\']
+        invalid_chars = [" ", "~", "^", ":", "?", "*", "[", "\\"]
         if any(char in name for char in invalid_chars):
             return False
-        
-        if (name.startswith('-') or name.startswith('.') or 
-            name.endswith('.') or name.endswith('/') or 
-            '..' in name):
+
+        if (
+            name.startswith("-")
+            or name.startswith(".")
+            or name.endswith(".")
+            or name.endswith("/")
+            or ".." in name
+        ):
             return False
-        
+
         return True
-    
+
     def __str__(self) -> str:
         """Return the branch name as string."""
         return str(self.name)
-    
+
     def is_valid(self) -> bool:
         """Check if this is a valid branch."""
         return self._is_valid_branch_name(str(self.name))
-    
+
     def is_feature_branch(self) -> bool:
         """Check if this is a feature branch."""
-        return str(self.name).startswith('feature/')
-    
+        return str(self.name).startswith("feature/")
+
     def is_main_branch(self) -> bool:
         """Check if this is a main branch."""
-        return str(self.name) in ['main', 'master', 'develop']
-    
+        return str(self.name) in ["main", "master", "develop"]
+
     def is_release_branch(self) -> bool:
         """Check if this is a release branch."""
-        return str(self.name).startswith('release/')
-    
+        return str(self.name).startswith("release/")
+
     @property
     def parent_branch(self) -> Optional[str]:
         """Get the parent branch name."""
-        if '/' in str(self.name):
-            return str(self.name).split('/')[0]
+        if "/" in str(self.name):
+            return str(self.name).split("/")[0]
         return None
-    
+
     @property
     def namespace(self) -> Optional[str]:
         """Get the branch namespace."""
-        if '/' in str(self.name):
-            return str(self.name).split('/')[0]
+        if "/" in str(self.name):
+            return str(self.name).split("/")[0]
         return None
 
 
 @dataclass
 class GitCommitHash:
     """Type-safe representation of a Git commit hash."""
-    
+
     hash: str
     is_short: bool = False
-    
+
     def __init__(self, hash_value: str):
         """Initialize GitCommitHash with validation."""
         if not self._is_valid_commit_hash(hash_value):
-            raise GitValidationError(f"Invalid commit hash: {hash_value}", value=hash_value)
-        
+            raise GitValidationError(
+                f"Invalid commit hash: {hash_value}", value=hash_value
+            )
+
         self.hash = hash_value
         self.is_short = len(hash_value) < 40
-    
+
     @staticmethod
     def _is_valid_commit_hash(hash_value: str) -> bool:
         """Validate Git commit hash format."""
         if not hash_value:
             return False
-        
+
         # Check length (7-40 characters for Git hashes)
         if not (7 <= len(hash_value) <= 40):
             return False
-        
+
         # Check if all characters are valid hex
         try:
             int(hash_value, 16)
             return True
         except ValueError:
             return False
-    
+
     def __str__(self) -> str:
         return self.hash
-    
+
     def is_valid(self) -> bool:
         """Check if this is a valid commit hash."""
         return self._is_valid_commit_hash(self.hash)
-    
+
     def short(self) -> str:
         """Return short version of the hash (7 characters)."""
         return self.hash[:7]
-    
+
     def full(self) -> str:
         """Return full version of the hash (40 characters)."""
         if len(self.hash) == 40:
@@ -390,53 +411,91 @@ class GitCommitHash:
 @dataclass
 class GitFileStatus:
     """Representation of Git file status."""
-    
+
     status: GitFileStatusType
     path: Optional[str] = None
     old_path: Optional[str] = None  # For renamed files
-    
-    def __init__(self, status: GitFileStatusType, path: Optional[str] = None, old_path: Optional[str] = None):
-        if status not in ["modified", "added", "deleted", "renamed", "copied", 
-                         "unmerged", "untracked", "ignored", "staged"]:
+
+    def __init__(
+        self,
+        status: GitFileStatusType,
+        path: Optional[str] = None,
+        old_path: Optional[str] = None,
+    ):
+        if status not in [
+            "modified",
+            "added",
+            "deleted",
+            "renamed",
+            "copied",
+            "unmerged",
+            "untracked",
+            "ignored",
+            "staged",
+        ]:
             raise GitValidationError(f"Invalid file status: {status}", value=status)
-        
+
         self.status = status
         self.path = path
         self.old_path = old_path
-    
+
     def is_modified(self) -> bool:
         return self.status == "modified"
-    
+
     def is_added(self) -> bool:
         return self.status == "added"
-    
+
     def is_deleted(self) -> bool:
         return self.status == "deleted"
-    
+
     def is_staged(self) -> bool:
         return self.status == "staged"
-    
+
     def is_untracked(self) -> bool:
         return self.status == "untracked"
-    
+
     def needs_commit(self) -> bool:
-        return self.status in ["modified", "added", "deleted", "renamed", "copied", "staged"]
-    
+        return self.status in [
+            "modified",
+            "added",
+            "deleted",
+            "renamed",
+            "copied",
+            "staged",
+        ]
+
     def is_valid(self) -> bool:
-        return self.status in ["modified", "added", "deleted", "renamed", "copied", 
-                              "unmerged", "untracked", "ignored", "staged"]
-    
+        return self.status in [
+            "modified",
+            "added",
+            "deleted",
+            "renamed",
+            "copied",
+            "unmerged",
+            "untracked",
+            "ignored",
+            "staged",
+        ]
+
     def __str__(self) -> str:
         return str(self.status)
 
 
 class GitOperationResult:
     """Result of a Git operation."""
-    
-    def __init__(self, success: bool, message: str, command: Optional[str] = None,
-                 exit_code: Optional[int] = None, output: Optional[str] = None,
-                 error: Optional[str] = None, error_code: Optional[str] = None,
-                 operation: Optional[str] = None, duration: Optional[float] = None):
+
+    def __init__(
+        self,
+        success: bool,
+        message: str,
+        command: Optional[str] = None,
+        exit_code: Optional[int] = None,
+        output: Optional[str] = None,
+        error: Optional[str] = None,
+        error_code: Optional[str] = None,
+        operation: Optional[str] = None,
+        duration: Optional[float] = None,
+    ):
         self.success = success
         self.message = message
         self.command = command
@@ -446,23 +505,25 @@ class GitOperationResult:
         self.error_code = error_code
         self.operation = operation
         self.duration = duration
-        
+
         if not self.success and not self.error:
             raise GitValidationError("Failed operations must include error information")
-    
+
     @classmethod
-    def success(cls, output: str, operation: str, **kwargs) -> 'GitOperationResult':
+    def success(cls, output: str, operation: str, **kwargs) -> "GitOperationResult":
         """Create a successful operation result."""
         return cls(
             success=True,
             message="Operation completed successfully",
             output=output,
             operation=operation,
-            **kwargs
+            **kwargs,
         )
-    
+
     @classmethod
-    def error(cls, error: str, operation: str, error_code: Optional[str] = None, **kwargs) -> 'GitOperationResult':
+    def error(
+        cls, error: str, operation: str, error_code: Optional[str] = None, **kwargs
+    ) -> "GitOperationResult":
         """Create an error operation result."""
         return cls(
             success=False,
@@ -470,39 +531,37 @@ class GitOperationResult:
             error=error,
             operation=operation,
             error_code=error_code,
-            **kwargs
+            **kwargs,
         )
-    
+
     def is_success(self) -> bool:
         """Check if operation was successful."""
         return self.success
-    
+
     def is_error(self) -> bool:
         """Check if operation failed."""
         return not self.success
-    
-    def then(self, func) -> 'GitOperationResult':
+
+    def then(self, func) -> "GitOperationResult":
         """Apply function if operation was successful."""
         if self.success:
             return func(self)
         return self
-    
-    def map(self, func) -> 'GitOperationResult':
+
+    def map(self, func) -> "GitOperationResult":
         """Transform the result if operation was successful."""
         if self.success:
             return func(self)
         return self
-    
+
     def raise_for_status(self) -> None:
         """Raise GitOperationError if operation failed."""
         if not self.success:
             raise GitOperationError(
-                self.message, 
-                command=self.command, 
-                exit_code=self.exit_code
+                self.message, command=self.command, exit_code=self.exit_code
             )
-    
-    def chain(self, other: 'GitOperationResult') -> 'GitOperationResult':
+
+    def chain(self, other: "GitOperationResult") -> "GitOperationResult":
         """Chain this result with another operation result."""
         if not self.success:
             return self
@@ -511,11 +570,17 @@ class GitOperationResult:
 
 class GitStatusResult:
     """Result of git status operation."""
-    
-    def __init__(self, is_clean: bool, current_branch: 'GitBranch', 
-                 modified_files: List[str] = None, untracked_files: List[str] = None,
-                 staged_files: List[str] = None, deleted_files: List[str] = None,
-                 renamed_files: List[str] = None):
+
+    def __init__(
+        self,
+        is_clean: bool,
+        current_branch: "GitBranch",
+        modified_files: List[str] = None,
+        untracked_files: List[str] = None,
+        staged_files: List[str] = None,
+        deleted_files: List[str] = None,
+        renamed_files: List[str] = None,
+    ):
         self.is_clean = is_clean
         self.current_branch = current_branch
         self.modified_files = modified_files or []
@@ -523,25 +588,27 @@ class GitStatusResult:
         self.staged_files = staged_files or []
         self.deleted_files = deleted_files or []
         self.renamed_files = renamed_files or []
-    
+
     def has_no_changes(self) -> bool:
         """Check if repository has no changes."""
-        return (self.is_clean and 
-                not self.modified_files and 
-                not self.untracked_files and 
-                not self.staged_files and
-                not self.deleted_files and
-                not self.renamed_files)
-    
+        return (
+            self.is_clean
+            and not self.modified_files
+            and not self.untracked_files
+            and not self.staged_files
+            and not self.deleted_files
+            and not self.renamed_files
+        )
+
     def needs_commit(self) -> bool:
         """Check if repository needs commit."""
         return bool(self.staged_files or self.modified_files or self.deleted_files)
-    
+
     def summary(self) -> str:
         """Get human-readable status summary."""
         if self.is_clean:
             return "Repository is clean"
-        
+
         parts = []
         if self.modified_files:
             parts.append(f"{len(self.modified_files)} modified")
@@ -551,14 +618,19 @@ class GitStatusResult:
             parts.append(f"{len(self.untracked_files)} untracked")
         if self.deleted_files:
             parts.append(f"{len(self.deleted_files)} deleted")
-        
+
         return f"Repository has changes: {', '.join(parts)}"
-    
+
     def file_count(self) -> int:
         """Get total count of changed files."""
-        return (len(self.modified_files) + len(self.untracked_files) + 
-                len(self.staged_files) + len(self.deleted_files) + len(self.renamed_files))
-    
+        return (
+            len(self.modified_files)
+            + len(self.untracked_files)
+            + len(self.staged_files)
+            + len(self.deleted_files)
+            + len(self.renamed_files)
+        )
+
     def needs_attention(self) -> bool:
         """Check if repository needs attention."""
         return not self.is_clean
@@ -566,6 +638,7 @@ class GitStatusResult:
 
 class GitDiffResult(TypedDict):
     """Result of git diff operation."""
+
     files_changed: int
     insertions: int
     deletions: int
@@ -574,25 +647,34 @@ class GitDiffResult(TypedDict):
 
 class GitLogResult(TypedDict):
     """Result of git log operation."""
-    commits: List['GitCommitInfo']
+
+    commits: List["GitCommitInfo"]
     total_count: int
     has_more: bool
 
 
 class GitCommitInfo:
     """Complete commit information."""
-    
-    def __init__(self, hash: GitCommitHash, author_name: str, author_email: str,
-                 message: str, timestamp: str, parent_hashes: List[GitCommitHash] = None,
-                 committer: str = None, committer_email: str = None):
+
+    def __init__(
+        self,
+        hash: GitCommitHash,
+        author_name: str,
+        author_email: str,
+        message: str,
+        timestamp: str,
+        parent_hashes: List[GitCommitHash] = None,
+        committer: str = None,
+        committer_email: str = None,
+    ):
         # Validate email
         if "@" not in author_email or "." not in author_email:
             raise GitValidationError(f"Invalid email address: {author_email}")
-        
+
         # Validate message
         if not message or not message.strip():
             raise GitValidationError("Commit message cannot be empty")
-        
+
         self.hash = hash
         self.author_name = author_name
         self.author_email = author_email
@@ -601,24 +683,27 @@ class GitCommitInfo:
         self.parent_hashes = parent_hashes or []
         self.committer = committer or author_name
         self.committer_email = committer_email or author_email
-    
+
     def is_feature(self) -> bool:
         """Check if this is a feature commit."""
-        return self.message.lower().startswith(('feat:', 'feature:'))
-    
+        return self.message.lower().startswith(("feat:", "feature:"))
+
     def is_bugfix(self) -> bool:
         """Check if this is a bugfix commit."""
-        return self.message.lower().startswith(('fix:', 'bugfix:', 'bug:'))
-    
+        return self.message.lower().startswith(("fix:", "bugfix:", "bug:"))
+
     def is_breaking_change(self) -> bool:
         """Check if this is a breaking change."""
-        return ('BREAKING CHANGE' in self.message or 
-                '!' in self.message.split(':')[0] if ':' in self.message else False)
-    
+        return (
+            "BREAKING CHANGE" in self.message or "!" in self.message.split(":")[0]
+            if ":" in self.message
+            else False
+        )
+
     def one_line_summary(self) -> str:
         """Get one-line summary of the commit."""
         return f"{self.hash.short()}: {self.message.split(chr(10))[0][:50]}"
-    
+
     def detailed_summary(self) -> str:
         """Get detailed summary of the commit."""
         return f"""Commit: {self.hash.hash}
@@ -629,6 +714,7 @@ Message: {self.message}"""
 
 class GitBranchInfo(TypedDict):
     """Complete branch information."""
+
     name: GitBranchName
     is_current: bool
     is_remote: bool
@@ -640,6 +726,7 @@ class GitBranchInfo(TypedDict):
 
 class GitRemoteInfo(TypedDict):
     """Complete remote information."""
+
     name: GitRemoteName
     url: str
     fetch_url: str
@@ -650,17 +737,17 @@ class GitRemoteInfo(TypedDict):
 # Type Integration Tests Support
 class GitTypeIntegration:
     """Helper class for testing type integration."""
-    
+
     @staticmethod
     def validate_repository_path(path: Union[str, Path]) -> GitRepositoryPath:
         """Validate and return GitRepositoryPath."""
         return GitRepositoryPath(path)
-    
+
     @staticmethod
     def create_branch(name: str, **kwargs) -> GitBranch:
         """Create and validate GitBranch."""
         return GitBranch(name, **kwargs)
-    
+
     @staticmethod
     def create_commit_hash(hash_value: str) -> GitCommitHash:
         """Create and validate GitCommitHash."""
@@ -670,31 +757,27 @@ class GitTypeIntegration:
 # Export all public types
 __all__ = [
     # Core types
-    'GitRepositoryPath',
-    'GitBranch', 
-    'GitCommitHash',
-    'GitRemoteName',
-    'GitBranchName',
-    'GitTagName',
-    'GitFileStatus',
-    'GitOperationResult',
-    
+    "GitRepositoryPath",
+    "GitBranch",
+    "GitCommitHash",
+    "GitRemoteName",
+    "GitBranchName",
+    "GitTagName",
+    "GitFileStatus",
+    "GitOperationResult",
     # Status and info types
-    'GitStatusResult',
-    'GitDiffResult',
-    'GitLogResult',
-    'GitCommitInfo', 
-    'GitBranchInfo',
-    'GitRemoteInfo',
-    
+    "GitStatusResult",
+    "GitDiffResult",
+    "GitLogResult",
+    "GitCommitInfo",
+    "GitBranchInfo",
+    "GitRemoteInfo",
     # Error types
-    'GitValidationError',
-    'GitOperationError',
-    
+    "GitValidationError",
+    "GitOperationError",
     # Literal types
-    'GitFileStatusType',
-    'GitOperationStatus',
-    
+    "GitFileStatusType",
+    "GitOperationStatus",
     # Helper classes
-    'GitTypeIntegration',
+    "GitTypeIntegration",
 ]

@@ -78,7 +78,7 @@ See also:
 # Core type imports - implementing git_types first
 from .git_types import (
     GitRepositoryPath,
-    GitBranch, 
+    GitBranch,
     GitCommitHash,
     GitRemoteName,
     GitBranchName,
@@ -88,7 +88,7 @@ from .git_types import (
     GitStatusResult,
     GitDiffResult,
     GitLogResult,
-    GitCommitInfo, 
+    GitCommitInfo,
     GitBranchInfo,
     GitRemoteInfo,
     GitValidationError,
@@ -105,7 +105,7 @@ from .git_types import (
 __all__: list[str] = [
     # Git types - implemented
     "GitRepositoryPath",
-    "GitBranch", 
+    "GitBranch",
     "GitCommitHash",
     "GitRemoteName",
     "GitBranchName",
@@ -115,7 +115,7 @@ __all__: list[str] = [
     "GitStatusResult",
     "GitDiffResult",
     "GitLogResult",
-    "GitCommitInfo", 
+    "GitCommitInfo",
     "GitBranchInfo",
     "GitRemoteInfo",
     "GitValidationError",
