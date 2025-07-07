@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "git": {
+      "command": "pixi",
+      "args": [
+        "run",
+        "--manifest-path",
+        "/home/memento/ClaudeCode/Servers/git/development",
+        "mcp-server-git",
+        "--repository",
+        "/home/memento/ClaudeCode/Servers/cheap-llm/worktrees/feat-initialize-tdd"
+      ]
+    },
+    "pytest-analyzer": {
+      "command": "pixi",
+      "args": [
+        "run",
+         "--manifest-path",
+        "/home/memento/ClaudeCode/Servers/pytest-analyzer/development",
+        "mcp-server",
+        "--project-root",
+        "/home/memento/ClaudeCode/Servers/cheap-llm/worktrees/feat-initialize-tdd"
+      ]
+    },
+    "aider": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/home/memento/ClaudeCode/git_servers/src/aider-mcp-server",
+        "run",
+        "mcp-aider-server",
+        "--server-mode",
+        "stdio",
+        "--current-working-dir",
+        "/home/memento/ClaudeCode/Servers/cheap-llm/worktrees/feat-initialize-tdd"
+      ],
+      "env": {}
+    }
+  }
+}
