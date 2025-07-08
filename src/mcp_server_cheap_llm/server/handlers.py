@@ -1,8 +1,14 @@
 """MCP Server handlers for cheap LLM providers."""
 
-from typing import Dict, List, Any
-from mcp.server import Server
-from mcp.types import Tool, TextContent, CallToolRequest, CallToolResult
+from typing import Any
+
+from mcp.server import Server  # type: ignore[import-not-found]
+from mcp.types import (  # type: ignore[import-not-found]
+    CallToolRequest,
+    CallToolResult,
+    TextContent,
+    Tool,
+)
 
 from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.logging import get_logger
@@ -26,11 +32,11 @@ class CheapLLMServer:
         """Setup MCP server handlers."""
 
         @self._server.list_tools()
-        async def list_tools() -> List[Tool]:
+        async def list_tools() -> list[Tool]:
             return await self._list_tools()
 
         @self._server.call_tool()
-        async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+        async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             from mcp.types import CallToolRequestParams
 
             params = CallToolRequestParams(name=name, arguments=arguments)
@@ -45,7 +51,7 @@ class CheapLLMServer:
 
         self.logger.info("Server handlers initialized")
 
-    async def _list_tools(self) -> List[Tool]:
+    async def _list_tools(self) -> list[Tool]:
         """List available tools based on enabled providers.
 
         Returns:
@@ -162,7 +168,7 @@ class CheapLLMServer:
                 isError=True,
             )
 
-    async def _call_gemini(self, arguments: Dict[str, Any]) -> str:
+    async def _call_gemini(self, arguments: dict[str, Any]) -> str:
         """Call Gemini CLI provider.
 
         Args:
@@ -178,7 +184,7 @@ class CheapLLMServer:
         # For now, return a placeholder
         return f"Gemini ({model}) response to: {prompt}"
 
-    async def _call_codex(self, arguments: Dict[str, Any]) -> str:
+    async def _call_codex(self, arguments: dict[str, Any]) -> str:
         """Call OpenAI Codex provider.
 
         Args:
@@ -194,7 +200,7 @@ class CheapLLMServer:
         # For now, return a placeholder
         return f"Codex ({language}) response to: {prompt}"
 
-    async def _call_llama(self, arguments: Dict[str, Any]) -> str:
+    async def _call_llama(self, arguments: dict[str, Any]) -> str:
         """Call local LLaMA provider.
 
         Args:

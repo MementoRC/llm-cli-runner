@@ -17,11 +17,17 @@ Example:
 
 import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
-import structlog
-from structlog.processors import JSONRenderer, TimeStamper
-from structlog.stdlib import LoggerFactory, filter_by_level
+import structlog  # type: ignore[import-not-found]
+from structlog.processors import (  # type: ignore[import-not-found]
+    JSONRenderer,
+    TimeStamper,
+)
+from structlog.stdlib import (  # type: ignore[import-not-found]
+    LoggerFactory,
+    filter_by_level,
+)
 
 
 def setup_logging(debug: bool = False, json_output: bool = False) -> None:
@@ -97,7 +103,7 @@ def log_request_response(
     response_length: int,
     duration_ms: int,
     success: bool,
-    error: Optional[str] = None,
+    error: str | None = None,
 ) -> None:
     """Log request/response pair with structured data.
 
@@ -170,7 +176,7 @@ def log_security_event(
     event_type: str,
     description: str,
     source: str,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """Log security-related events.
 

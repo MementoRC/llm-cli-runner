@@ -15,19 +15,18 @@ Example:
 
 import asyncio
 import sys
-from typing import Optional
 
-import click
-import structlog
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+import click  # type: ignore[import-not-found]
+import structlog  # type: ignore[import-not-found]
+from mcp.server import Server  # type: ignore[import-not-found]
+from mcp.server.stdio import stdio_server  # type: ignore[import-not-found]
 
 from mcp_server_cheap_llm.server.handlers import CheapLLMServer
 from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.logging import setup_logging
 
 
-def create_server(config_path: Optional[str] = None, debug: bool = False) -> Server:
+def create_server(config_path: str | None = None, debug: bool = False) -> Server:
     """Create and configure the MCP server instance.
 
     Args:
@@ -69,7 +68,7 @@ def create_server(config_path: Optional[str] = None, debug: bool = False) -> Ser
     "--config", "-c", type=click.Path(exists=True), help="Path to configuration file"
 )
 @click.option("--debug", "-d", is_flag=True, help="Enable debug logging")
-def main(config: Optional[str] = None, debug: bool = False) -> None:
+def main(config: str | None = None, debug: bool = False) -> None:
     """Start the MCP Server for Cheap LLM Providers.
 
     This server provides cost-effective access to various LLM providers

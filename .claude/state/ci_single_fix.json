@@ -1,0 +1,13 @@
+{
+  "target_job": {
+    "name": "Quality Gates",
+    "id": "45574665759",
+    "test_name": "ruff linting",
+    "error_message": "5 ruff linting errors",
+    "first_seen": "2025-07-08T18:30:00Z"
+  },
+  "iteration": 1,
+  "max_iterations": 5,
+  "attempts": [],
+  "status": "in_progress"
+}

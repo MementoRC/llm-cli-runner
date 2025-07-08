@@ -16,19 +16,18 @@ Example:
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef,import-not-found]
 
-import structlog
+import structlog  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field, ValidationError
 
 from mcp_server_cheap_llm.core.models import ProviderConfig
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
-
 
 logger = structlog.get_logger(__name__)
 
@@ -58,9 +57,9 @@ class ServerConfig(BaseModel):
     log_level: str = Field(
         default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"
     )
-    providers: List[ProviderConfig] = Field(default_factory=list)
+    providers: list[ProviderConfig] = Field(default_factory=list)
 
-    def get_debug_state(self) -> Dict[str, Any]:
+    def get_debug_state(self) -> dict[str, Any]:
         """Return configuration state for debugging.
 
         Returns:
@@ -74,7 +73,7 @@ class ServerConfig(BaseModel):
             "log_level": self.log_level,
             "provider_count": len(self.providers),
             "enabled_providers": [p.name for p in self.providers if p.enabled],
-            "provider_types": list(set(p.provider_type for p in self.providers)),
+            "provider_types": list({p.provider_type for p in self.providers}),
         }
 
 
@@ -86,7 +85,7 @@ class EnvironmentLoader:
     """
 
     @staticmethod
-    def get_api_key(provider_name: str) -> Optional[str]:
+    def get_api_key(provider_name: str) -> str | None:
         """Get API key for provider from environment.
 
         Args:
@@ -121,7 +120,7 @@ class EnvironmentLoader:
         return None
 
     @staticmethod
-    def get_server_config() -> Dict[str, Any]:
+    def get_server_config() -> dict[str, Any]:
         """Load server configuration from environment variables.
 
         Returns:
@@ -155,7 +154,7 @@ class ConfigManager:
         >>> config = manager.get_provider_config("gemini")
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """Initialize configuration manager.
 
         Args:
@@ -198,11 +197,11 @@ class ConfigManager:
             return ServerConfig(**config_data)
 
         except ValidationError as e:
-            raise ConfigurationError(f"Invalid configuration: {e}")
+            raise ConfigurationError(f"Invalid configuration: {e}") from e
         except Exception as e:
-            raise ConfigurationError(f"Failed to load configuration: {e}")
+            raise ConfigurationError(f"Failed to load configuration: {e}") from e
 
-    def _load_config_file(self) -> Dict[str, Any]:
+    def _load_config_file(self) -> dict[str, Any]:
         """Load configuration from TOML file.
 
         Returns:
@@ -223,9 +222,9 @@ class ConfigManager:
             with open(config_path, "rb") as f:
                 return tomllib.load(f)
         except Exception as e:
-            raise ConfigurationError(f"Failed to parse configuration file: {e}")
+            raise ConfigurationError(f"Failed to parse configuration file: {e}") from e
 
-    def _create_default_providers(self) -> List[Dict[str, Any]]:
+    def _create_default_providers(self) -> list[dict[str, Any]]:
         """Create default provider configurations.
 
         Returns:
@@ -272,7 +271,7 @@ class ConfigManager:
         logger.info("Created default providers", count=len(defaults))
         return defaults
 
-    def get_enabled_providers(self) -> List[str]:
+    def get_enabled_providers(self) -> list[str]:
         """Get list of enabled provider names.
 
         Returns:
@@ -280,7 +279,7 @@ class ConfigManager:
         """
         return [p.name for p in self.config.providers if p.enabled]
 
-    def get_provider_config(self, provider_name: str) -> Optional[ProviderConfig]:
+    def get_provider_config(self, provider_name: str) -> ProviderConfig | None:
         """Get configuration for specific provider.
 
         Args:
@@ -302,7 +301,7 @@ class ConfigManager:
         """
         return self.config.default_provider
 
-    def get_debug_state(self) -> Dict[str, Any]:
+    def get_debug_state(self) -> dict[str, Any]:
         """Get complete configuration state for debugging.
 
         Returns:
