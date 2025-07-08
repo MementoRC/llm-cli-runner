@@ -227,7 +227,7 @@ class TestGitCommitHash:
                 # Test NewType
                 commit_hash = GitCommitHash(hash_val)
                 assert str(commit_hash) == hash_val
-                
+
                 # Test object type
                 commit_hash_obj = GitCommitHashObj(hash_val)
                 assert commit_hash_obj.hash == hash_val
@@ -252,12 +252,14 @@ class TestGitCommitHash:
     def test_should_provide_hash_utilities(self):
         """GitCommitHash should provide hash utility methods."""
         if TYPES_AVAILABLE:
-            commit_hash_obj = GitCommitHashObj("a1b2c3d4e5f6789012345678901234567890abcd")
+            commit_hash_obj = GitCommitHashObj(
+                "a1b2c3d4e5f6789012345678901234567890abcd"
+            )
 
             # Should provide hash properties
             assert hasattr(commit_hash_obj, "hash")
             assert hasattr(commit_hash_obj, "is_short")
-            
+
             # Test short hash
             short_hash_obj = GitCommitHashObj("a1b2c3d")
             assert short_hash_obj.is_short
