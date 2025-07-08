@@ -24,7 +24,7 @@ This test suite follows strict TDD principles to ensure requirements drive imple
 tests/
 ├── unit/                    # Layer 1-2: Primitives & Operations
 │   ├── primitives/         # Atomic Git/GitHub operations
-│   ├── operations/         # Composed operations  
+│   ├── operations/         # Composed operations
 │   ├── types/             # Type system validation
 │   ├── constants/         # Constants validation
 │   └── protocols/         # Protocol definitions
@@ -45,7 +45,7 @@ tests/
 Use pytest markers to categorize tests:
 
 - `@pytest.mark.unit` - Unit tests (fast, isolated)
-- `@pytest.mark.integration` - Integration tests (moderate speed)  
+- `@pytest.mark.integration` - Integration tests (moderate speed)
 - `@pytest.mark.system` - End-to-end tests (slower)
 - `@pytest.mark.slow` - Tests taking >1 second
 - `@pytest.mark.requires_git` - Needs git repository setup
@@ -128,10 +128,10 @@ def test_[component]_[action]_[expected_result]():
 def test_example():
     # ARRANGE: Set up test data
     repo = create_test_repository()
-    
+
     # ACT: Execute the functionality
     result = repo.get_status()
-    
+
     # ASSERT: Verify expectations
     assert result.is_clean is True
 ```
@@ -143,7 +143,7 @@ def test_github_api_call(mocker):
     # Mock external GitHub API
     mock_response = mocker.patch('requests.get')
     mock_response.return_value.json.return_value = {'status': 'success'}
-    
+
     # Test internal logic without external dependency
     result = github_service.get_user('test')
     assert result['status'] == 'success'
@@ -153,7 +153,7 @@ def test_github_api_call(mocker):
 
 Tests run automatically on:
 - Every commit to feature branches
-- Pull request creation/updates  
+- Pull request creation/updates
 - Merge to main branch
 
 CI will **fail** if:

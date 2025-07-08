@@ -125,7 +125,7 @@ valid_repo_paths = ["/tmp/repo", "~/projects/app", "/var/git/service"]
 valid_branches = ["main", "feature/auth", "bugfix-123", "release/v1.0"]
 valid_commits = ["a1b2c3d", "abc123def456", "full-40-char-sha1-hash"]
 
-# GitHub domain  
+# GitHub domain
 valid_github_repos = [("owner", "repo"), ("org-name", "project-2023")]
 valid_usernames = ["user", "user-name", "user123", "123user"]
 
@@ -186,7 +186,7 @@ uv run python scripts/test_runner.py tdd -k "GitRepositoryPath"
 ### Phase 1: Core Type Definitions
 - [ ] `src/mcp_server_git/types/` directory structure
 - [ ] `git_types.py` - Git domain types
-- [ ] `github_types.py` - GitHub API types  
+- [ ] `github_types.py` - GitHub API types
 - [ ] `mcp_types.py` - MCP protocol types
 - [ ] `validation_types.py` - Validation infrastructure
 

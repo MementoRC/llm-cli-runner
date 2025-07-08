@@ -5,8 +5,8 @@ This document tracks missing MCP tools identified during real-world usage of the
 ## Missing GitHub Issue Management Tools
 
 ### 1. github_create_issue
-**Status**: MISSING  
-**Priority**: HIGH  
+**Status**: MISSING
+**Priority**: HIGH
 **Use Case**: Create GitHub issues to track bugs, feature requests, and missing functionality
 
 ```python
@@ -21,15 +21,15 @@ mcp__git__github_create_issue(
 )
 ```
 
-### 2. github_edit_pr_description  
-**Status**: MISSING  
-**Priority**: MEDIUM  
+### 2. github_edit_pr_description
+**Status**: MISSING
+**Priority**: MEDIUM
 **Use Case**: Update PR descriptions with progress, milestones, and status
 
 ```python
 # Needed tool
 mcp__git__github_edit_pr_description(
-    repo_owner="owner", 
+    repo_owner="owner",
     repo_name="repo",
     pr_number=12,
     description="Updated PR description"
@@ -45,7 +45,7 @@ mcp__git__github_edit_pr_description(
 # Needed tool
 mcp__git__github_list_issues(
     repo_owner="owner",
-    repo_name="repo", 
+    repo_name="repo",
     state="open",
     labels=["bug"],
     assignee="username"
@@ -54,7 +54,7 @@ mcp__git__github_list_issues(
 
 ### 4. github_update_issue
 **Status**: MISSING
-**Priority**: MEDIUM  
+**Priority**: MEDIUM
 **Use Case**: Update issue status, labels, assignees
 
 ```python
@@ -77,7 +77,7 @@ During Task 19 (Git Primitive Operations) development:
    - **Workaround Used**: `gh pr edit 12 --body`
    - **Should Use**: `mcp__git__github_edit_pr_description`
 
-2. **Needed to create GitHub issues** for missing functionality  
+2. **Needed to create GitHub issues** for missing functionality
    - **Workaround Used**: Manual GitHub web interface
    - **Should Use**: `mcp__git__github_create_issue`
 
@@ -92,7 +92,7 @@ During Task 19 (Git Primitive Operations) development:
 - **Missing dogfooding**: Not using our own MCP server for all Git/GitHub operations
 - **Reduced confidence**: Can't validate MCP server completeness through usage
 
-### Quality Impact  
+### Quality Impact
 - **Missing test coverage**: Tools we don't have can't be tested
 - **Incomplete API surface**: GitHub API not fully exposed through MCP
 - **Workflow gaps**: Common GitHub workflows require bash fallbacks
@@ -103,7 +103,7 @@ During Task 19 (Git Primitive Operations) development:
 1. `github_create_issue` - Essential for tracking and collaboration
 2. `github_edit_pr_description` - Common workflow need
 
-### Medium Priority  
+### Medium Priority
 3. `github_list_issues` - Issue management workflows
 4. `github_update_issue` - Issue lifecycle management
 5. `github_add_issue_comment` - Issue collaboration
@@ -124,7 +124,7 @@ During Task 19 (Git Primitive Operations) development:
 
 Going forward, we commit to:
 - ✅ Use MCP tools exclusively for Git/GitHub operations
-- ✅ Document any missing functionality immediately  
+- ✅ Document any missing functionality immediately
 - ✅ Create GitHub issues for missing tools
 - ✅ Prioritize implementing tools we need for our own development
 

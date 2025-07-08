@@ -3,7 +3,6 @@
 import json
 import pytest
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 
 from mcp_server_git.frameworks.server_core import MCPGitServerCore
