@@ -25,6 +25,9 @@ from mcp.types import (
 )
 from pydantic import BaseModel
 
+# Import server core framework
+from mcp_server_git.frameworks import MCPGitServerCore
+
 # Import canonical git operations from git/operations.py
 from mcp_server_git.git.operations import (
     git_status,
@@ -1191,7 +1194,19 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
             logger.error(f"{repository} is not a valid Git repository")
             return
 
-    server: Server = Server("mcp-git")
+    # Initialize the server core
+    server_core = MCPGitServerCore("mcp-git")
+    server = server_core.initialize_server(repository)
+    
+    # Track request counts in the server core
+    original_call_tool = server.call_tool
+    
+    async def call_tool_with_tracking(*args, **kwargs):
+        server_core.increment_request_count()
+        return await original_call_tool(*args, **kwargs)
+    
+    # Monkey patch to track requests (temporary until proper middleware)
+    server.call_tool = call_tool_with_tracking
 
     @server.list_prompts()
     async def list_prompts() -> list[Prompt]:
@@ -2792,54 +2807,8 @@ Provide specific, actionable recommendations for each area."""
             f"✅ [{request_id}] Tool '{name}' completed successfully in {duration:.2f}s"
         )
 
-    options = server.create_initialization_options()
-
-    # Handle test mode for CI validation
-    if test_mode:
-        logger.info("🧪 Test mode: MCP server initialized successfully")
-        print("✅ MCP server started successfully", file=sys.stderr)
-        # Stay alive briefly for CI detection, then exit gracefully
-        import asyncio
-
-        await asyncio.sleep(10)  # Stay alive for 10 seconds for CI to detect
-        logger.info("🧪 Test mode: Server stopping gracefully")
-        return
-
-    # Enhanced server run with transport-level error recovery
-    try:
-        async with stdio_server() as (read_stream, write_stream):
-            logger.info(
-                "🔗 STDIO server connected, starting main loop with enhanced error handling..."
-            )
-
-            # Run server with error isolation - CRITICAL: raise_exceptions=False prevents crashes
-            await server.run(read_stream, write_stream, options, raise_exceptions=False)
-
-    except KeyboardInterrupt:
-        logger.info("⌨️ Server interrupted by user")
-        raise
-    except Exception as e:
-        error_msg = str(e).lower()
-
-        # Enhanced error categorization to prevent crashes
-        if "transport" in error_msg and "closed" in error_msg:
-            logger.error(f"🔌 Transport error: {e}")
-            logger.info(
-                "🔌 This is often due to client disconnection or tool execution failure - server recovering gracefully"
-            )
-        elif "gpg" in error_msg:
-            logger.error(f"🔒 GPG-related server error: {e}")
-            logger.info(
-                "🔒 GPG configuration issue detected - server remains operational"
-            )
-        elif "notification" in error_msg and "validation" in error_msg:
-            logger.warning(f"🔔 Notification validation error: {e}")
-            logger.info("🔔 Client notification issue - server continues normally")
-        else:
-            logger.error(f"💥 Server error: {e}", exc_info=True)
-            logger.info("💥 Unexpected server error - attempting graceful recovery")
-
-        # Don't re-raise - let server shutdown gracefully instead of crashing
+    # Start the server using the server core
+    await server_core.start_server(test_mode=test_mode)
 
 
 # Alias for backward compatibility

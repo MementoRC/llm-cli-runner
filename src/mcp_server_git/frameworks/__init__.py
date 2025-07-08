@@ -68,8 +68,12 @@ See also:
     - configuration: Framework configuration and validation schemas
 """
 
-# Placeholder exports - will be populated as modules are implemented
+# Framework exports
+from .server_core import MCPGitServerCore
+
 __all__: list[str] = [
+    # Core server framework
+    "MCPGitServerCore",
     # MCP server framework - to be implemented
     # "mcp_server_framework",
     # Tool registry framework - to be implemented
