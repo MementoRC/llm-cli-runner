@@ -16,8 +16,8 @@ Example usage:
     >>> main()  # Starts the MCP server
 """
 
-from mcp_server_cheap_llm.server.handlers import CheapLLMServer
 from mcp_server_cheap_llm.__main__ import main
+from mcp_server_cheap_llm.server.handlers import CheapLLMServer
 
 __version__ = "0.1.0"
 __all__ = ["CheapLLMServer", "main"]

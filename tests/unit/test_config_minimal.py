@@ -1,9 +1,10 @@
 """Minimal unit tests for configuration management - TDD approach."""
 
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, mock_open, patch
+
+import pytest
 
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
 

@@ -17,7 +17,7 @@ Example:
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, validator
 
@@ -60,11 +60,11 @@ class LLMRequest(BaseModel):
     """
 
     prompt: str = Field(..., min_length=1, max_length=10000)
-    provider: Optional[ProviderType] = None
+    provider: ProviderType | None = None
     max_tokens: int = Field(default=1000, ge=1, le=8000)
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
-    system_prompt: Optional[str] = Field(None, max_length=2000)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    system_prompt: str | None = Field(None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @validator("metadata")
     def validate_metadata(cls, v):
@@ -99,13 +99,13 @@ class LLMResponse(BaseModel):
     content: str = ""
     provider: ProviderType
     success: bool = True
-    error_message: Optional[str] = None
+    error_message: str | None = None
     tokens_used: int = Field(default=0, ge=0)
     response_time_ms: int = Field(default=0, ge=0)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
 
-    def to_debug_dict(self) -> Dict[str, Any]:
+    def to_debug_dict(self) -> dict[str, Any]:
         """Convert to dictionary for debugging purposes.
 
         Returns:
@@ -150,14 +150,14 @@ class ProviderConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     provider_type: ProviderType
     enabled: bool = True
-    api_key: Optional[str] = Field(None, min_length=1)
-    endpoint_url: Optional[str] = None
+    api_key: str | None = Field(None, min_length=1)
+    endpoint_url: str | None = None
     model_name: str = Field(..., min_length=1)
     default_max_tokens: int = Field(default=1000, ge=1, le=8000)
     default_temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     rate_limit_per_minute: int = Field(default=60, ge=1, le=1000)
     timeout_seconds: int = Field(default=30, ge=1, le=300)
-    provider_specific: Dict[str, Any] = Field(default_factory=dict)
+    provider_specific: dict[str, Any] = Field(default_factory=dict)
 
     @validator("name")
     def validate_name(cls, v):
@@ -193,12 +193,12 @@ class ProviderStatusInfo(BaseModel):
 
     name: str
     status: ProviderStatus
-    last_request_time: Optional[datetime] = None
+    last_request_time: datetime | None = None
     total_requests: int = Field(default=0, ge=0)
     failed_requests: int = Field(default=0, ge=0)
     average_response_time_ms: float = Field(default=0.0, ge=0.0)
-    rate_limit_remaining: Optional[int] = Field(None, ge=0)
-    error_details: Optional[str] = None
+    rate_limit_remaining: int | None = Field(None, ge=0)
+    error_details: str | None = None
 
     @property
     def success_rate(self) -> float:
@@ -213,7 +213,7 @@ class ProviderStatusInfo(BaseModel):
             (self.total_requests - self.failed_requests) / self.total_requests
         ) * 100.0
 
-    def to_debug_dict(self) -> Dict[str, Any]:
+    def to_debug_dict(self) -> dict[str, Any]:
         """Convert to dictionary for debugging.
 
         Returns:
@@ -226,7 +226,7 @@ class ProviderStatusInfo(BaseModel):
             "success_rate": round(self.success_rate, 2),
             "avg_response_ms": round(self.average_response_time_ms, 2),
             "has_error": self.error_details is not None,
-            "last_request": self.last_request_time.isoformat()
-            if self.last_request_time
-            else None,
+            "last_request": (
+                self.last_request_time.isoformat() if self.last_request_time else None
+            ),
         }

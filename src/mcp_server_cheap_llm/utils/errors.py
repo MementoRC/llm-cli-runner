@@ -14,7 +14,7 @@ Example:
     >>> raise ConfigurationError("Missing required field: model_name")
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class CheapLLMError(Exception):
@@ -38,8 +38,8 @@ class CheapLLMError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        context: dict[str, Any] | None = None,
     ):
         """Initialize the exception.
 
@@ -53,7 +53,7 @@ class CheapLLMError(Exception):
         self.error_code = error_code
         self.context = context or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for logging.
 
         Returns:
@@ -105,8 +105,8 @@ class ProviderError(CheapLLMError):
         self,
         message: str,
         provider: str,
-        error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        context: dict[str, Any] | None = None,
     ):
         """Initialize provider error.
 
@@ -161,8 +161,8 @@ class RateLimitError(ProviderError):
         message: str,
         provider: str,
         retry_after: int,
-        error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        context: dict[str, Any] | None = None,
     ):
         """Initialize rate limit error.
 
