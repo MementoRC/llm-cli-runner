@@ -1,7 +1,7 @@
 """GitHub API operations for MCP Git Server"""
 
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from .client import get_github_client
 
@@ -567,7 +567,7 @@ async def github_update_pr(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload = {}
+        payload: Dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
         if body is not None:
@@ -782,7 +782,7 @@ async def github_create_issue(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload = {"title": title}
+        payload: Dict[str, Any] = {"title": title}
         if body is not None:
             payload["body"] = body
         if labels is not None:
@@ -930,7 +930,7 @@ async def github_update_issue(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload = {}
+        payload: Dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
         if body is not None:
