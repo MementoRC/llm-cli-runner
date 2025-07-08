@@ -39,7 +39,20 @@ jobs:
           pixi run -e dev pip install -e .
 
       - name: Run format check
-        run: pixi run -e dev format-check
+        run: |
+          echo "=== DEBUGGING FORMAT CHECK ==="
+          echo "Python version: $(python --version)"
+          echo "Ruff version: $(pixi run -e dev ruff --version)"
+          echo "Current directory: $(pwd)"
+          echo "Files in tests/integration/:"
+          ls -la tests/integration/
+          echo "=== Running format check ==="
+          pixi run -e dev format-check || {
+            echo "=== FORMAT CHECK FAILED - SHOWING DIFF ==="
+            pixi run -e dev ruff format --diff src/ tests/
+            echo "=== END DIFF ==="
+            exit 1
+          }
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
