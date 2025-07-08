@@ -33,6 +33,8 @@ jobs:
           manifest-path: pyproject.toml
           run-install: true # Changed from install-dependencies
           locked: true # Added for reproducible builds
+          cache: false # Temporarily disable cache
+          environment: dev # Specify the environment to install
 
       - name: Install project in editable mode
         run: |
@@ -89,6 +91,8 @@ jobs:
           manifest-path: pyproject.toml
           run-install: true # Changed from install-dependencies
           locked: true # Added for reproducible builds
+          cache: false # Temporarily disable cache
+          environment: dev # Specify the environment to install
 
       - name: Install project in editable mode
         run: |
