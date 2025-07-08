@@ -315,10 +315,6 @@ class GitConfig(BaseModel):
         return self
 
     model_config = {
-        # Environment variable prefix
-        "env_prefix": "MCP_GIT_",
-        # Case sensitivity for environment variables
-        "case_sensitive": False,
         # Schema generation with examples
         "json_schema_extra": {
             "example": {

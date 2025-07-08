@@ -90,7 +90,7 @@ class GitHubConfig(BaseModel):
 
     # API Settings
     api_base_url: HttpUrl = Field(
-        default="https://api.github.com", description="GitHub API base URL"
+        default=HttpUrl("https://api.github.com"), description="GitHub API base URL"
     )
     api_version: str = Field(
         default="2022-11-28", description="GitHub API version (use YYYY-MM-DD format)"
@@ -425,15 +425,12 @@ class GitHubConfig(BaseModel):
         # Remove trailing slash for consistency
         url_str = str(v)
         if url_str.endswith("/"):
-            # In Pydantic v2, we need to return a string for HttpUrl fields
-            return url_str.rstrip("/")
+            # Create a new HttpUrl from the trimmed string
+            from pydantic import HttpUrl as HttpUrlType
+            return HttpUrlType(url_str.rstrip("/"))
         return v
 
     model_config = {
-        # Environment variable prefix
-        "env_prefix": "MCP_GITHUB_",
-        # Case sensitivity for environment variables
-        "case_sensitive": False,
         # Allow population by field name
         "populate_by_name": True,
         # Schema generation with examples
