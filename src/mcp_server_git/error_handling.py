@@ -486,36 +486,35 @@ def with_circuit_breaker(circuit: CircuitBreaker):
     """Decorator to apply circuit breaker to a function."""
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        @functools.wraps(func)
-        async def async_wrapper(*args: Any, **kwargs: Any) -> T:
-            if not circuit.allow_request():
-                raise CircuitOpenError(f"Circuit {circuit.name} is open")
-
-            try:
-                result = await func(*args, **kwargs)
-                circuit.record_success()
-                return result
-            except Exception:
-                circuit.record_failure()
-                raise
-
-        @functools.wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> T:
-            if not circuit.allow_request():
-                raise CircuitOpenError(f"Circuit {circuit.name} is open")
-
-            try:
-                result = func(*args, **kwargs)
-                circuit.record_success()
-                return result
-            except Exception:
-                circuit.record_failure()
-                raise
-
-        # Return appropriate wrapper based on whether function is async
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
+            @functools.wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> T:
+                if not circuit.allow_request():
+                    raise CircuitOpenError(f"Circuit {circuit.name} is open")
+
+                try:
+                    result = await func(*args, **kwargs)  # type: ignore
+                    circuit.record_success()
+                    return result
+                except Exception:
+                    circuit.record_failure()
+                    raise
+
+            return async_wrapper  # type: ignore
         else:
+            @functools.wraps(func)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> T:
+                if not circuit.allow_request():
+                    raise CircuitOpenError(f"Circuit {circuit.name} is open")
+
+                try:
+                    result = func(*args, **kwargs)
+                    circuit.record_success()
+                    return result
+                except Exception:
+                    circuit.record_failure()
+                    raise
+
             return sync_wrapper
 
     return decorator
