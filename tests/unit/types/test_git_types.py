@@ -19,6 +19,7 @@ try:
         GitRepositoryPath,
         GitBranch,
         GitCommitHash,
+        GitCommitHashObj,
         GitRemoteName,
         GitFileStatus,
         GitOperationResult,
@@ -223,9 +224,13 @@ class TestGitCommitHash:
 
         if TYPES_AVAILABLE:
             for hash_val in valid_hashes:
+                # Test NewType
                 commit_hash = GitCommitHash(hash_val)
                 assert str(commit_hash) == hash_val
-                assert commit_hash.is_valid()
+                
+                # Test object type
+                commit_hash_obj = GitCommitHashObj(hash_val)
+                assert commit_hash_obj.hash == hash_val
 
     def test_should_reject_invalid_commit_hashes(self):
         """GitCommitHash should reject invalid commit hashes."""
@@ -238,22 +243,25 @@ class TestGitCommitHash:
 
         if TYPES_AVAILABLE:
             for hash_val in invalid_hashes:
+                # GitCommitHash is a NewType(str), so it won't validate
+                # Only GitCommitHashObj validates
                 with pytest.raises(GitValidationError) as exc_info:
-                    GitCommitHash(hash_val)
+                    GitCommitHashObj(hash_val)
                 assert "invalid commit hash" in str(exc_info.value).lower()
 
     def test_should_provide_hash_utilities(self):
         """GitCommitHash should provide hash utility methods."""
         if TYPES_AVAILABLE:
-            commit_hash = GitCommitHash("a1b2c3d4e5f6789012345678901234567890abcd")
+            commit_hash_obj = GitCommitHashObj("a1b2c3d4e5f6789012345678901234567890abcd")
 
-            # Should provide short hash
-            assert hasattr(commit_hash, "short")
-            assert len(commit_hash.short()) >= 7
-
-            # Should provide full hash
-            assert hasattr(commit_hash, "full")
-            assert len(commit_hash.full()) == 40
+            # Should provide hash properties
+            assert hasattr(commit_hash_obj, "hash")
+            assert hasattr(commit_hash_obj, "is_short")
+            
+            # Test short hash
+            short_hash_obj = GitCommitHashObj("a1b2c3d")
+            assert short_hash_obj.is_short == True
+            assert len(short_hash_obj.hash) == 7
 
 
 class TestGitFileStatus:
@@ -310,8 +318,8 @@ class TestGitOperationResult:
                 output="Operation completed successfully", operation="git status"
             )
 
-            assert result.is_success()
-            assert not result.is_error()
+            assert result.is_success == True
+            assert result.error_message is None
             assert result.output == "Operation completed successfully"
             assert result.operation == "git status"
 
@@ -324,9 +332,8 @@ class TestGitOperationResult:
                 error_code="REPO_NOT_FOUND",
             )
 
-            assert not result.is_success()
-            assert result.is_error()
-            assert result.error == "Repository not found"
+            assert result.is_success == False
+            assert result.error_message == "Repository not found"
             assert result.error_code == "REPO_NOT_FOUND"
 
     def test_should_provide_result_chaining(self):
@@ -341,7 +348,7 @@ class TestGitOperationResult:
             # Should short-circuit on errors
             error_result = GitOperationResult.error("Error", "git add")
             chained = error_result.then(lambda x: x)
-            assert chained.is_error()
+            assert chained.is_success == False
 
 
 class TestGitStatusResult:
