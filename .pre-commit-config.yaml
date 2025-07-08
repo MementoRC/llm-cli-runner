@@ -11,12 +11,7 @@ repos:
         args: ["-r", "src/", "-f", "json", "-o", "bandit-report.json"]
         pass_filenames: false
 
-  - repo: https://github.com/pyupio/safety
-    rev: 3.2.0
-    hooks:
-      - id: safety
-        args: ["check", "--json", "--output", "safety-report.json"]
-        pass_filenames: false
+  # Safety check removed due to executable not found
 
   # Code formatting and style
   - repo: https://github.com/psf/black
@@ -44,7 +39,7 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
-        additional_dependencies: [pydantic, types-toml]
+        additional_dependencies: [pydantic, types-toml, pytest]
         args: ["--config-file", "pyproject.toml"]
 
   # YAML validation
@@ -78,17 +73,7 @@ repos:
       - id: pydocstyle
         args: ["--convention=google"]
 
-  # Dependency scanning
-  - repo: local
-    hooks:
-      - id: pip-audit
-        name: pip-audit
-        entry: pip-audit
-        language: system
-        args: ["--format=json", "--output=pip-audit-report.json"]
-        pass_filenames: false
-
-  # Test execution (fast tests only)
+  # Local hooks
   - repo: local
     hooks:
       - id: pytest

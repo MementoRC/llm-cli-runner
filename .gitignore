@@ -58,3 +58,24 @@ htmlcov/
 # These files are crucial for reproducible builds and are expected to be committed.
 # .pixi/
 # pixi.lock
+
+# Security and audit reports
+bandit-report.json
+safety-report.json
+pip-audit-report.json
+
+# TaskMaster and MCP files
+.taskmaster/
+.mcp.json
+
+# Environment files
+.env.*
+!.env.example
+
+# MyPy cache
+.mypy_cache/
+
+# Local LLaMA models
+models/
+*.gguf
+*.bin
