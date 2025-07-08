@@ -31,14 +31,12 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
-          run-install: true # Changed from install-dependencies
-          locked: true # Added for reproducible builds
-          cache: false # Temporarily disable cache
-          environments: dev # Specify the environment to install
+
+      - name: Install pixi dependencies
+        run: pixi install -e dev
 
       - name: Install project in editable mode
         run: |
-          # pixi install -e dev # This line is now handled by setup-pixi action
           pixi run -e dev pip install -e .
 
       - name: Run format check
@@ -89,14 +87,12 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
-          run-install: true # Changed from install-dependencies
-          locked: true # Added for reproducible builds
-          cache: false # Temporarily disable cache
-          environments: dev # Specify the environment to install
+
+      - name: Install pixi dependencies
+        run: pixi install -e dev
 
       - name: Install project in editable mode
         run: |
-          # pixi install -e dev # This line is now handled by setup-pixi action
           pixi run -e dev pip install -e .
 
       - name: Build package
