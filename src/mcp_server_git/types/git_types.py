@@ -534,7 +534,7 @@ class GitOperationResult:
             **kwargs,
         )
 
-    @property  
+    @property
     def succeeded(self) -> bool:
         """Check if operation was successful."""
         return self.is_success

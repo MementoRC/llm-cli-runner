@@ -91,7 +91,7 @@ class GitHubConfig(BaseModel):
     # API Settings
     api_base_url: HttpUrl = Field(
         default_factory=lambda: HttpUrl("https://api.github.com"),
-        description="GitHub API base URL"
+        description="GitHub API base URL",
     )
     api_version: str = Field(
         default="2022-11-28", description="GitHub API version (use YYYY-MM-DD format)"

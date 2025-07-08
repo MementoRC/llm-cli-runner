@@ -487,6 +487,7 @@ def with_circuit_breaker(circuit: CircuitBreaker):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 if not circuit.allow_request():
@@ -502,6 +503,7 @@ def with_circuit_breaker(circuit: CircuitBreaker):
 
             return async_wrapper  # type: ignore
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: Any, **kwargs: Any) -> T:
                 if not circuit.allow_request():
