@@ -31,7 +31,8 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
-          install-dependencies: true # Add this line to install dependencies via setup-pixi
+          run-install: true # Changed from install-dependencies
+          locked: true # Added for reproducible builds
 
       - name: Install project in editable mode
         run: |
@@ -86,7 +87,8 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
-          install-dependencies: true # Add this line to install dependencies via setup-pixi
+          run-install: true # Changed from install-dependencies
+          locked: true # Added for reproducible builds
 
       - name: Install project in editable mode
         run: |
