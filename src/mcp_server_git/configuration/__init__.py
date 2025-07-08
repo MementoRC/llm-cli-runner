@@ -103,28 +103,25 @@ See also:
     - validation: Additional validation utilities
 """
 
-# Import all configuration models - will be implemented in Task 5
-# from .server_config import *
-# from .git_config import *
-# from .github_config import *
-# from .security_config import *
-# from .application_config import *
+# Import all configuration models
+from .server_config import GitServerConfig
+from .git_config import GitConfig
+from .github_config import GitHubConfig
 
-# Placeholder exports - will be populated as modules are implemented
+# Export all configuration models and utilities
 __all__: list[str] = [
-    # Main application configuration - to be implemented
-    # "ApplicationConfig",
-    # Server configuration - to be implemented
-    # "ServerConfig",
-    # "LoggingConfig",
-    # "MetricsConfig",
-    # Service configurations - to be implemented
-    # "GitConfig",
-    # "GitHubConfig",
-    # "SecurityConfig",
-    # Configuration utilities - to be implemented
-    # "create_test_config",
-    # "load_config_from_env",
-    # "validate_config_file",
-    # "generate_config_schema",
+    # Server configuration
+    "GitServerConfig",
+    # Service configurations
+    "GitConfig",
+    "GitHubConfig",
+    # Note: Additional configurations and utilities can be added as they are implemented:
+    # "ApplicationConfig",  # Combined configuration model
+    # "SecurityConfig",     # Security-specific configuration
+    # "LoggingConfig",      # Logging configuration
+    # "MetricsConfig",      # Metrics configuration
+    # "create_test_config", # Test configuration factory
+    # "load_config_from_env", # Environment loading utility
+    # "validate_config_file", # Configuration file validation
+    # "generate_config_schema", # Schema generation utility
 ]
