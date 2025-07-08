@@ -24,18 +24,24 @@ class CheapLLMServer:
 
     def _setup_handlers(self) -> None:
         """Setup MCP server handlers."""
+
         @self._server.list_tools()
         async def list_tools() -> List[Tool]:
             return await self._list_tools()
-        
+
         @self._server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             from mcp.types import CallToolRequestParams
+
             params = CallToolRequestParams(name=name, arguments=arguments)
             request = CallToolRequest(method="tools/call", params=params)
             result = await self._call_tool(request)
             # Extract TextContent from result.content
-            return [content for content in result.content if isinstance(content, TextContent)]
+            return [
+                content
+                for content in result.content
+                if isinstance(content, TextContent)
+            ]
 
         self.logger.info("Server handlers initialized")
 
