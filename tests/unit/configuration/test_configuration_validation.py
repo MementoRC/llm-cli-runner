@@ -317,7 +317,7 @@ class TestGitHubConfig:
         config = GitHubConfig()
 
         # API settings
-        assert str(config.api_base_url) == "https://api.github.com"
+        assert str(config.api_base_url) == "https://api.github.com/"
         assert config.api_version == "2022-11-28"
         assert config.api_timeout_seconds == 30
 
@@ -410,9 +410,9 @@ class TestGitHubConfig:
 
     def test_url_normalization(self):
         """Test API base URL normalization."""
-        # URL with trailing slash should be normalized
+        # URL with trailing slash should be kept (HttpUrl behavior)
         config = GitHubConfig(api_base_url="https://api.github.com/")
-        assert str(config.api_base_url) == "https://api.github.com"
+        assert str(config.api_base_url) == "https://api.github.com/"
 
         # GitHub Enterprise URL
         enterprise_config = GitHubConfig(
@@ -474,7 +474,7 @@ class TestGitHubConfig:
         )
 
         # Verify all values were set correctly
-        assert str(config.api_base_url) == "https://github.enterprise.com/api/v3"
+        assert str(config.api_base_url) == "https://github.enterprise.com/api/v3/"
         assert config.api_version == "2023-01-01"
         assert config.api_timeout_seconds == 60
         assert config.max_retries == 5
