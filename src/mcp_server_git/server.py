@@ -1191,7 +1191,7 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
             logger.error(f"{repository} is not a valid Git repository")
             return
 
-    server = Server("mcp-git")
+    server: Server = Server("mcp-git")
 
     @server.list_prompts()
     async def list_prompts() -> list[Prompt]:
