@@ -356,8 +356,8 @@ class GitBranch:
 
 
 @dataclass
-class GitCommitHash:
-    """Type-safe representation of a Git commit hash."""
+class GitCommitHashObj:
+    """Type-safe representation of a Git commit hash object."""
 
     hash: str
     is_short: bool = False
@@ -496,17 +496,17 @@ class GitOperationResult:
         operation: Optional[str] = None,
         duration: Optional[float] = None,
     ):
-        self.success = success
+        self.is_success = success
         self.message = message
         self.command = command
         self.exit_code = exit_code
         self.output = output
-        self.error = error
+        self.error_message = error
         self.error_code = error_code
         self.operation = operation
         self.duration = duration
 
-        if not self.success and not self.error:
+        if not self.is_success and not self.error_message:
             raise GitValidationError("Failed operations must include error information")
 
     @classmethod
@@ -534,36 +534,37 @@ class GitOperationResult:
             **kwargs,
         )
 
-    def is_success(self) -> bool:
+    @property  
+    def succeeded(self) -> bool:
         """Check if operation was successful."""
-        return self.success
+        return self.is_success
 
     def is_error(self) -> bool:
         """Check if operation failed."""
-        return not self.success
+        return not self.is_success
 
     def then(self, func) -> "GitOperationResult":
         """Apply function if operation was successful."""
-        if self.success:
+        if self.is_success:
             return func(self)
         return self
 
     def map(self, func) -> "GitOperationResult":
         """Transform the result if operation was successful."""
-        if self.success:
+        if self.is_success:
             return func(self)
         return self
 
     def raise_for_status(self) -> None:
         """Raise GitOperationError if operation failed."""
-        if not self.success:
+        if not self.is_success:
             raise GitOperationError(
                 self.message, command=self.command, exit_code=self.exit_code
             )
 
     def chain(self, other: "GitOperationResult") -> "GitOperationResult":
         """Chain this result with another operation result."""
-        if not self.success:
+        if not self.is_success:
             return self
         return other
 
@@ -575,11 +576,11 @@ class GitStatusResult:
         self,
         is_clean: bool,
         current_branch: "GitBranch",
-        modified_files: List[str] = None,
-        untracked_files: List[str] = None,
-        staged_files: List[str] = None,
-        deleted_files: List[str] = None,
-        renamed_files: List[str] = None,
+        modified_files: Optional[List[str]] = None,
+        untracked_files: Optional[List[str]] = None,
+        staged_files: Optional[List[str]] = None,
+        deleted_files: Optional[List[str]] = None,
+        renamed_files: Optional[List[str]] = None,
     ):
         self.is_clean = is_clean
         self.current_branch = current_branch
@@ -663,9 +664,9 @@ class GitCommitInfo:
         author_email: str,
         message: str,
         timestamp: str,
-        parent_hashes: List[GitCommitHash] = None,
-        committer: str = None,
-        committer_email: str = None,
+        parent_hashes: Optional[List[GitCommitHash]] = None,
+        committer: Optional[str] = None,
+        committer_email: Optional[str] = None,
     ):
         # Validate email
         if "@" not in author_email or "." not in author_email:
@@ -702,11 +703,12 @@ class GitCommitInfo:
 
     def one_line_summary(self) -> str:
         """Get one-line summary of the commit."""
-        return f"{self.hash.short()}: {self.message.split(chr(10))[0][:50]}"
+        short_hash = str(self.hash)[:7] if len(str(self.hash)) > 7 else str(self.hash)
+        return f"{short_hash}: {self.message.split(chr(10))[0][:50]}"
 
     def detailed_summary(self) -> str:
         """Get detailed summary of the commit."""
-        return f"""Commit: {self.hash.hash}
+        return f"""Commit: {self.hash}
 Author: {self.author_name} <{self.author_email}>
 Date: {self.timestamp}
 Message: {self.message}"""
