@@ -289,6 +289,7 @@ async def test_high_throughput_message_processing(
 
 @pytest.mark.stress
 @pytest.mark.ci_skip  # Too intensive for CI
+@pytest.mark.timeout(120)  # 2 minutes timeout for non-CI environments
 @pytest.mark.asyncio
 async def test_connection_churn_stability(stress_session_manager, stress_test_config):
     """Test stability under rapid client connections and disconnections."""
