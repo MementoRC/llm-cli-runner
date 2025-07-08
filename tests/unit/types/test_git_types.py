@@ -260,7 +260,7 @@ class TestGitCommitHash:
             
             # Test short hash
             short_hash_obj = GitCommitHashObj("a1b2c3d")
-            assert short_hash_obj.is_short == True
+            assert short_hash_obj.is_short
             assert len(short_hash_obj.hash) == 7
 
 
@@ -318,7 +318,7 @@ class TestGitOperationResult:
                 output="Operation completed successfully", operation="git status"
             )
 
-            assert result.is_success == True
+            assert result.is_success
             assert result.error_message is None
             assert result.output == "Operation completed successfully"
             assert result.operation == "git status"
@@ -332,7 +332,7 @@ class TestGitOperationResult:
                 error_code="REPO_NOT_FOUND",
             )
 
-            assert result.is_success == False
+            assert not result.is_success
             assert result.error_message == "Repository not found"
             assert result.error_code == "REPO_NOT_FOUND"
 
@@ -348,7 +348,7 @@ class TestGitOperationResult:
             # Should short-circuit on errors
             error_result = GitOperationResult.error("Error", "git add")
             chained = error_result.then(lambda x: x)
-            assert chained.is_success == False
+            assert not chained.is_success
 
 
 class TestGitStatusResult:
