@@ -317,7 +317,7 @@ class TestGitHubConfig:
         config = GitHubConfig()
 
         # API settings
-        assert str(config.api_base_url) == "https://api.github.com"
+        assert str(config.api_base_url) == "https://api.github.com/"
         assert config.api_version == "2022-11-28"
         assert config.api_timeout_seconds == 30
 
