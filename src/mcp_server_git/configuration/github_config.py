@@ -90,7 +90,7 @@ class GitHubConfig(BaseModel):
 
     # API Settings
     api_base_url: HttpUrl = Field(
-        default=HttpUrl("https://api.github.com"), description="GitHub API base URL"
+        default="https://api.github.com", description="GitHub API base URL"
     )
     api_version: str = Field(
         default="2022-11-28", description="GitHub API version (use YYYY-MM-DD format)"
@@ -422,12 +422,8 @@ class GitHubConfig(BaseModel):
         Returns:
             Validated URL
         """
-        # Remove trailing slash for consistency
-        url_str = str(v)
-        if url_str.endswith("/"):
-            # Create a new HttpUrl from the trimmed string
-            from pydantic import HttpUrl as HttpUrlType
-            return HttpUrlType(url_str.rstrip("/"))
+        # HttpUrl normalizes URLs automatically, including trailing slashes
+        # We'll accept the default behavior of HttpUrl
         return v
 
     model_config = {
