@@ -211,6 +211,9 @@ class ConfigManager:
         Raises:
             ConfigurationError: If file cannot be loaded
         """
+        if self.config_path is None:
+            raise ConfigurationError("No configuration file path provided")
+        
         config_path = Path(self.config_path)
 
         if not config_path.exists():

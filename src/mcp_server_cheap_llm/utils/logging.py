@@ -194,7 +194,7 @@ def log_security_event(
     }
 
     if context:
-        log_data["context"] = context
+        log_data.update(context)
 
     logger.warning("Security event", **log_data)
 

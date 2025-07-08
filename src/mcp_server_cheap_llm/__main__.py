@@ -85,7 +85,17 @@ def main(config: Optional[str] = None, debug: bool = False) -> None:
     """
     try:
         server = create_server(config_path=config, debug=debug)
-        asyncio.run(stdio_server(server))
+        
+        async def run_server():
+            async with stdio_server() as (read_stream, write_stream):
+                init_options = server.create_initialization_options()
+                await server.run(
+                    read_stream=read_stream,
+                    write_stream=write_stream,
+                    initialization_options=init_options,
+                )
+        
+        asyncio.run(run_server())
 
     except KeyboardInterrupt:
         click.echo("Server shutdown requested by user", err=True)
