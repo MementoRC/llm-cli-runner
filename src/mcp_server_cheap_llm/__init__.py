@@ -1,6 +1,6 @@
 """MCP Server for Cheap LLM Providers.
 
-This module provides a Model Context Protocol server that integrates with 
+This module provides a Model Context Protocol server that integrates with
 cost-effective Large Language Model providers:
 - Gemini CLI: Google Gemini models via command-line interface
 - Codex: OpenAI Codex models for code generation

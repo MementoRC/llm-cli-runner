@@ -19,30 +19,30 @@ from typing import Any, Dict, Optional
 
 class CheapLLMError(Exception):
     """Base exception class for MCP Server Cheap LLM.
-    
+
     All custom exceptions inherit from this base class to provide
     consistent error handling and debugging information.
-    
+
     Attributes:
         message: Human-readable error message
         error_code: Optional error code for programmatic handling
         context: Additional context information
-        
+
     Example:
         >>> try:
         ...     raise CheapLLMError("Something went wrong", error_code="E001")
         ... except CheapLLMError as e:
         ...     print(f"Error {e.error_code}: {e.message}")
     """
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the exception.
-        
+
         Args:
             message: Human-readable error description
             error_code: Optional error code for categorization
@@ -52,10 +52,10 @@ class CheapLLMError(Exception):
         self.message = message
         self.error_code = error_code
         self.context = context or {}
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for logging.
-        
+
         Returns:
             Dictionary representation of the exception
         """
@@ -63,16 +63,16 @@ class CheapLLMError(Exception):
             "error_type": self.__class__.__name__,
             "message": self.message,
             "error_code": self.error_code,
-            "context": self.context
+            "context": self.context,
         }
 
 
 class ConfigurationError(CheapLLMError):
     """Raised when configuration is invalid or missing.
-    
+
     This exception indicates problems with configuration files,
     environment variables, or provider settings.
-    
+
     Example:
         >>> raise ConfigurationError(
         ...     "Invalid provider configuration",
@@ -80,35 +80,36 @@ class ConfigurationError(CheapLLMError):
         ...     context={"provider": "gemini", "field": "api_key"}
         ... )
     """
+
     pass
 
 
 class ProviderError(CheapLLMError):
     """Raised when provider operations fail.
-    
+
     This exception covers API errors, authentication failures,
     rate limiting, and other provider-specific issues.
-    
+
     Attributes:
         provider: Name of the provider that failed
-        
+
     Example:
         >>> raise ProviderError(
         ...     "API rate limit exceeded",
-        ...     error_code="PRV001", 
+        ...     error_code="PRV001",
         ...     context={"provider": "gemini", "retry_after": 60}
         ... )
     """
-    
+
     def __init__(
         self,
         message: str,
         provider: str,
         error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ):
         """Initialize provider error.
-        
+
         Args:
             message: Error description
             provider: Name of the failing provider
@@ -123,10 +124,10 @@ class ProviderError(CheapLLMError):
 
 class ValidationError(CheapLLMError):
     """Raised when input validation fails.
-    
+
     This exception indicates problems with user input,
     request parameters, or data format validation.
-    
+
     Example:
         >>> raise ValidationError(
         ...     "Prompt too long",
@@ -134,18 +135,19 @@ class ValidationError(CheapLLMError):
         ...     context={"max_length": 10000, "actual_length": 15000}
         ... )
     """
+
     pass
 
 
 class RateLimitError(ProviderError):
     """Raised when provider rate limits are exceeded.
-    
+
     This specialized provider error includes rate limit
     specific information for retry logic.
-    
+
     Attributes:
         retry_after: Seconds to wait before retrying
-        
+
     Example:
         >>> raise RateLimitError(
         ...     "Rate limit exceeded",
@@ -153,17 +155,17 @@ class RateLimitError(ProviderError):
         ...     retry_after=60
         ... )
     """
-    
+
     def __init__(
         self,
         message: str,
         provider: str,
         retry_after: int,
         error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ):
         """Initialize rate limit error.
-        
+
         Args:
             message: Error description
             provider: Name of the provider
@@ -179,10 +181,10 @@ class RateLimitError(ProviderError):
 
 class SecurityError(CheapLLMError):
     """Raised when security violations are detected.
-    
+
     This exception indicates potential security issues
     such as command injection attempts or unsafe operations.
-    
+
     Example:
         >>> raise SecurityError(
         ...     "Unsafe command detected",
@@ -190,4 +192,5 @@ class SecurityError(CheapLLMError):
         ...     context={"command": "rm -rf /", "source": "user_input"}
         ... )
     """
+
     pass

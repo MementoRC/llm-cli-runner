@@ -19,30 +19,23 @@ def mock_config_dict() -> Dict[str, Any]:
                 "enabled": True,
                 "cli_path": "/usr/local/bin/gemini",
                 "model": "gemini-1.5-flash",
-                "timeout": 30
+                "timeout": 30,
             },
             "codex": {
                 "enabled": False,
                 "api_key": "sk-test-key",
                 "model": "code-davinci-002",
-                "timeout": 30
+                "timeout": 30,
             },
             "llama": {
                 "enabled": False,
                 "model_path": "/path/to/llama/model",
                 "n_ctx": 2048,
-                "n_threads": 4
-            }
+                "n_threads": 4,
+            },
         },
-        "server": {
-            "host": "localhost",
-            "port": 8080,
-            "debug": False
-        },
-        "logging": {
-            "level": "INFO",
-            "format": "structured"
-        }
+        "server": {"host": "localhost", "port": 8080, "debug": False},
+        "logging": {"level": "INFO", "format": "structured"},
     }
 
 
@@ -50,8 +43,8 @@ def mock_config_dict() -> Dict[str, Any]:
 def temp_config_file(mock_config_dict: Dict[str, Any]) -> Path:
     """Create temporary config file."""
     import toml
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
         toml.dump(mock_config_dict, f)
         return Path(f.name)
 

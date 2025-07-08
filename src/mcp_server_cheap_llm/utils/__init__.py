@@ -5,7 +5,7 @@ All utilities follow atomic design principles with clear responsibilities.
 
 Modules:
     config: Configuration management and validation
-    logging: Structured logging setup and utilities  
+    logging: Structured logging setup and utilities
     errors: Custom exception classes
 
 Example:
@@ -28,7 +28,7 @@ from mcp_server_cheap_llm.utils.logging import get_logger, setup_logging
 __all__ = [
     "ConfigManager",
     "CheapLLMError",
-    "ConfigurationError", 
+    "ConfigurationError",
     "ProviderError",
     "RateLimitError",
     "SecurityError",
