@@ -31,10 +31,11 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
+          install-dependencies: true # Add this line to install dependencies via setup-pixi
 
-      - name: Install dependencies
+      - name: Install project in editable mode
         run: |
-          pixi install -e dev
+          # pixi install -e dev # This line is now handled by setup-pixi action
           pixi run -e dev pip install -e .
 
       - name: Run format check
@@ -85,10 +86,11 @@ jobs:
         with:
           pixi-version: v0.20.1
           manifest-path: pyproject.toml
+          install-dependencies: true # Add this line to install dependencies via setup-pixi
 
-      - name: Install dependencies
+      - name: Install project in editable mode
         run: |
-          pixi install -e dev
+          # pixi install -e dev # This line is now handled by setup-pixi action
           pixi run -e dev pip install -e .
 
       - name: Build package
