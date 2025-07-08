@@ -37,7 +37,7 @@ See also:
     - github_config: GitHub integration configuration
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, field_validator, Field, model_validator
 
 

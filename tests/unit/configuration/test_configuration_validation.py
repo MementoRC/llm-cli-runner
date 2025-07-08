@@ -434,7 +434,7 @@ class TestGitHubConfig:
         
         try:
             # Create config (should load from environment)
-            config = GitHubConfig()
+            _ = GitHubConfig()
             
             # Note: Pydantic doesn't automatically load from environment
             # without explicit configuration. This test documents the expected

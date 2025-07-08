@@ -39,7 +39,7 @@ See also:
     - git_config: Git-specific configuration
 """
 
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Optional
 from pydantic import BaseModel, field_validator, Field, HttpUrl
 import re
 
