@@ -1,13 +1,28 @@
 {
   "target_job": {
     "name": "Quality Gates (3.10)",
-    "id": "45591627182",
-    "test_name": "Quality Gates CI workflow",
-    "error_message": "Process completed with exit code 1 at .github line 16",
+    "id": "45592056559",
+    "test_name": "ruff format-check",
+    "error_message": "Process completed with exit code 1 at workflow line 42 (format-check)",
     "first_seen": "2025-07-08T20:39:24Z"
   },
-  "iteration": 1,
+  "iteration": 2,
   "max_iterations": 5,
-  "attempts": [],
-  "status": "in_progress"
+  "attempts": [
+    {
+      "iteration": 1,
+      "timestamp": "2025-07-08T20:45:00Z",
+      "commit_message": "fix: resolve format-check CI failure in Quality Gates",
+      "files_changed": ["tests/integration/test_infrastructure.py"],
+      "fix_description": "Applied ruff formatting to fix the format-check failure that was causing Quality Gates CI to fail at workflow line 42. All local quality checks now pass."
+    },
+    {
+      "iteration": 2,
+      "timestamp": "2025-07-08T20:50:00Z",
+      "commit_message": "fix: apply precise ruff formatting for assert statements",
+      "files_changed": ["tests/integration/test_infrastructure.py"],
+      "fix_description": "Applied specific ruff formatting changes to assert statements that were causing formatting instability. Format-check now passes consistently."
+    }
+  ],
+  "status": "ready_to_commit"
 }
