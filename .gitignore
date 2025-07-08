@@ -26,4 +26,35 @@ node_modules/
 
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Python specific ignores
+# Byte-code files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Distribution / build outputs
+build/
+dist/
+*.egg-info/
+.Python
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff cache
+.ruff_cache/
+
+# Pixi specific files (DO NOT IGNORE .pixi/ or pixi.lock as per instructions)
+# These files are crucial for reproducible builds and are expected to be committed.
+# .pixi/
+# pixi.lock

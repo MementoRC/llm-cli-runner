@@ -110,7 +110,7 @@ pre-commit = "*"
 hypothesis = ">=6.0.0"
 bandit = ">=1.7.0"
 safety = ">=2.3.0"
-build = ">=1.0.0"
+python-build = ">=1.0.0"
 twine = ">=4.0.0"
 pip-audit = ">=2.6.0"
 
