@@ -1194,14 +1194,14 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
     # Initialize the server core
     server_core = MCPGitServerCore("mcp-git")
     server = server_core.initialize_server(repository)
-    
+
     # Track request counts in the server core
     original_call_tool = server.call_tool
-    
+
     async def call_tool_with_tracking(*args, **kwargs):
         server_core.increment_request_count()
         return await original_call_tool(*args, **kwargs)
-    
+
     # Monkey patch to track requests (temporary until proper middleware)
     server.call_tool = call_tool_with_tracking
 
