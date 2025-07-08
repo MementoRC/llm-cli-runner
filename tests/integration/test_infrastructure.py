@@ -30,9 +30,9 @@ class TestInfrastructureIntegration:
 
         for dir_path in required_dirs:
             assert (project_root / dir_path).exists(), f"Missing directory: {dir_path}"
-            assert (
-                project_root / dir_path / "__init__.py"
-            ).exists(), f"Missing __init__.py in {dir_path}"
+            assert (project_root / dir_path / "__init__.py").exists(), (
+                f"Missing __init__.py in {dir_path}"
+            )
 
     def test_configuration_files_exist(self, project_root: Path):
         """Verify all configuration files are present."""
@@ -93,9 +93,9 @@ class TestInfrastructureIntegration:
 
         for tool_cmd in tools:
             result = subprocess.run(tool_cmd, capture_output=True, text=True)
-            assert (
-                result.returncode == 0
-            ), f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
+            assert result.returncode == 0, (
+                f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
+            )
 
     def test_quality_commands_work(self):
         """Verify all quality check commands execute successfully."""
@@ -107,9 +107,9 @@ class TestInfrastructureIntegration:
 
         for cmd in commands:
             result = subprocess.run(cmd, capture_output=True, text=True)
-            assert (
-                result.returncode == 0
-            ), f"Command {' '.join(cmd)} failed: {result.stderr}"
+            assert result.returncode == 0, (
+                f"Command {' '.join(cmd)} failed: {result.stderr}"
+            )
 
     def test_git_ignore_patterns(self, project_root: Path):
         """Verify .gitignore contains essential patterns."""
