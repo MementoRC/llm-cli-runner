@@ -27,9 +27,13 @@ Example:
 import json
 import logging
 import os
+import re
 import sys
+import threading
 import time
+from collections import deque
 from contextvars import ContextVar
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -454,3 +458,326 @@ def log_configuration_loaded(
         enabled_providers=enabled_providers,
         default_provider=default_provider,
     )
+
+
+class SecurityLogger:
+    """Security-focused logger with error handling integration and monitoring.
+
+    This logger provides specialized security event logging, sensitive data filtering,
+    error rate monitoring with configurable thresholds, and alert generation.
+    Integrates with existing logging infrastructure while adding security-specific
+    functionality.
+
+    Attributes:
+        name: Logger name
+        error_rate_threshold: Maximum errors allowed per time window
+        threshold_window_minutes: Time window for error rate calculation
+        enable_sensitive_data_filtering: Whether to filter sensitive data
+
+    Example:
+        >>> security_logger = SecurityLogger("security", error_rate_threshold=5)
+        >>> security_logger.log_security_event(
+        ...     event_type="unauthorized_access",
+        ...     description="Failed auth attempt",
+        ...     source="api_endpoint"
+        ... )
+    """
+
+    # Sensitive data patterns for filtering
+    SENSITIVE_PATTERNS = {
+        "api_key": re.compile(r"sk-[a-zA-Z0-9]{32,}|[a-zA-Z0-9]{32,}"),
+        "password": re.compile(r"password|passwd|pwd", re.IGNORECASE),
+        "token": re.compile(
+            r"bearer[_\s]+[a-zA-Z0-9]+|token[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE
+        ),
+        "secret": re.compile(r"secret[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE),
+        "auth": re.compile(r"authorization[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE),
+    }
+
+    def __init__(
+        self,
+        name: str,
+        error_rate_threshold: int = 10,
+        threshold_window_minutes: int = 5,
+        enable_sensitive_data_filtering: bool = True,
+    ):
+        """Initialize SecurityLogger with configuration.
+
+        Args:
+            name: Logger name (typically module name)
+            error_rate_threshold: Maximum errors allowed per time window
+            threshold_window_minutes: Time window for error rate calculation in minutes
+            enable_sensitive_data_filtering: Whether to filter sensitive data from logs
+        """
+        self.name = name
+        self.error_rate_threshold = error_rate_threshold
+        self.threshold_window_minutes = threshold_window_minutes
+        self.enable_sensitive_data_filtering = enable_sensitive_data_filtering
+
+        # Initialize logging infrastructure
+        self._structured_logger = StructuredLogger(f"security.{name}")
+
+        # Event storage for testing and monitoring
+        self._events: list[dict[str, Any]] = []
+        self._events_lock = threading.Lock()
+
+        # Error rate monitoring
+        self._error_timestamps: deque = deque()
+        self._error_lock = threading.Lock()
+        self._threshold_exceeded = False
+
+    def log_security_event(
+        self,
+        event_type: str,
+        description: str,
+        source: str,
+        error: Exception | None = None,
+        severity: str = "medium",
+        **kwargs,
+    ) -> None:
+        """Log a security event with optional error integration.
+
+        Args:
+            event_type: Type of security event (e.g., "unauthorized_access")
+            description: Human-readable description
+            source: Source of the event (e.g., "api_endpoint")
+            error: Optional exception object for error details
+            severity: Event severity ("low", "medium", "high")
+            **kwargs: Additional context fields
+        """
+        # Build event data
+        event_data = {
+            "timestamp": time.time(),
+            "event_type": event_type,
+            "description": description,
+            "source": source,
+            "severity": severity,
+            "logger": self.name,
+        }
+
+        # Add correlation ID if available
+        correlation_id = _correlation_id_context.get()
+        if correlation_id:
+            event_data["correlation_id"] = correlation_id
+
+        # Add error details if provided
+        if error:
+            event_data["error_type"] = type(error).__name__
+            event_data["error_message"] = str(error)
+
+            # Add error code if available
+            if hasattr(error, "error_code") and error.error_code:
+                event_data["error_code"] = error.error_code
+
+            # Add filtered context if available
+            if hasattr(error, "context") and error.context:
+                filtered_context = self._filter_sensitive_data(error.context)
+                event_data["error_context"] = filtered_context
+
+        # Add and filter additional context
+        for key, value in kwargs.items():
+            if self.enable_sensitive_data_filtering:
+                event_data[key] = self._filter_sensitive_data({key: value})[key]
+            else:
+                event_data[key] = value
+
+        # Store event for monitoring
+        with self._events_lock:
+            self._events.append(event_data.copy())
+
+        # Log the event
+        self._structured_logger.warning("Security event detected", **event_data)
+
+    def log_error_with_filtering(self, error: Exception) -> None:
+        """Log an error with sensitive data filtering.
+
+        Args:
+            error: Exception to log with filtering applied
+        """
+        error_data: dict[str, Any] = {
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+        }
+
+        # Add error code if available
+        if hasattr(error, "error_code") and error.error_code:
+            error_data["error_code"] = error.error_code
+
+        # Add filtered context if available
+        if hasattr(error, "context") and error.context:
+            filtered_context = self._filter_sensitive_data(error.context)
+            error_data["error_context"] = filtered_context
+
+        # Store as security event for monitoring
+        event_data = {
+            "timestamp": time.time(),
+            "event_type": "error_logged",
+            "description": f"Error logged with filtering: {type(error).__name__}",
+            "source": "error_handler",
+            "severity": self.detect_security_severity(error),
+            "logger": self.name,
+            **error_data,
+        }
+
+        # Add correlation ID if available
+        correlation_id = _correlation_id_context.get()
+        if correlation_id:
+            event_data["correlation_id"] = correlation_id
+
+        with self._events_lock:
+            self._events.append(event_data.copy())
+
+        # Log the filtered error
+        self._structured_logger.error("Filtered error logged", **error_data)
+
+    def monitor_error_rate(self, error: Exception) -> None:
+        """Monitor error rate and trigger alerts if threshold exceeded.
+
+        Args:
+            error: Exception to count towards error rate monitoring
+        """
+        current_time = datetime.now()
+
+        with self._error_lock:
+            # Add current error timestamp
+            self._error_timestamps.append(current_time)
+
+            # Remove old timestamps outside the window
+            cutoff_time = current_time - timedelta(
+                minutes=self.threshold_window_minutes
+            )
+            while self._error_timestamps and self._error_timestamps[0] < cutoff_time:
+                self._error_timestamps.popleft()
+
+            # Check if threshold is exceeded
+            if len(self._error_timestamps) >= self.error_rate_threshold:
+                if not self._threshold_exceeded:
+                    self._threshold_exceeded = True
+                    self._trigger_error_rate_alert(len(self._error_timestamps))
+
+    def detect_security_severity(self, error: Exception) -> str:
+        """Detect security severity level based on error type.
+
+        Args:
+            error: Exception to analyze for security severity
+
+        Returns:
+            Severity level: "low", "medium", or "high"
+        """
+        from ..utils.errors import (
+            CheapLLMError,
+            ConfigurationError,
+            ProviderError,
+            SecurityError,
+            ValidationError,
+        )
+
+        if isinstance(error, SecurityError):
+            return "high"
+        elif isinstance(error, ValidationError | ProviderError):
+            return "medium"
+        elif isinstance(error, ConfigurationError | CheapLLMError):
+            return "low"
+        else:
+            return "low"
+
+    def is_threshold_exceeded(self) -> bool:
+        """Check if error rate threshold has been exceeded.
+
+        Returns:
+            True if threshold exceeded, False otherwise
+        """
+        return self._threshold_exceeded
+
+    def detect_sensitive_data(self, data: dict[str, Any]) -> bool:
+        """Detect if data contains sensitive information.
+
+        Args:
+            data: Dictionary to check for sensitive data
+
+        Returns:
+            True if sensitive data detected, False otherwise
+        """
+        for key, value in data.items():
+            key_lower = key.lower()
+            value_str = str(value).lower() if value is not None else ""
+
+            # Check if key or value contains sensitive patterns
+            for pattern_name, pattern in self.SENSITIVE_PATTERNS.items():
+                if (
+                    pattern_name in key_lower
+                    or pattern.search(key_lower)
+                    or pattern.search(value_str)
+                ):
+                    return True
+
+        return False
+
+    def _filter_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Filter sensitive data from a dictionary.
+
+        Args:
+            data: Dictionary potentially containing sensitive data
+
+        Returns:
+            Dictionary with sensitive data filtered/masked
+        """
+        if not self.enable_sensitive_data_filtering:
+            return data
+
+        filtered_data = {}
+
+        for key, value in data.items():
+            key_lower = key.lower()
+            value_str = str(value).lower() if value is not None else ""
+
+            # Check if key or value contains sensitive patterns
+            is_sensitive = False
+
+            for pattern_name, pattern in self.SENSITIVE_PATTERNS.items():
+                if (
+                    pattern_name in key_lower
+                    or pattern.search(key_lower)
+                    or pattern.search(value_str)
+                ):
+                    is_sensitive = True
+                    break
+
+            if is_sensitive:
+                # Mask sensitive data
+                filtered_data[key] = "[FILTERED]"
+            else:
+                # Preserve non-sensitive data
+                filtered_data[key] = value
+
+        return filtered_data
+
+    def _trigger_error_rate_alert(self, error_count: int) -> None:
+        """Trigger alert when error rate threshold is exceeded.
+
+        Args:
+            error_count: Current number of errors in the time window
+        """
+        alert_data = {
+            "timestamp": time.time(),
+            "event_type": "error_rate_threshold_exceeded",
+            "description": f"Error rate threshold exceeded: {error_count} errors in {self.threshold_window_minutes} minutes",
+            "source": "error_rate_monitor",
+            "severity": "high",
+            "logger": self.name,
+            "error_count": error_count,
+            "threshold": self.error_rate_threshold,
+            "window_minutes": self.threshold_window_minutes,
+        }
+
+        # Add correlation ID if available
+        correlation_id = _correlation_id_context.get()
+        if correlation_id:
+            alert_data["correlation_id"] = correlation_id
+
+        # Store alert event
+        with self._events_lock:
+            self._events.append(alert_data.copy())
+
+        # Log the alert
+        self._structured_logger.critical("Error rate threshold exceeded", **alert_data)
