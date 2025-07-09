@@ -24,10 +24,6 @@ node_modules/
 # OS specific
 .DS_Store
 
-# Task files
-tasks.json
-tasks/
-
 # Python specific ignores
 # Byte-code files
 __pycache__/
@@ -64,9 +60,10 @@ bandit-report.json
 safety-report.json
 pip-audit-report.json
 
-# TaskMaster and MCP files
-.taskmaster/
-.mcp.json
+# TaskMaster and MCP files (tracked in feature branches, removed on merge)
+# .taskmaster/
+# .mcp.json
+# .claude/
 
 # Environment files
 .env.*
@@ -79,3 +76,12 @@ pip-audit-report.json
 models/
 *.gguf
 *.bin
+
+# Task files
+tasks.json
+tasks/
+
+# Temporary development files
+.taskmaster_save/
+.aider/
+.claude_backup/
