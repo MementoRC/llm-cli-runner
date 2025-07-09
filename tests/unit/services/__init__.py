@@ -1,1 +1,1 @@
-"""Unit tests for services layer."""
+"""Unit tests for services module."""

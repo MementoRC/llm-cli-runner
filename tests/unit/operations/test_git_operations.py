@@ -73,12 +73,13 @@ class TestCommitChangesWithValidation:
 
         # Verify file staging
         expected_add_calls = [
-            call(["add", "src/feature.py"], str(repo_path)),
-            call(["add", "tests/test_feature.py"], str(repo_path)),
+            call(str(repo_path), ["add", "src/feature.py"]),
+            call(str(repo_path), ["add", "tests/test_feature.py"]),
         ]
 
         # Verify commit command
         expected_commit_call = call(
+            str(repo_path),
             [
                 "commit",
                 "-m",
@@ -86,7 +87,6 @@ class TestCommitChangesWithValidation:
                 "--author",
                 "Developer <dev@example.com>",
             ],
-            str(repo_path),
         )
 
         # Check all execute_git_command calls
@@ -124,8 +124,8 @@ class TestCommitChangesWithValidation:
 
         # Verify GPG signing in commit command
         expected_commit_call = call(
-            ["commit", "-m", "feat: secure feature", "--gpg-sign", "-S", "ABC123"],
             str(repo_path),
+            ["commit", "-m", "feat: secure feature", "--gpg-sign", "-S", "ABC123"],
         )
 
         assert expected_commit_call in mock_execute_git.call_args_list
@@ -223,7 +223,7 @@ class TestCreateBranchWithCheckout:
 
         # Verify branch creation command
         expected_checkout_call = call(
-            ["checkout", "-b", "feature/new-feature", "main"], str(repo_path)
+            str(repo_path), ["checkout", "-b", "feature/new-feature", "main"]
         )
 
         assert expected_checkout_call in mock_execute_git.call_args_list
@@ -256,7 +256,7 @@ class TestCreateBranchWithCheckout:
 
         # Verify branch creation command (not checkout)
         expected_branch_call = call(
-            ["branch", "feature/background-task", "develop"], str(repo_path)
+            str(repo_path), ["branch", "feature/background-task", "develop"]
         )
 
         assert expected_branch_call in mock_execute_git.call_args_list
@@ -345,8 +345,8 @@ class TestMergeBranchesWithConflictDetection:
 
         # Verify merge command
         expected_merge_call = call(
-            ["merge", "-m", "Merge feature into main", "feature/new-feature"],
             str(repo_path),
+            ["merge", "-m", "Merge feature into main", "feature/new-feature"],
         )
 
         assert expected_merge_call in mock_execute_git.call_args_list
@@ -446,7 +446,7 @@ class TestMergeBranchesWithConflictDetection:
 
         # Verify squash option in merge command
         expected_merge_call = call(
-            ["merge", "--squash", "feature/small-feature"], str(repo_path)
+            str(repo_path), ["merge", "--squash", "feature/small-feature"]
         )
 
         assert expected_merge_call in mock_execute_git.call_args_list
@@ -488,7 +488,7 @@ class TestPushWithValidation:
         assert result["set_upstream"] is False
 
         # Verify push command
-        expected_push_call = call(["push", "origin", "main"], str(repo_path))
+        expected_push_call = call(str(repo_path), ["push", "origin", "main"])
         assert expected_push_call in mock_execute_git.call_args_list
 
     @patch("mcp_server_git.operations.git_operations.validate_repository_path")
@@ -523,7 +523,7 @@ class TestPushWithValidation:
 
         # Verify upstream setting in push command
         expected_push_call = call(
-            ["push", "--set-upstream", "origin", "feature/new-branch"], str(repo_path)
+            str(repo_path), ["push", "--set-upstream", "origin", "feature/new-branch"]
         )
 
         assert expected_push_call in mock_execute_git.call_args_list
@@ -578,7 +578,7 @@ class TestPushWithValidation:
         assert result["force"] is True
 
         # Verify force option in push command
-        expected_push_call = call(["push", "--force", "origin", "main"], str(repo_path))
+        expected_push_call = call(str(repo_path), ["push", "--force", "origin", "main"])
         assert expected_push_call in mock_execute_git.call_args_list
 
 
