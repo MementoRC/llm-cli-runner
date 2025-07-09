@@ -156,7 +156,7 @@ def commit_changes_with_validation(
         if commit_request.files:
             for file_path in commit_request.files:
                 try:
-                    execute_git_command(["add", file_path], repo_path_str)
+                    execute_git_command(repo_path_str, ["add", file_path])
                     logger.debug(f"Staged file: {file_path}")
                 except GitCommandError as e:
                     logger.error(f"Failed to stage file {file_path}: {e}")
@@ -186,7 +186,7 @@ def commit_changes_with_validation(
 
         # Step 6: Execute commit
         try:
-            execute_git_command(commit_cmd, repo_path_str)
+            execute_git_command(repo_path_str, commit_cmd)
             logger.info("Commit command executed successfully")
         except GitCommandError as e:
             logger.error(f"Commit command failed: {e}")
@@ -271,8 +271,8 @@ def create_branch_with_checkout(
         # Step 4: Check if branch already exists
         try:
             execute_git_command(
-                ["show-ref", "--verify", f"refs/heads/{branch_request.name}"],
                 repo_path_str,
+                ["show-ref", "--verify", f"refs/heads/{branch_request.name}"],
             )
             if not branch_request.force:
                 return BranchResult(
@@ -300,7 +300,7 @@ def create_branch_with_checkout(
         # Step 6: Create and optionally checkout branch
         if branch_request.checkout:
             try:
-                execute_git_command(branch_cmd, repo_path_str)
+                execute_git_command(repo_path_str, branch_cmd)
                 logger.info(f"Created and checked out branch: {branch_request.name}")
             except GitCommandError as e:
                 logger.error(f"Failed to create/checkout branch: {e}")
@@ -318,7 +318,7 @@ def create_branch_with_checkout(
                 create_cmd.insert(1, "-f")
 
             try:
-                execute_git_command(create_cmd, repo_path_str)
+                execute_git_command(repo_path_str, create_cmd)
                 logger.info(f"Created branch: {branch_request.name}")
             except GitCommandError as e:
                 logger.error(f"Failed to create branch: {e}")
@@ -405,7 +405,7 @@ def merge_branches_with_conflict_detection(
         ):
             try:
                 execute_git_command(
-                    ["checkout", merge_request.target_branch], repo_path_str
+                    repo_path_str, ["checkout", merge_request.target_branch]
                 )
                 logger.info(f"Checked out target branch: {merge_request.target_branch}")
             except GitCommandError as e:
@@ -418,8 +418,8 @@ def merge_branches_with_conflict_detection(
         # Step 5: Check if source branch exists
         try:
             execute_git_command(
-                ["show-ref", "--verify", f"refs/heads/{merge_request.source_branch}"],
                 repo_path_str,
+                ["show-ref", "--verify", f"refs/heads/{merge_request.source_branch}"],
             )
         except GitCommandError:
             return MergeResult(
@@ -443,7 +443,7 @@ def merge_branches_with_conflict_detection(
 
         # Step 7: Execute merge
         try:
-            execute_git_command(merge_cmd, repo_path_str)
+            execute_git_command(repo_path_str, merge_cmd)
             logger.info("Merge command executed successfully")
         except GitCommandError as e:
             # Check if this is a merge conflict
@@ -558,7 +558,7 @@ def push_with_validation(
 
         # Step 3: Validate remote exists
         try:
-            execute_git_command(["remote", "get-url", remote], repo_path_str)
+            execute_git_command(repo_path_str, ["remote", "get-url", remote])
             logger.debug(f"Remote '{remote}' validated")
         except GitCommandError as e:
             logger.error(f"Remote '{remote}' not found: {e}")
@@ -582,13 +582,13 @@ def push_with_validation(
             push_cmd.append("--force")
 
         if set_upstream:
-            push_cmd.extend(["--set-upstream", remote, branch])
+            push_cmd.extend(["--set-upstream", remote, branch])  # type: ignore[list-item]
         else:
-            push_cmd.extend([remote, branch])
+            push_cmd.extend([remote, branch])  # type: ignore[list-item]
 
         # Step 6: Execute push
         try:
-            execute_git_command(push_cmd, repo_path_str)
+            execute_git_command(repo_path_str, push_cmd)
             logger.info(f"Successfully pushed '{branch}' to '{remote}'")
 
             return {

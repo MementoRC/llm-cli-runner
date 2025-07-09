@@ -5,7 +5,7 @@ This module defines protocols for repository operations, path validation,
 branch management, and Git command execution interfaces.
 """
 
-from typing import Protocol, List, Optional, Dict, Any, Union, AsyncIterator
+from typing import Protocol, List, Optional, Dict, Any, Union, AsyncIterator, Callable
 from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -547,7 +547,7 @@ class AsyncRepositoryOperations(Protocol):
         self,
         url: str,
         destination: Union[str, Path],
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> GitOperationResult:
         """
         Async clone with progress reporting.

@@ -116,7 +116,7 @@ class MCPMessageFactory:
         message = {"jsonrpc": "2.0", "method": method}
 
         if params is not None:
-            message["params"] = params
+            message["params"] = params  # type: ignore[assignment]
 
         return message
 
