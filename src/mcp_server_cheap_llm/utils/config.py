@@ -16,7 +16,7 @@ Example:
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 try:
     import tomllib
@@ -24,12 +24,172 @@ except ImportError:
     import tomli as tomllib  # type: ignore[no-redef,import-not-found]
 
 import structlog  # type: ignore[import-not-found]
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from mcp_server_cheap_llm.core.models import ProviderConfig
+from mcp_server_cheap_llm.core.models import ProviderConfig as CoreProviderConfig
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
 
 logger = structlog.get_logger(__name__)
+
+
+# Define allowed log levels and providers
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+ProviderType = Literal["openai", "google", "anthropic", "llama", "codex"]
+
+
+class ConfigModel(BaseModel):
+    """Basic configuration model for the MCP server.
+
+    This model represents the core configuration for the MCP server,
+    including server identification, logging settings, and provider configuration.
+
+    Attributes:
+        server_name: Unique identifier for this server instance
+        log_level: Logging verbosity level
+        enabled_providers: List of provider names that are enabled
+        default_provider: The default provider to use for requests
+        max_retries: Maximum number of retry attempts for failed requests
+        timeout: Global timeout for requests in seconds
+
+    Example:
+        >>> config = ConfigModel(
+        ...     server_name="mcp-cheap-llm",
+        ...     enabled_providers=["openai", "google"],
+        ...     default_provider="openai"
+        ... )
+    """
+
+    server_name: str = Field(
+        ..., description="Unique identifier for this server instance", min_length=1
+    )
+    log_level: LogLevel = Field(default="INFO", description="Logging verbosity level")
+    enabled_providers: list[str] = Field(
+        ..., description="List of provider names that are enabled", min_length=1
+    )
+    default_provider: str = Field(
+        ..., description="The default provider to use for requests"
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of retry attempts for failed requests",
+        ge=0,
+        le=10,
+    )
+    timeout: int = Field(
+        default=30, description="Global timeout for requests in seconds", ge=1, le=300
+    )
+
+    @model_validator(mode="after")
+    def validate_default_provider(self) -> "ConfigModel":
+        """Ensure default_provider is in enabled_providers."""
+        if self.default_provider not in self.enabled_providers:
+            raise ValueError("default_provider must be one of enabled_providers")
+        return self
+
+
+class APIKeyConfig(BaseModel):
+    """Configuration for API keys with encryption support.
+
+    This model manages API key storage and validation for different
+    LLM providers, with support for encryption at rest.
+
+    Attributes:
+        provider: The LLM provider this key is for
+        api_key: The actual API key (may be encrypted)
+        is_encrypted: Whether the API key is encrypted
+
+    Example:
+        >>> key_config = APIKeyConfig(
+        ...     provider="openai",
+        ...     api_key="sk-...",
+        ...     is_encrypted=False
+        ... )
+    """
+
+    provider: ProviderType = Field(..., description="The LLM provider this key is for")
+    api_key: str = Field(
+        ..., description="The actual API key (may be encrypted)", min_length=1
+    )
+    is_encrypted: bool = Field(
+        default=False, description="Whether the API key is encrypted"
+    )
+
+    @field_validator("api_key")
+    @classmethod
+    def validate_api_key(cls, v: str) -> str:
+        """Ensure API key is not empty and strip whitespace."""
+        if not v or not v.strip():
+            raise ValueError("api_key cannot be empty")
+        return v.strip()
+
+
+class ProviderConfig(BaseModel):
+    """Provider-specific configuration with quotas and rate limits.
+
+    This model defines configuration for individual LLM providers,
+    including rate limiting, quotas, and model-specific settings.
+
+    Attributes:
+        name: Unique name for this provider configuration
+        endpoint: Optional custom API endpoint URL
+        rate_limit: Maximum requests per minute
+        quota_limit: Maximum tokens per month
+        enabled: Whether this provider is enabled
+        timeout: Request timeout in seconds
+        model_settings: Model-specific configuration overrides
+
+    Example:
+        >>> provider = ProviderConfig(
+        ...     name="openai",
+        ...     endpoint="https://api.openai.com/v1",
+        ...     rate_limit=100,
+        ...     model_settings={
+        ...         "gpt-4": {"max_tokens": 8192}
+        ...     }
+        ... )
+    """
+
+    name: str = Field(
+        ..., description="Unique name for this provider configuration", min_length=1
+    )
+    endpoint: str | None = Field(
+        default=None, description="Optional custom API endpoint URL"
+    )
+    rate_limit: int = Field(
+        default=60, description="Maximum requests per minute", gt=0, le=1000
+    )
+    quota_limit: int = Field(
+        default=1000000, description="Maximum tokens per month", gt=0
+    )
+    enabled: bool = Field(default=True, description="Whether this provider is enabled")
+    timeout: int = Field(
+        default=30, description="Request timeout in seconds", ge=1, le=300
+    )
+    model_settings: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Model-specific configuration overrides"
+    )
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, v: str | None) -> str | None:
+        """Validate endpoint is a proper URL if provided."""
+        if v is not None:
+            if not v.startswith(("http://", "https://")):
+                raise ValueError(
+                    "endpoint must be a valid URL starting with http:// or https://"
+                )
+            # Basic URL validation
+            if len(v) < 10 or "." not in v[8:]:  # After https://
+                raise ValueError("endpoint must be a valid URL")
+        return v
+
+    @field_validator("rate_limit")
+    @classmethod
+    def validate_rate_limit(cls, v: int) -> int:
+        """Ensure rate limit is positive."""
+        if v <= 0:
+            raise ValueError("rate_limit must be positive")
+        return v
 
 
 class ServerConfig(BaseModel):
@@ -57,7 +217,7 @@ class ServerConfig(BaseModel):
     log_level: str = Field(
         default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"
     )
-    providers: list[ProviderConfig] = Field(default_factory=list)
+    providers: list[CoreProviderConfig] = Field(default_factory=list)
 
     def get_debug_state(self) -> dict[str, Any]:
         """Return configuration state for debugging.
@@ -279,7 +439,7 @@ class ConfigManager:
         """
         return [p.name for p in self.config.providers if p.enabled]
 
-    def get_provider_config(self, provider_name: str) -> ProviderConfig | None:
+    def get_provider_config(self, provider_name: str) -> CoreProviderConfig | None:
         """Get configuration for specific provider.
 
         Args:
