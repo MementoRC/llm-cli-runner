@@ -42,22 +42,37 @@ jobs:
         cache: true
       continue-on-error: true
 
-    - name: Install dependencies with pixi
+    - name: Install dependencies (pixi with pip fallback)
       run: |
-        # Install dependencies using pixi with fallback
-        if command -v pixi >/dev/null 2>&1 && pixi install --frozen; then
-          echo "✅ Pixi environment ready"
+        echo "🔧 Setting up Python environment with pixi fallback..."
+        
+        # Try pixi first
+        if command -v pixi >/dev/null 2>&1; then
+          echo "📦 Pixi found, attempting installation..."
+          if pixi install --frozen; then
+            echo "✅ Pixi environment ready"
+            exit 0
+          else
+            echo "⚠️ Pixi install failed, falling back to pip..."
+          fi
         else
-          echo "❌ Pixi not available or failed, using pip fallback"
-          pip install -e .
-          pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage
+          echo "⚠️ Pixi not available, using pip fallback..."
         fi
+        
+        # Pip fallback
+        echo "🐍 Installing with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "✅ Pip environment ready"
 
     - name: Run ruff linting (critical violations)
       run: |
+        echo "🔍 Running critical linting checks..."
         # File-specific TDD support: Use per-file-ignores from pyproject.toml
         # Only tests/unit/types/*.py have relaxed rules for TDD red phase
-        if command -v pixi >/dev/null 2>&1 && pixi info >/dev/null 2>&1; then
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
           pixi run -e dev lint --output-format=github
         else
           echo "Using pip fallback for linting"
@@ -66,27 +81,40 @@ jobs:
 
     - name: Run ruff linting (full)
       run: |
-        if command -v pixi >/dev/null 2>&1 && pixi info >/dev/null 2>&1; then
+        echo "🔍 Running full linting checks..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
           pixi run -e dev ruff check --output-format=github
         else
+          echo "Using pip fallback for full linting"
           TESTING=true python -m ruff check --output-format=github
         fi
       continue-on-error: true
 
     - name: Run type checking with pyright
       run: |
-        if command -v pixi >/dev/null 2>&1 && pixi info >/dev/null 2>&1; then
+        echo "🔍 Running type checking..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
           pixi run -e dev typecheck
         else
-          echo "Skipping typecheck - pyright not available in pip fallback"
+          echo "Using pip fallback for type checking"
+          if command -v pyright >/dev/null 2>&1; then
+            TESTING=true pyright src/ tests/
+          else
+            echo "Pyright not available in pip environment, skipping type check"
+          fi
         fi
       continue-on-error: true
 
     - name: Check code formatting
       run: |
-        if command -v pixi >/dev/null 2>&1 && pixi info >/dev/null 2>&1; then
+        echo "🔍 Checking code formatting..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
           pixi run -e dev format-check
         else
+          echo "Using pip fallback for formatting check"
           TESTING=true python -m ruff format --check src/ tests/
         fi
 
@@ -118,16 +146,29 @@ jobs:
         cache: true
       continue-on-error: true
 
-    - name: Install dependencies with pixi
+    - name: Install dependencies (pixi with pip fallback)
       run: |
-        # Install dependencies using pixi with fallback
-        if command -v pixi >/dev/null 2>&1 && pixi install --frozen; then
-          echo "✅ Pixi environment ready"
+        echo "🔧 Setting up Python environment with pixi fallback..."
+        
+        # Try pixi first
+        if command -v pixi >/dev/null 2>&1; then
+          echo "📦 Pixi found, attempting installation..."
+          if pixi install --frozen; then
+            echo "✅ Pixi environment ready"
+            exit 0
+          else
+            echo "⚠️ Pixi install failed, falling back to pip..."
+          fi
         else
-          echo "❌ Pixi not available or failed, using pip fallback"
-          pip install -e .
-          pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage
+          echo "⚠️ Pixi not available, using pip fallback..."
         fi
+        
+        # Pip fallback
+        echo "🐍 Installing with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "✅ Pip environment ready"
 
     - name: Configure Git for testing
       run: |
@@ -137,9 +178,11 @@ jobs:
 
     - name: Run pytest with coverage
       run: |
+        echo "🧪 Running tests with coverage..."
         # Run tests with pixi environment (includes all dependencies)
         # Set TESTING=true for safe git imports in ClaudeCode-like environments
-        if command -v pixi >/dev/null 2>&1 && pixi info >/dev/null 2>&1; then
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment for tests"
           TESTING=true pixi run -e dev python -m pytest --verbose --tb=short \
             --timeout=60 \
             --cov=src/mcp_server_git \
@@ -205,8 +248,29 @@ jobs:
         cache: true
       continue-on-error: true
 
-    - name: Install dependencies
-      run: pixi install
+    - name: Install dependencies (pixi with pip fallback)
+      run: |
+        echo "🔧 Setting up Python environment..."
+        
+        # Try pixi first
+        if command -v pixi >/dev/null 2>&1; then
+          echo "📦 Pixi found, attempting installation..."
+          if pixi install --frozen; then
+            echo "✅ Pixi environment ready"
+            exit 0
+          else
+            echo "⚠️ Pixi install failed, falling back to pip..."
+          fi
+        else
+          echo "⚠️ Pixi not available, using pip fallback..."
+        fi
+        
+        # Pip fallback
+        echo "🐍 Installing with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "✅ Pip environment ready"
 
     - name: Configure Git for MCP testing
       run: |
@@ -228,7 +292,15 @@ jobs:
 
     - name: Test MCP server startup and basic functionality
       run: |
-        timeout 30s pixi run -e dev python -m mcp_server_git --test-mode &
+        echo "🚀 Testing MCP server startup..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
+          timeout 30s pixi run -e dev python -m mcp_server_git --test-mode &
+        else
+          echo "Using pip fallback for MCP server test"
+          timeout 30s python -m mcp_server_git --test-mode &
+        fi
+        
         SERVER_PID=$!
         sleep 5
 
@@ -302,7 +374,14 @@ jobs:
             sys.exit(0 if success else 1)
         EOF
 
-        pixi run -e dev python mcp_validate.py
+        echo "🔍 Running MCP validation..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
+          pixi run -e dev python mcp_validate.py
+        else
+          echo "Using pip fallback for MCP validation"
+          TESTING=true python mcp_validate.py
+        fi
 
     - name: Test notification handling
       run: |
@@ -363,7 +442,14 @@ jobs:
             sys.exit(0 if (success1 and success2) else 1)
         EOF
 
-        pixi run -e dev python test_notifications.py
+        echo "🔔 Running notification tests..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
+          pixi run -e dev python test_notifications.py
+        else
+          echo "Using pip fallback for notification tests"
+          TESTING=true python test_notifications.py
+        fi
 
     - name: Run E2E MCP Git Server Verification
       run: |
@@ -374,12 +460,24 @@ jobs:
         export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
         # Run the comprehensive E2E verification tests
-        pixi run -e dev python -m pytest tests/test_mcp_verification_e2e.py \
-          -v \
-          -m "e2e" \
-          --tb=short \
-          --timeout=300 \
-          -x
+        echo "🚀 Running E2E verification tests..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
+          pixi run -e dev python -m pytest tests/test_mcp_verification_e2e.py \
+            -v \
+            -m "e2e" \
+            --tb=short \
+            --timeout=300 \
+            -x
+        else
+          echo "Using pip fallback for E2E tests"
+          TESTING=true python -m pytest tests/test_mcp_verification_e2e.py \
+            -v \
+            -m "e2e" \
+            --tb=short \
+            --timeout=300 \
+            -x
+        fi
 
         echo "✅ E2E MCP Git Server verification completed successfully"
 
@@ -470,19 +568,56 @@ jobs:
         cache: true
       continue-on-error: true
 
-    - name: Install dependencies
-      run: pixi install
+    - name: Install dependencies (pixi with pip fallback)
+      run: |
+        echo "🔧 Setting up Python environment..."
+        
+        # Try pixi first
+        if command -v pixi >/dev/null 2>&1; then
+          echo "📦 Pixi found, attempting installation..."
+          if pixi install --frozen; then
+            echo "✅ Pixi environment ready"
+            exit 0
+          else
+            echo "⚠️ Pixi install failed, falling back to pip..."
+          fi
+        else
+          echo "⚠️ Pixi not available, using pip fallback..."
+        fi
+        
+        # Pip fallback
+        echo "🐍 Installing with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "✅ Pip environment ready"
 
     - name: Run safety check for known vulnerabilities
       run: |
+        echo "🔒 Running safety check..."
         pip install safety
-        pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | safety check --stdin
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment for dependency listing"
+          pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | safety check --stdin
+        else
+          echo "Using pip fallback for safety check"
+          pip freeze | safety check --stdin
+        fi
       continue-on-error: true
 
     - name: Audit dependencies
       run: |
+        echo "🔍 Running dependency audit..."
         pip install pip-audit
-        pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment for dependency audit"
+          pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
+        else
+          echo "Using pip fallback for dependency audit"
+          pip freeze > requirements-temp.txt
+          pip-audit --requirement requirements-temp.txt --format=json --output=audit-results.json
+          rm -f requirements-temp.txt
+        fi
       continue-on-error: true
 
     - name: Upload security scan results
@@ -518,8 +653,29 @@ jobs:
         cache: true
       continue-on-error: true
 
-    - name: Install dependencies
-      run: pixi install
+    - name: Install dependencies (pixi with pip fallback)
+      run: |
+        echo "🔧 Setting up Python environment..."
+        
+        # Try pixi first
+        if command -v pixi >/dev/null 2>&1; then
+          echo "📦 Pixi found, attempting installation..."
+          if pixi install --frozen; then
+            echo "✅ Pixi environment ready"
+            exit 0
+          else
+            echo "⚠️ Pixi install failed, falling back to pip..."
+          fi
+        else
+          echo "⚠️ Pixi not available, using pip fallback..."
+        fi
+        
+        # Pip fallback
+        echo "🐍 Installing with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "✅ Pip environment ready"
 
     - name: Configure Git for performance testing
       run: |
@@ -550,7 +706,14 @@ jobs:
 
         # Run performance-focused tests
         cd "$GITHUB_WORKSPACE"
-        pixi run -e dev pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
+        echo "🏃 Running performance tests..."
+        if command -v pixi >/dev/null 2>&1 && [ -d .pixi ] && pixi info >/dev/null 2>&1; then
+          echo "Using pixi environment"
+          pixi run -e dev pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
+        else
+          echo "Using pip fallback for performance tests"
+          TESTING=true python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
+        fi
 
   # Summary job to check overall CI status
   status_check:
