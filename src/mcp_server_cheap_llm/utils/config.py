@@ -14,7 +14,9 @@ Example:
     >>> config = manager.get_provider_config("gemini")
 """
 
+import base64
 import os
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -24,7 +26,13 @@ except ImportError:
     import tomli as tomllib  # type: ignore[no-redef,import-not-found]
 
 import structlog  # type: ignore[import-not-found]
+from cryptography.fernet import Fernet  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
+try:
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
+except ImportError:
+    load_dotenv = None  # type: ignore[assignment]
 
 from mcp_server_cheap_llm.core.models import ProviderConfig as CoreProviderConfig
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
@@ -235,6 +243,326 @@ class ServerConfig(BaseModel):
             "enabled_providers": [p.name for p in self.providers if p.enabled],
             "provider_types": list({p.provider_type for p in self.providers}),
         }
+
+
+class APIKeyManager:
+    """Manages API key encryption, validation, and secure storage.
+
+    This class provides secure handling of API keys with encryption at rest,
+    validation for different providers, and key rotation capabilities.
+
+    Attributes:
+        _encryption_key: The Fernet encryption key
+        _cipher: The Fernet cipher instance
+        _encrypted_keys: Dictionary storing encrypted API keys by provider
+
+    Example:
+        >>> manager = APIKeyManager()
+        >>> manager.store_encrypted_key("openai", "sk-...")
+        >>> key = manager.get_decrypted_key("openai")
+    """
+
+    def __init__(self, encryption_key: bytes | None = None):
+        """Initialize API key manager with optional encryption key.
+
+        Args:
+            encryption_key: Optional encryption key. If None, generates new key.
+        """
+        if encryption_key is None:
+            self._encryption_key = Fernet.generate_key()
+        else:
+            self._encryption_key = encryption_key
+
+        self._cipher = Fernet(self._encryption_key)
+        self._encrypted_keys: dict[str, str] = {}
+
+        logger.debug("APIKeyManager initialized with encryption support")
+
+    @staticmethod
+    def generate_encryption_key() -> bytes:
+        """Generate a new Fernet encryption key.
+
+        Returns:
+            Base64-encoded Fernet encryption key
+
+        Example:
+            >>> key = APIKeyManager.generate_encryption_key()
+            >>> manager = APIKeyManager(encryption_key=key)
+        """
+        return Fernet.generate_key()
+
+    def encrypt_key(self, api_key: str) -> str:
+        """Encrypt an API key for secure storage.
+
+        Args:
+            api_key: The plaintext API key to encrypt
+
+        Returns:
+            Base64-encoded encrypted API key
+
+        Example:
+            >>> encrypted = manager.encrypt_key("sk-...")
+        """
+        try:
+            key_bytes = api_key.encode("utf-8")
+            encrypted_bytes = self._cipher.encrypt(key_bytes)
+            return base64.b64encode(encrypted_bytes).decode("utf-8")
+        except Exception as e:
+            logger.error("Failed to encrypt API key", error=str(e))
+            raise ConfigurationError(f"Failed to encrypt API key: {e}") from e
+
+    def decrypt_key(self, encrypted_key: str) -> str:
+        """Decrypt an encrypted API key.
+
+        Args:
+            encrypted_key: Base64-encoded encrypted API key
+
+        Returns:
+            The plaintext API key
+
+        Raises:
+            ConfigurationError: If decryption fails
+
+        Example:
+            >>> plaintext = manager.decrypt_key(encrypted_key)
+        """
+        try:
+            encrypted_bytes = base64.b64decode(encrypted_key.encode("utf-8"))
+            decrypted_bytes = self._cipher.decrypt(encrypted_bytes)
+            return decrypted_bytes.decode("utf-8")
+        except Exception as e:
+            logger.error("Failed to decrypt API key", error=str(e))
+            raise ConfigurationError(f"Failed to decrypt API key: {e}") from e
+
+    def validate_api_key(self, api_key: str, provider: str) -> bool:
+        """Validate API key format for specific provider.
+
+        Args:
+            api_key: The API key to validate
+            provider: The provider name (openai, google, anthropic)
+
+        Returns:
+            True if valid, False otherwise
+
+        Raises:
+            ValueError: If provider is not supported
+
+        Example:
+            >>> is_valid = manager.validate_api_key("sk-...", "openai")
+        """
+        if not api_key or not api_key.strip():
+            return False
+
+        api_key = api_key.strip()
+
+        if provider.lower() == "openai":
+            # OpenAI keys start with "sk-" and are typically 51+ characters
+            return api_key.startswith(("sk-", "sk-proj-")) and len(api_key) >= 20
+
+        elif provider.lower() == "google":
+            # Google API keys start with "AIza" and are typically 39 characters
+            return (
+                api_key.startswith("AIzaSy")
+                and len(api_key) >= 20
+                and bool(re.match(r"^AIzaSy[A-Za-z0-9_-]+$", api_key))
+            )
+
+        elif provider.lower() == "anthropic":
+            # Anthropic keys start with "sk-ant-api03-"
+            return api_key.startswith("sk-ant-api03-") and len(api_key) >= 30
+
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+    def store_encrypted_key(self, provider: str, api_key: str) -> None:
+        """Store an API key in encrypted form.
+
+        Args:
+            provider: The provider name
+            api_key: The plaintext API key
+
+        Raises:
+            ConfigurationError: If the API key is invalid
+
+        Example:
+            >>> manager.store_encrypted_key("openai", "sk-...")
+        """
+        if not self.validate_api_key(api_key, provider):
+            raise ConfigurationError(f"Invalid API key format for provider: {provider}")
+
+        encrypted_key = self.encrypt_key(api_key)
+        self._encrypted_keys[provider] = encrypted_key
+
+        logger.info("API key stored securely", provider=provider)
+
+    def get_decrypted_key(self, provider: str) -> str | None:
+        """Retrieve and decrypt an API key.
+
+        Args:
+            provider: The provider name
+
+        Returns:
+            The decrypted API key or None if not found
+
+        Example:
+            >>> key = manager.get_decrypted_key("openai")
+        """
+        encrypted_key = self._encrypted_keys.get(provider)
+        if encrypted_key is None:
+            return None
+
+        try:
+            return self.decrypt_key(encrypted_key)
+        except ConfigurationError:
+            logger.error("Failed to decrypt stored key", provider=provider)
+            return None
+
+    def rotate_encryption_key(self) -> None:
+        """Rotate the encryption key, re-encrypting all stored keys.
+
+        This method creates a new encryption key and re-encrypts all
+        stored API keys with the new key.
+
+        Example:
+            >>> manager.rotate_encryption_key()
+        """
+        # First, decrypt all existing keys
+        decrypted_keys = {}
+        for provider, encrypted_key in self._encrypted_keys.items():
+            try:
+                decrypted_keys[provider] = self.decrypt_key(encrypted_key)
+            except ConfigurationError:
+                logger.error("Failed to decrypt key during rotation", provider=provider)
+                continue
+
+        # Generate new encryption key and cipher
+        self._encryption_key = Fernet.generate_key()
+        self._cipher = Fernet(self._encryption_key)
+
+        # Re-encrypt all keys with new encryption key
+        self._encrypted_keys.clear()
+        for provider, api_key in decrypted_keys.items():
+            encrypted_key = self.encrypt_key(api_key)
+            self._encrypted_keys[provider] = encrypted_key
+
+        logger.info(
+            "Encryption key rotated successfully",
+            re_encrypted_count=len(decrypted_keys),
+        )
+
+    def list_stored_providers(self) -> list[str]:
+        """Get list of providers with stored keys.
+
+        Returns:
+            List of provider names that have stored keys
+
+        Example:
+            >>> providers = manager.list_stored_providers()
+        """
+        return list(self._encrypted_keys.keys())
+
+    def remove_stored_key(self, provider: str) -> bool:
+        """Remove a stored encrypted key.
+
+        Args:
+            provider: The provider name
+
+        Returns:
+            True if key was removed, False if not found
+
+        Example:
+            >>> removed = manager.remove_stored_key("openai")
+        """
+        if provider in self._encrypted_keys:
+            del self._encrypted_keys[provider]
+            logger.info("API key removed", provider=provider)
+            return True
+        return False
+
+    def clear_all_keys(self) -> None:
+        """Clear all stored encrypted keys.
+
+        Example:
+            >>> manager.clear_all_keys()
+        """
+        count = len(self._encrypted_keys)
+        self._encrypted_keys.clear()
+        logger.info("All API keys cleared", cleared_count=count)
+
+    def key_exists(self, provider: str) -> bool:
+        """Check if a key exists for the provider.
+
+        Args:
+            provider: The provider name
+
+        Returns:
+            True if key exists, False otherwise
+
+        Example:
+            >>> exists = manager.key_exists("openai")
+        """
+        return provider in self._encrypted_keys
+
+    def save_encryption_key(self, file_path: str) -> None:
+        """Save the encryption key to a file.
+
+        Args:
+            file_path: Path to save the encryption key
+
+        Example:
+            >>> manager.save_encryption_key("/secure/path/key.bin")
+        """
+        try:
+            with open(file_path, "wb") as f:
+                f.write(self._encryption_key)
+            logger.info("Encryption key saved", path=file_path)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to save encryption key: {e}") from e
+
+    def load_encryption_key(self, file_path: str) -> None:
+        """Load encryption key from a file.
+
+        Args:
+            file_path: Path to load the encryption key from
+
+        Example:
+            >>> manager.load_encryption_key("/secure/path/key.bin")
+        """
+        try:
+            with open(file_path, "rb") as f:
+                self._encryption_key = f.read()
+            self._cipher = Fernet(self._encryption_key)
+            logger.info("Encryption key loaded", path=file_path)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load encryption key: {e}") from e
+
+    def load_from_environment(self, provider: str) -> str | None:
+        """Load encrypted API key from environment variables.
+
+        Args:
+            provider: The provider name
+
+        Returns:
+            Decrypted API key or None if not found
+
+        Example:
+            >>> key = manager.load_from_environment("openai")
+        """
+        env_var_name = f"{provider.upper()}_API_KEY_ENCRYPTED"
+        encrypted_key = os.getenv(env_var_name)
+
+        if encrypted_key:
+            try:
+                return self.decrypt_key(encrypted_key)
+            except ConfigurationError:
+                logger.error(
+                    "Failed to decrypt environment key",
+                    provider=provider,
+                    env_var=env_var_name,
+                )
+                return None
+
+        return None
 
 
 class EnvironmentLoader:
