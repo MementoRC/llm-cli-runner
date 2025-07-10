@@ -13,6 +13,8 @@ env:
   # Force color output for better readability
   FORCE_COLOR: "1"
   PYTHONUNBUFFERED: "1"
+  # Enable safe git imports for ClaudeCode-like environments
+  TESTING: "true"
 
 jobs:
   # Job 1: Code Quality and Static Analysis
@@ -100,7 +102,8 @@ jobs:
     - name: Run pytest with coverage
       run: |
         # Run tests with pixi environment (includes all dependencies)
-        pixi run -e dev python -m pytest --verbose --tb=short \
+        # Set TESTING=true for safe git imports in ClaudeCode-like environments
+        TESTING=true pixi run -e dev python -m pytest --verbose --tb=short \
           --timeout=60 \
           --cov=src/mcp_server_git \
           --cov-report=xml \
