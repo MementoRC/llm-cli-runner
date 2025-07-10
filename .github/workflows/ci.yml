@@ -40,12 +40,15 @@ jobs:
       with:
         pixi-version: v0.30.0
         cache: true
+      continue-on-error: true
 
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi with fallback
-        if ! pixi install --frozen; then
-          echo "❌ Pixi install failed, falling back to pip"
+        if command -v pixi >/dev/null 2>&1 && pixi install --frozen; then
+          echo "✅ Pixi environment ready"
+        else
+          echo "❌ Pixi not available or failed, using pip fallback"
           pip install -e .
           pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage
         fi
@@ -113,12 +116,15 @@ jobs:
       with:
         pixi-version: v0.30.0
         cache: true
+      continue-on-error: true
 
     - name: Install dependencies with pixi
       run: |
         # Install dependencies using pixi with fallback
-        if ! pixi install --frozen; then
-          echo "❌ Pixi install failed, falling back to pip"
+        if command -v pixi >/dev/null 2>&1 && pixi install --frozen; then
+          echo "✅ Pixi environment ready"
+        else
+          echo "❌ Pixi not available or failed, using pip fallback"
           pip install -e .
           pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage
         fi
@@ -197,6 +203,7 @@ jobs:
       with:
         pixi-version: v0.30.0
         cache: true
+      continue-on-error: true
 
     - name: Install dependencies
       run: pixi install
@@ -461,6 +468,7 @@ jobs:
       with:
         pixi-version: v0.30.0
         cache: true
+      continue-on-error: true
 
     - name: Install dependencies
       run: pixi install
@@ -508,6 +516,7 @@ jobs:
       with:
         pixi-version: v0.30.0
         cache: true
+      continue-on-error: true
 
     - name: Install dependencies
       run: pixi install
