@@ -1,8 +1,13 @@
 import pytest
 from pathlib import Path
-import git
-from mcp_server_git.server import git_checkout, git_status, GitTools
 import shutil
+
+# Use safe git import for testing
+import os
+os.environ["TESTING"] = "true"  # Ensure testing mode before import
+
+from mcp_server_git.utils.git_import import git
+from mcp_server_git.server import git_checkout, git_status, GitTools
 
 
 @pytest.fixture
