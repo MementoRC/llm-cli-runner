@@ -22,10 +22,10 @@ from pathlib import Path
 import pytest
 
 # Use safe git import for testing
-import os
 os.environ["TESTING"] = "true"  # Ensure testing mode before import
 
-from tests.fixtures.git_repos import _run_git_command
+# Import safe git utilities
+from mcp_server_git.utils.git_import import Repo
 
 
 # Fixtures for E2E verification tests
@@ -526,9 +526,9 @@ async def test_comprehensive_verification_report(mcp_client, test_repo):
 
         # Assert that all critical functionality works
         assert verification_results["basic_git_ops"], "Basic git operations must work"
-        assert verification_results[
-            "github_api"
-        ], "GitHub API must respond (even if no token)"
+        assert verification_results["github_api"], (
+            "GitHub API must respond (even if no token)"
+        )
         assert verification_results["advanced_ops"], "Advanced git operations must work"
         assert verification_results["error_handling"], "Error handling must work"
 

@@ -15,17 +15,26 @@ import pytest
 def _run_git_command(cmd: List[str], cwd: Path, **kwargs):
     """Run git command with clean PATH environment (no ClaudeCode redirectors)."""
     env = os.environ.copy()
-    
+
     # Remove ClaudeCode's modified PATH to avoid git redirectors
     if "PATH" in env:
         path_entries = env["PATH"].split(os.pathsep)
-        clean_path = [p for p in path_entries if not any(
-            redirect in p for redirect in [
-                "claude-code", "ClaudeCode", ".claude", "redirector", "mcp"
-            ]
-        )]
+        clean_path = [
+            p
+            for p in path_entries
+            if not any(
+                redirect in p
+                for redirect in [
+                    "claude-code",
+                    "ClaudeCode",
+                    ".claude",
+                    "redirector",
+                    "mcp",
+                ]
+            )
+        ]
         env["PATH"] = os.pathsep.join(clean_path)
-    
+
     return subprocess.run(cmd, cwd=cwd, env=env, **kwargs)
 
 
@@ -49,7 +58,9 @@ class GitRepositoryFactory:
         # Create initial commit
         (path / "README.md").write_text("# Test Repository")
         _run_git_command(["git", "add", "README.md"], cwd=path, check=True)
-        _run_git_command(["git", "commit", "-m", "Initial commit"], cwd=path, check=True)
+        _run_git_command(
+            ["git", "commit", "-m", "Initial commit"], cwd=path, check=True
+        )
 
         return path
 
@@ -105,7 +116,9 @@ class GitRepositoryFactory:
             file_path = path / f"file_{i}.txt"
             file_path.write_text(f"Content for commit {i}")
             _run_git_command(["git", "add", file_path.name], cwd=path, check=True)
-            _run_git_command(["git", "commit", "-m", f"Commit {i}"], cwd=path, check=True)
+            _run_git_command(
+                ["git", "commit", "-m", f"Commit {i}"], cwd=path, check=True
+            )
 
         return path
 

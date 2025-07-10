@@ -6,35 +6,36 @@ git commands may be redirected (like ClaudeCode development environment).
 """
 
 import os
-from typing import Optional, Any
+from typing import Any
 from unittest.mock import MagicMock
 
 
 def create_git_mock():
     """Create a mock git module for testing environments."""
     mock_git = MagicMock()
-    
+
     # Mock common git classes and exceptions
     mock_git.Repo = MagicMock()
     mock_git.GitCommandError = Exception
     mock_git.InvalidGitRepositoryError = Exception
     mock_git.NoSuchPathError = Exception
-    
+
     return mock_git
 
 
 def safe_git_import() -> Any:
     """
     Safely import git module, handling ClaudeCode redirector conflicts.
-    
+
     Returns:
         git module if successful, mock git module if in testing environment with conflicts
-        
+
     Raises:
         ImportError: If git import fails for reasons other than ClaudeCode redirectors
     """
     try:
         import git
+
         return git
     except ImportError as e:
         if "Failed to initialize" in str(e) and "git version" in str(e):

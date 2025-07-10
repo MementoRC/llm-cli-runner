@@ -30,10 +30,13 @@ class TestTokenValidator:
             "gho_" + "d" * 36,  # OAuth token
             "ghr_" + "e" * 36,  # Refresh token
         ]
-        
+
         for token in valid_tokens:
             result = TokenValidator.validate_github_token(token)
-            assert result.status == SecurityStatus.SECURE or result.status == SecurityStatus.WARNING
+            assert (
+                result.status == SecurityStatus.SECURE
+                or result.status == SecurityStatus.WARNING
+            )
             assert result.metadata["format_valid"] is True
             assert result.metadata["token_provided"] is True
 
@@ -47,11 +50,14 @@ class TestTokenValidator:
             "",
             "   ",
         ]
-        
+
         for token in invalid_tokens:
             result = TokenValidator.validate_github_token(token)
             if token.strip():  # Non-empty tokens
-                assert result.status in [SecurityStatus.WARNING, SecurityStatus.INSECURE]
+                assert result.status in [
+                    SecurityStatus.WARNING,
+                    SecurityStatus.INSECURE,
+                ]
                 assert result.metadata["format_valid"] is False
             else:  # Empty tokens
                 assert result.status == SecurityStatus.CRITICAL
@@ -69,10 +75,11 @@ class TestTokenValidator:
         """Test validation of excessively long token."""
         long_token = "ghp_" + "a" * (SecurityDefaults.MAX_TOKEN_LENGTH + 100)
         result = TokenValidator.validate_github_token(long_token)
-        
+
         # Should have length issue
         length_issues = [
-            issue for issue in result.issues
+            issue
+            for issue in result.issues
             if "length exceeds maximum" in issue.message
         ]
         assert len(length_issues) == 1
@@ -82,11 +89,10 @@ class TestTokenValidator:
         """Test that classic PAT tokens get security recommendations."""
         classic_token = "ghp_" + "a" * 36
         result = TokenValidator.validate_github_token(classic_token)
-        
+
         # Should recommend fine-grained tokens
         fine_grained_recommendations = [
-            rec for rec in result.recommendations
-            if "fine-grained" in rec.description
+            rec for rec in result.recommendations if "fine-grained" in rec.description
         ]
         assert len(fine_grained_recommendations) == 1
 
@@ -102,7 +108,7 @@ class TestInputSanitizer:
             "user/project-name",
             "deeply/nested/repo/path",
         ]
-        
+
         for path in valid_paths:
             result = InputSanitizer.sanitize_repository_path(path)
             assert result == os.path.normpath(path)
@@ -115,7 +121,7 @@ class TestInputSanitizer:
             "path/../../../secret",
             "",
         ]
-        
+
         for path in invalid_paths:
             with pytest.raises(GitValidationError):
                 InputSanitizer.sanitize_repository_path(path)
@@ -129,7 +135,7 @@ class TestInputSanitizer:
             "develop",
             "release/v1.0.0",
         ]
-        
+
         for name in valid_names:
             assert InputSanitizer.validate_branch_name(name) is True
 
@@ -146,7 +152,7 @@ class TestInputSanitizer:
             "branch/",  # Cannot end with slash
             "",  # Empty
         ]
-        
+
         for name in invalid_names:
             assert InputSanitizer.validate_branch_name(name) is False
 
@@ -157,7 +163,7 @@ class TestInputSanitizer:
             "Fix bug in authentication",
             "Update documentation for API changes",
         ]
-        
+
         for message in valid_messages:
             result = InputSanitizer.sanitize_commit_message(message)
             assert result == message
@@ -171,7 +177,7 @@ class TestInputSanitizer:
             "Pipe | to command",
             "Redirect > to file",
         ]
-        
+
         for message in dangerous_messages:
             result = InputSanitizer.sanitize_commit_message(message)
             # Should not contain dangerous characters
@@ -197,7 +203,7 @@ class TestInputSanitizer:
             "config.json",
             "tests/test_file.py",
         ]
-        
+
         for path in valid_paths:
             assert InputSanitizer.validate_file_path(path) is True
 
@@ -209,7 +215,7 @@ class TestInputSanitizer:
             "file.exe",  # Not in allowed extensions
             "",  # Empty
         ]
-        
+
         for path in invalid_paths:
             assert InputSanitizer.validate_file_path(path) is False
 
@@ -244,7 +250,7 @@ class TestSecurityFramework:
     def test_get_component_state(self, security_framework):
         """Test getting component state for debugging."""
         state = security_framework.get_component_state()
-        
+
         assert state.component_id == "test-security"
         assert state.component_type == "SecurityFramework"
         assert "failed_attempts_count" in state.state_data
@@ -255,17 +261,17 @@ class TestSecurityFramework:
     def test_validate_component(self, security_framework):
         """Test component validation."""
         result = security_framework.validate_component()
-        
-        assert hasattr(result, 'is_valid')
-        assert hasattr(result, 'errors')
-        assert hasattr(result, 'warnings')
+
+        assert hasattr(result, "is_valid")
+        assert hasattr(result, "errors")
+        assert hasattr(result, "warnings")
         assert isinstance(result.errors, list)
         assert isinstance(result.warnings, list)
 
     def test_get_debug_info(self, security_framework):
         """Test getting debug information."""
         debug_info = security_framework.get_debug_info()
-        
+
         assert debug_info["component_type"] == "SecurityFramework"
         assert debug_info["component_id"] == "test-security"
         assert "state" in debug_info
@@ -276,7 +282,7 @@ class TestSecurityFramework:
     def test_authenticate_github_token_success(self, security_framework):
         """Test successful GitHub token authentication."""
         result = security_framework.authenticate_github_token()
-        
+
         assert result.success is True
         assert result.token_type == "ghp"
         assert result.error_message is None
@@ -285,7 +291,7 @@ class TestSecurityFramework:
     def test_authenticate_github_token_failure(self, security_framework):
         """Test failed GitHub token authentication."""
         result = security_framework.authenticate_github_token()
-        
+
         assert result.success is False
         assert result.error_message is not None
 
@@ -295,7 +301,7 @@ class TestSecurityFramework:
         valid_token = "ghp_" + "a" * 36
         result = security_framework.authenticate_github_token(valid_token)
         assert result.success is True
-        
+
         # Invalid token
         invalid_token = "invalid_token"
         result = security_framework.authenticate_github_token(invalid_token)
@@ -303,37 +309,41 @@ class TestSecurityFramework:
 
     def test_validate_repository_access_valid(self, security_framework, mock_repo_path):
         """Test validation of valid repository access."""
-        with patch("mcp_server_git.frameworks.server_security.validate_git_security_config") as mock_validate:
+        with patch(
+            "mcp_server_git.frameworks.server_security.validate_git_security_config"
+        ) as mock_validate:
             mock_validate.return_value = {"warnings": [], "recommendations": []}
-            
+
             with patch("git.Repo") as mock_repo:
                 mock_repo.return_value = Mock()
-                
-                result = security_framework.validate_repository_access(str(mock_repo_path))
-                
+
+                result = security_framework.validate_repository_access(
+                    str(mock_repo_path)
+                )
+
                 assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
                 assert result.metadata["path_exists"] is True
 
     def test_validate_repository_access_nonexistent(self, security_framework):
         """Test validation of non-existent repository."""
         result = security_framework.validate_repository_access("/nonexistent/path")
-        
+
         assert result.status in [SecurityStatus.INSECURE, SecurityStatus.WARNING]
         # Should have issues about non-existent path
         path_issues = [
-            issue for issue in result.issues
-            if "does not exist" in issue.message
+            issue for issue in result.issues if "does not exist" in issue.message
         ]
         assert len(path_issues) >= 1
 
     def test_validate_repository_access_invalid_path(self, security_framework):
         """Test validation with invalid repository path."""
         result = security_framework.validate_repository_access("../../../etc/passwd")
-        
+
         assert result.status in [SecurityStatus.INSECURE, SecurityStatus.CRITICAL]
         # Should have path validation issues
         validation_issues = [
-            issue for issue in result.issues
+            issue
+            for issue in result.issues
             if issue.category == SecurityCategory.INPUT_VALIDATION
         ]
         assert len(validation_issues) >= 1
@@ -342,7 +352,7 @@ class TestSecurityFramework:
         """Test validation of Git commit operation."""
         params = {"message": "Valid commit message"}
         result = security_framework.validate_git_operation("commit", params)
-        
+
         # Should be secure for valid commit message
         assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
 
@@ -350,13 +360,14 @@ class TestSecurityFramework:
         """Test validation of Git commit with dangerous message."""
         params = {"message": "Commit with `rm -rf /` command"}
         result = security_framework.validate_git_operation("commit", params)
-        
+
         # Should have sanitization issues
         sanitization_issues = [
-            issue for issue in result.issues
-            if "sanitized" in issue.message
+            issue for issue in result.issues if "sanitized" in issue.message
         ]
-        assert len(sanitization_issues) >= 0  # May or may not sanitize depending on content
+        assert (
+            len(sanitization_issues) >= 0
+        )  # May or may not sanitize depending on content
 
     def test_validate_git_operation_file_operations(self, security_framework):
         """Test validation of file operations."""
@@ -364,50 +375,59 @@ class TestSecurityFramework:
         params = {"files": ["src/module.py", "tests/test.py"]}
         result = security_framework.validate_git_operation("add", params)
         assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
-        
+
         # Invalid files
         params = {"files": ["../../../etc/passwd"]}
         result = security_framework.validate_git_operation("add", params)
-        
+
         # Should have path validation issues
         path_issues = [
-            issue for issue in result.issues
-            if "unsafe file path" in issue.message
+            issue for issue in result.issues if "unsafe file path" in issue.message
         ]
         assert len(path_issues) >= 1
 
     def test_rate_limiting(self, security_framework):
         """Test rate limiting functionality."""
         # First request should pass
-        assert security_framework._check_rate_limit("test_op", limit=2, window=60) is True
-        
+        assert (
+            security_framework._check_rate_limit("test_op", limit=2, window=60) is True
+        )
+
         # Second request should pass
-        assert security_framework._check_rate_limit("test_op", limit=2, window=60) is True
-        
+        assert (
+            security_framework._check_rate_limit("test_op", limit=2, window=60) is True
+        )
+
         # Third request should fail (limit=2)
-        assert security_framework._check_rate_limit("test_op", limit=2, window=60) is False
+        assert (
+            security_framework._check_rate_limit("test_op", limit=2, window=60) is False
+        )
 
     def test_rate_limiting_window_expiry(self, security_framework):
         """Test that rate limiting window expires correctly."""
         # Make requests that would exceed limit
         security_framework._check_rate_limit("test_op", limit=1, window=1)
-        
+
         # Should be blocked immediately
-        assert security_framework._check_rate_limit("test_op", limit=1, window=1) is False
-        
+        assert (
+            security_framework._check_rate_limit("test_op", limit=1, window=1) is False
+        )
+
         # Manually set old timestamp to simulate expiry
         past_time = datetime.now() - timedelta(seconds=2)
         security_framework.rate_limits["test_op"] = [past_time]
-        
+
         # Should pass after window expiry
-        assert security_framework._check_rate_limit("test_op", limit=1, window=1) is True
+        assert (
+            security_framework._check_rate_limit("test_op", limit=1, window=1) is True
+        )
 
     def test_failed_attempt_tracking(self, security_framework):
         """Test tracking of failed attempts."""
         initial_events = len(security_framework.security_events)
-        
+
         security_framework._record_failed_attempt("login", "invalid_password")
-        
+
         # Should record the attempt
         assert "login" in security_framework.failed_attempts
         assert len(security_framework.failed_attempts["login"]) == 1
@@ -418,10 +438,10 @@ class TestSecurityFramework:
         # Add old failed attempt
         old_time = datetime.now() - timedelta(hours=2)
         security_framework.failed_attempts["test"] = [old_time]
-        
+
         # Record new attempt (should clean old ones)
         security_framework._record_failed_attempt("test", "reason")
-        
+
         # Should only have the new attempt
         assert len(security_framework.failed_attempts["test"]) == 1
         assert security_framework.failed_attempts["test"][0] > old_time
@@ -429,11 +449,11 @@ class TestSecurityFramework:
     def test_security_event_logging(self, security_framework):
         """Test security event logging."""
         initial_count = len(security_framework.security_events)
-        
+
         security_framework._log_security_event("test_event", {"key": "value"})
-        
+
         assert len(security_framework.security_events) == initial_count + 1
-        
+
         latest_event = security_framework.security_events[-1]
         assert latest_event["event_type"] == "test_event"
         assert latest_event["details"]["key"] == "value"
@@ -444,10 +464,10 @@ class TestSecurityFramework:
         # Add many events
         for i in range(1100):
             security_framework._log_security_event(f"event_{i}", {})
-        
+
         # Should be limited to 1000
         assert len(security_framework.security_events) == 1000
-        
+
         # Should have the most recent events
         latest_event = security_framework.security_events[-1]
         assert latest_event["event_type"] == "event_1099"
@@ -457,9 +477,9 @@ class TestSecurityFramework:
         # Add some test data
         security_framework._record_failed_attempt("test", "reason")
         security_framework._log_security_event("test_event", {})
-        
+
         metrics = security_framework.get_security_metrics()
-        
+
         assert "total_events" in metrics
         assert "recent_events" in metrics
         assert "failed_attempts" in metrics
@@ -467,7 +487,7 @@ class TestSecurityFramework:
         assert "gpg_validated" in metrics
         assert "component_status" in metrics
         assert "last_updated" in metrics
-        
+
         assert metrics["total_events"] >= 1
         assert metrics["failed_attempts"]["test"] == 1
 
@@ -476,23 +496,26 @@ class TestSecurityFramework:
         # Exhaust rate limit
         for _ in range(70):  # Default limit is 60
             security_framework._check_rate_limit("test_operation", check_only=True)
-        
+
         # Now validation should detect rate limit issue
         result = security_framework.validate_git_operation("test_operation", {})
-        
+
         rate_limit_issues = [
-            issue for issue in result.issues
+            issue
+            for issue in result.issues
             if issue.category == SecurityCategory.RATE_LIMITING
         ]
-        assert len(rate_limit_issues) >= 0  # May or may not hit rate limit depending on timing
+        assert (
+            len(rate_limit_issues) >= 0
+        )  # May or may not hit rate limit depending on timing
 
     def test_component_validation_with_failures(self, security_framework):
         """Test component validation when there are many failures."""
         # Add many failed attempts
         for i in range(20):
             security_framework._record_failed_attempt(f"context_{i}", "reason")
-        
+
         result = security_framework.validate_component()
-        
+
         # Should have errors about excessive failures
         assert len(result.errors) > 0 or len(result.warnings) > 0

@@ -30,16 +30,25 @@ def test_environment():
     # Set test-specific environment variables
     os.environ["LOG_LEVEL"] = "DEBUG"
     os.environ["TESTING"] = "true"
-    
+
     # Remove ClaudeCode's modified PATH to avoid git/gh redirectors
     if "PATH" in os.environ:
         path_entries = os.environ["PATH"].split(os.pathsep)
         # Filter out ClaudeCode's redirect paths
-        clean_path = [p for p in path_entries if not any(
-            redirect in p for redirect in [
-                "claude-code", "ClaudeCode", ".claude", "redirector", "mcp"
-            ]
-        )]
+        clean_path = [
+            p
+            for p in path_entries
+            if not any(
+                redirect in p
+                for redirect in [
+                    "claude-code",
+                    "ClaudeCode",
+                    ".claude",
+                    "redirector",
+                    "mcp",
+                ]
+            )
+        ]
         os.environ["PATH"] = os.pathsep.join(clean_path)
 
     yield
@@ -63,19 +72,28 @@ def _run_git_isolated(cmd: list, cwd: Path, **kwargs):
     """Run git command with clean PATH environment (no ClaudeCode redirectors)."""
     import subprocess
     import os
-    
+
     env = os.environ.copy()
-    
+
     # Remove ClaudeCode's modified PATH to avoid git redirectors
     if "PATH" in env:
         path_entries = env["PATH"].split(os.pathsep)
-        clean_path = [p for p in path_entries if not any(
-            redirect in p for redirect in [
-                "claude-code", "ClaudeCode", ".claude", "redirector", "mcp"
-            ]
-        )]
+        clean_path = [
+            p
+            for p in path_entries
+            if not any(
+                redirect in p
+                for redirect in [
+                    "claude-code",
+                    "ClaudeCode",
+                    ".claude",
+                    "redirector",
+                    "mcp",
+                ]
+            )
+        ]
         env["PATH"] = os.pathsep.join(clean_path)
-    
+
     return subprocess.run(cmd, cwd=cwd, env=env, **kwargs)
 
 
@@ -97,7 +115,9 @@ def mock_git_repo(temp_dir: Path) -> Path:
     # Create initial commit
     (repo_path / "README.md").write_text("# Test Repository")
     _run_git_isolated(["git", "add", "README.md"], cwd=repo_path, check=True)
-    _run_git_isolated(["git", "commit", "-m", "Initial commit"], cwd=repo_path, check=True)
+    _run_git_isolated(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo_path, check=True
+    )
 
     return repo_path
 
