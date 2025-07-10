@@ -23,7 +23,7 @@ class TestAPIKeyManager:
     def test_encrypt_decrypt_api_key(self):
         """Test API key encryption and decryption."""
         manager = APIKeyManager()
-        original_key = "sk-test123456789abcdef"
+        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
 
         # Encrypt the key
         encrypted_key = manager.encrypt_key(original_key)
@@ -39,7 +39,7 @@ class TestAPIKeyManager:
         encryption_key = APIKeyManager.generate_encryption_key()
         manager = APIKeyManager(encryption_key=encryption_key)
 
-        original_key = "test-api-key-12345"
+        original_key = "FAKE-TEST-API-KEY-12345"
         encrypted_key = manager.encrypt_key(original_key)
         decrypted_key = manager.decrypt_key(encrypted_key)
 
@@ -50,8 +50,8 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         valid_keys = [
-            "sk-1234567890abcdef1234567890abcdef12345678",
-            "sk-proj-1234567890abcdef1234567890abcdef12345678",
+            "sk-FAKE_TEST_KEY_1234567890abcdef12345678",
+            "sk-proj-FAKE_TEST_KEY_1234567890abcdef890",
         ]
 
         for key in valid_keys:
@@ -77,8 +77,8 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         valid_keys = [
-            "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567",
-            "AIzaSyAnotherValidGoogleAPIKey123456789",
+            "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567",
+            "AIzaSyTEST_ANOTHER_FAKE_KEY_TESTING_890",
         ]
 
         for key in valid_keys:
@@ -104,8 +104,8 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         valid_keys = [
-            "sk-ant-api03-1234567890abcdef1234567890abcdef",
-            "sk-ant-api03-anothervalidkey1234567890abcdef",
+            "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef",
+            "sk-ant-api03-ANOTHER_FAKE_TEST_KEY_890abcdef",
         ]
 
         for key in valid_keys:
@@ -137,7 +137,7 @@ class TestAPIKeyManager:
         """Test storing and retrieving encrypted API keys."""
         manager = APIKeyManager()
 
-        original_key = "sk-test123456789abcdef"
+        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
         provider = "openai"
 
         # Store encrypted key
@@ -166,7 +166,7 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         # Store a key with original encryption
-        original_api_key = "sk-test123456789abcdef"
+        original_api_key = "sk-FAKE_TEST_KEY_123456789abcdef"
         manager.store_encrypted_key("openai", original_api_key)
 
         # Rotate the encryption key
@@ -189,8 +189,8 @@ class TestAPIKeyManager:
         assert manager.list_stored_providers() == []
 
         # Store some keys
-        manager.store_encrypted_key("openai", "sk-test123456789abcdef")
-        manager.store_encrypted_key("google", "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567")
+        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
+        manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
 
         providers = manager.list_stored_providers()
         assert set(providers) == {"openai", "google"}
@@ -200,7 +200,7 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         # Store a key
-        manager.store_encrypted_key("openai", "sk-test123456789abcdef")
+        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
         assert "openai" in manager.list_stored_providers()
 
         # Remove the key
@@ -217,8 +217,8 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         # Store multiple keys
-        manager.store_encrypted_key("openai", "sk-test123456789abcdef")
-        manager.store_encrypted_key("google", "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567")
+        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
+        manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
 
         assert len(manager.list_stored_providers()) == 2
 
@@ -232,7 +232,7 @@ class TestAPIKeyManager:
 
         assert manager.key_exists("openai") is False
 
-        manager.store_encrypted_key("openai", "sk-test123456789abcdef")
+        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
         assert manager.key_exists("openai") is True
 
     def test_encryption_key_persistence(self):
@@ -250,7 +250,7 @@ class TestAPIKeyManager:
             manager2.load_encryption_key(key_file)
 
             # Test that they can encrypt/decrypt each other's data
-            original_key = "sk-test123456789abcdef"
+            original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
             encrypted = manager1.encrypt_key(original_key)
             decrypted = manager2.decrypt_key(encrypted)
 
@@ -273,7 +273,7 @@ class TestAPIKeyManager:
 
         # This is a basic test - in real implementation,
         # we'd test memory zeroing and secure cleanup
-        original_key = "sk-test123456789abcdef"
+        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
         encrypted = manager.encrypt_key(original_key)
 
         # Verify the original key isn't stored in plaintext anywhere
@@ -285,7 +285,7 @@ class TestAPIKeyManager:
         manager = APIKeyManager()
 
         # Mock environment with encrypted keys
-        encrypted_openai = manager.encrypt_key("sk-test123456789abcdef")
+        encrypted_openai = manager.encrypt_key("sk-FAKE_TEST_KEY_123456789abcdef")
 
         env_vars = {
             "OPENAI_API_KEY_ENCRYPTED": encrypted_openai,
@@ -295,16 +295,16 @@ class TestAPIKeyManager:
         with patch.dict(os.environ, env_vars):
             # Test loading encrypted key from environment
             loaded_key = manager.load_from_environment("openai")
-            assert loaded_key == "sk-test123456789abcdef"
+            assert loaded_key == "sk-FAKE_TEST_KEY_123456789abcdef"
 
     def test_multiple_provider_key_management(self):
         """Test managing keys for multiple providers simultaneously."""
         manager = APIKeyManager()
 
         providers_and_keys = {
-            "openai": "sk-test123456789abcdef",
-            "google": "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567",
-            "anthropic": "sk-ant-api03-1234567890abcdef1234567890abcdef",
+            "openai": "sk-FAKE_TEST_KEY_123456789abcdef",
+            "google": "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567",
+            "anthropic": "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef",
         }
 
         # Store all keys

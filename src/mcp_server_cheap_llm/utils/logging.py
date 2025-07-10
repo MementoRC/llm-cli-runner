@@ -47,6 +47,8 @@ from structlog.stdlib import (  # type: ignore[import-not-found]
     filter_by_level,
 )
 
+from ..utils.errors import CheapLLMError
+
 # Thread-local storage for correlation IDs
 _correlation_id_context: ContextVar[str | None] = ContextVar(
     "correlation_id", default=None
@@ -565,12 +567,12 @@ class SecurityLogger:
             event_data["error_type"] = type(error).__name__
             event_data["error_message"] = str(error)
 
-            # Add error code if available
-            if hasattr(error, "error_code") and error.error_code:
+            # Add error code if available (for custom exceptions)
+            if isinstance(error, CheapLLMError) and error.error_code:
                 event_data["error_code"] = error.error_code
 
-            # Add filtered context if available
-            if hasattr(error, "context") and error.context:
+            # Add filtered context if available (for custom exceptions)
+            if isinstance(error, CheapLLMError) and error.context:
                 filtered_context = self._filter_sensitive_data(error.context)
                 event_data["error_context"] = filtered_context
 
@@ -599,12 +601,12 @@ class SecurityLogger:
             "error_message": str(error),
         }
 
-        # Add error code if available
-        if hasattr(error, "error_code") and error.error_code:
+        # Add error code if available (for custom exceptions)
+        if isinstance(error, CheapLLMError) and error.error_code:
             error_data["error_code"] = error.error_code
 
-        # Add filtered context if available
-        if hasattr(error, "context") and error.context:
+        # Add filtered context if available (for custom exceptions)
+        if isinstance(error, CheapLLMError) and error.context:
             filtered_context = self._filter_sensitive_data(error.context)
             error_data["error_context"] = filtered_context
 
