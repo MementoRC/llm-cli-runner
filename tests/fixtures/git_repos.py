@@ -6,9 +6,27 @@ with various states and configurations.
 """
 
 import subprocess
+import os
 from pathlib import Path
 from typing import List, Optional
 import pytest
+
+
+def _run_git_command(cmd: List[str], cwd: Path, **kwargs):
+    """Run git command with clean PATH environment (no ClaudeCode redirectors)."""
+    env = os.environ.copy()
+    
+    # Remove ClaudeCode's modified PATH to avoid git redirectors
+    if "PATH" in env:
+        path_entries = env["PATH"].split(os.pathsep)
+        clean_path = [p for p in path_entries if not any(
+            redirect in p for redirect in [
+                "claude-code", "ClaudeCode", ".claude", "redirector", "mcp"
+            ]
+        )]
+        env["PATH"] = os.pathsep.join(clean_path)
+    
+    return subprocess.run(cmd, cwd=cwd, env=env, **kwargs)
 
 
 class GitRepositoryFactory:
@@ -20,18 +38,18 @@ class GitRepositoryFactory:
         path.mkdir(parents=True, exist_ok=True)
 
         # Initialize repository
-        subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
-        subprocess.run(
+        _run_git_command(["git", "init"], cwd=path, check=True, capture_output=True)
+        _run_git_command(
             ["git", "config", "user.name", "Test User"], cwd=path, check=True
         )
-        subprocess.run(
+        _run_git_command(
             ["git", "config", "user.email", "test@example.com"], cwd=path, check=True
         )
 
         # Create initial commit
         (path / "README.md").write_text("# Test Repository")
-        subprocess.run(["git", "add", "README.md"], cwd=path, check=True)
-        subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=path, check=True)
+        _run_git_command(["git", "add", "README.md"], cwd=path, check=True)
+        _run_git_command(["git", "commit", "-m", "Initial commit"], cwd=path, check=True)
 
         return path
 
@@ -56,7 +74,7 @@ class GitRepositoryFactory:
         GitRepositoryFactory.create_clean_repo(path)
 
         for branch in branches:
-            subprocess.run(
+            _run_git_command(
                 ["git", "checkout", "-b", branch],
                 cwd=path,
                 check=True,
@@ -66,13 +84,13 @@ class GitRepositoryFactory:
             # Create a commit on this branch
             branch_file = path / f"{branch}_file.txt"
             branch_file.write_text(f"Content from {branch} branch")
-            subprocess.run(["git", "add", branch_file.name], cwd=path, check=True)
-            subprocess.run(
+            _run_git_command(["git", "add", branch_file.name], cwd=path, check=True)
+            _run_git_command(
                 ["git", "commit", "-m", f"Add {branch} file"], cwd=path, check=True
             )
 
         # Return to main branch
-        subprocess.run(
+        _run_git_command(
             ["git", "checkout", "main"], cwd=path, check=True, capture_output=True
         )
 
@@ -86,8 +104,8 @@ class GitRepositoryFactory:
         for i in range(1, commit_count):
             file_path = path / f"file_{i}.txt"
             file_path.write_text(f"Content for commit {i}")
-            subprocess.run(["git", "add", file_path.name], cwd=path, check=True)
-            subprocess.run(["git", "commit", "-m", f"Commit {i}"], cwd=path, check=True)
+            _run_git_command(["git", "add", file_path.name], cwd=path, check=True)
+            _run_git_command(["git", "commit", "-m", f"Commit {i}"], cwd=path, check=True)
 
         return path
 
