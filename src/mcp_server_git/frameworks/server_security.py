@@ -162,6 +162,9 @@ class TokenValidator:
         issues = []
         recommendations = []
 
+        # Strip whitespace and check if token is empty
+        token = token.strip() if token else ""
+        
         if not token:
             issues.append(
                 SecurityIssue(
@@ -178,8 +181,7 @@ class TokenValidator:
                 metadata={"token_provided": False},
             )
 
-        # Strip whitespace and check length
-        token = token.strip()
+        # Check token length  
         if len(token) > SecurityDefaults.MAX_TOKEN_LENGTH:
             issues.append(
                 SecurityIssue(
