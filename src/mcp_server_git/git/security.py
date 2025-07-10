@@ -5,7 +5,8 @@ import os
 import subprocess
 from typing import Dict, Any
 
-from git import Repo  # Added GitCommandError, InvalidGitRepositoryError
+# Safe git import that handles ClaudeCode redirector conflicts
+from ..utils.git_import import Repo
 
 logger = logging.getLogger(__name__)
 

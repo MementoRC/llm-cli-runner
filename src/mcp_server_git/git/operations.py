@@ -6,10 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from git import (
-    Repo,
-    GitCommandError,
-)  # Added Repo, GitCommandError, InvalidGitRepositoryError
+# Safe git import that handles ClaudeCode redirector conflicts
+from ..utils.git_import import Repo, GitCommandError
 
 logger = logging.getLogger(__name__)
 

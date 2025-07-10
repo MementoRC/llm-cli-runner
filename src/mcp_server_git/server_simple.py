@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-from git import Repo, InvalidGitRepositoryError
+# Safe git import that handles ClaudeCode redirector conflicts
+from .utils.git_import import Repo, InvalidGitRepositoryError
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool

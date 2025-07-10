@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Sequence, Optional
 
 import aiohttp
-import git
 from dotenv import load_dotenv
+
+# Safe git import that handles ClaudeCode redirector conflicts
+from .utils.git_import import git
 from mcp.server.session import ServerSession
 from mcp.types import (
     ClientCapabilities,

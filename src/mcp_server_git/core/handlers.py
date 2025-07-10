@@ -6,8 +6,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-import git
-from git import Repo
+# Safe git import that handles ClaudeCode redirector conflicts
+from ..utils.git_import import git, Repo
 from mcp.types import TextContent
 
 from .tools import GitToolRouter, ToolRegistry
