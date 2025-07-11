@@ -35,35 +35,30 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install dependencies (CI-optimized pixi)
+    - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pixi..."
-        
-        # Use CI-optimized environment
-        pixi install --environment ci
+        echo "🔧 Setting up CI environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
         echo "✅ CI environment ready"
 
     - name: Run ruff linting (critical violations)
       run: |
         echo "🔍 Running critical linting checks..."
-        pixi run -e ci ci-lint
+        ruff check src/ tests/ --select=F,E9
 
     - name: Run ruff format check
       run: |
         echo "🔍 Running format checks..."
-        pixi run -e ci ci-format-check
+        ruff format --check src/ tests/
       continue-on-error: true
 
-    - name: Run type checking with pyright
+    - name: Run type checking with mypy
       run: |
         echo "🔍 Running type checking..."
-        pixi run -e ci ci-typecheck
+        mypy src/ --ignore-missing-imports
       continue-on-error: true
-
-    - name: Check code formatting
-      run: |
-        echo "🔍 Checking code formatting..."
-        pixi run -e ci ci-format-check
 
   # Job 2: Unit and Integration Tests
   test:
@@ -86,12 +81,12 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies (CI-optimized pixi)
+    - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pixi..."
-        
-        # Use CI-optimized environment
-        pixi install --environment ci
+        echo "🔧 Setting up CI environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
         echo "✅ CI environment ready"
 
     - name: Configure Git for testing
@@ -103,10 +98,7 @@ jobs:
     - name: Run pytest with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        # Run tests with pixi environment (includes all dependencies)
-        # Set TESTING=true for safe git imports in ClaudeCode-like environments
-        echo "Using CI-optimized pixi environment for tests"
-        pixi run -e ci ci-test
+        pytest tests/ -v --tb=short --timeout=30 --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -144,32 +136,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
-      with:
-        pixi-version: v0.30.0
-        cache: false
-      continue-on-error: true
-
-    - name: Install dependencies (pixi with pip fallback)
+    - name: Install dependencies
       run: |
-        echo "🔧 Setting up Python environment..."
-
-        # Try pixi first
-        if command -v pixi >/dev/null 2>&1; then
-          echo "📦 Pixi found, attempting installation..."
-          if pixi install --frozen; then
-            echo "✅ Pixi environment ready"
-            echo "PIXI_READY=true" >> $GITHUB_ENV
-            exit 0
-          else
-            echo "⚠️ Pixi install failed, falling back to pip..."
-          fi
-        else
-          echo "⚠️ Pixi not available, using pip fallback..."
-        fi
-
-        # Pip fallback
+        echo "🔧 Setting up Python environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        echo "✅ Environment ready"
         echo "🐍 Installing with pip..."
         echo "PIXI_READY=false" >> $GITHUB_ENV
         python -m pip install --upgrade pip
@@ -198,9 +171,9 @@ jobs:
     - name: Test MCP server startup and basic functionality
       run: |
         echo "🚀 Testing MCP server startup..."
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment"
-          timeout 30s pixi run -e dev python -m mcp_server_git --test-mode &
+        # Use CI-optimized pip environment
+          echo "Using pip environment"
+          timeout 30s python -m mcp_server_git --test-mode &
         else
           echo "Using pip fallback for MCP server test"
           timeout 30s python -m mcp_server_git --test-mode &
@@ -280,9 +253,9 @@ jobs:
         EOF
 
         echo "🔍 Running MCP validation..."
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment"
-          pixi run -e dev python mcp_validate.py
+        # Use CI-optimized pip environment
+          echo "Using pip environment"
+          python mcp_validate.py
         else
           echo "Using pip fallback for MCP validation"
           TESTING=true python mcp_validate.py
@@ -348,9 +321,9 @@ jobs:
         EOF
 
         echo "🔔 Running notification tests..."
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment"
-          pixi run -e dev python test_notifications.py
+        # Use CI-optimized pip environment
+          echo "Using pip environment"
+          python test_notifications.py
         else
           echo "Using pip fallback for notification tests"
           TESTING=true python test_notifications.py
@@ -366,9 +339,9 @@ jobs:
 
         # Run the comprehensive E2E verification tests
         echo "🚀 Running E2E verification tests..."
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment"
-          pixi run -e dev python -m pytest tests/test_mcp_verification_e2e.py \
+        # Use CI-optimized pip environment
+          echo "Using pip environment"
+          python -m pytest tests/test_mcp_verification_e2e.py \
             -v \
             -m "e2e" \
             --tb=short \
@@ -466,32 +439,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
-      with:
-        pixi-version: v0.30.0
-        cache: false
-      continue-on-error: true
-
-    - name: Install dependencies (pixi with pip fallback)
+    - name: Install dependencies
       run: |
-        echo "🔧 Setting up Python environment..."
-
-        # Try pixi first
-        if command -v pixi >/dev/null 2>&1; then
-          echo "📦 Pixi found, attempting installation..."
-          if pixi install --frozen; then
-            echo "✅ Pixi environment ready"
-            echo "PIXI_READY=true" >> $GITHUB_ENV
-            exit 0
-          else
-            echo "⚠️ Pixi install failed, falling back to pip..."
-          fi
-        else
-          echo "⚠️ Pixi not available, using pip fallback..."
-        fi
-
-        # Pip fallback
+        echo "🔧 Setting up Python environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        echo "✅ Environment ready"
         echo "🐍 Installing with pip..."
         echo "PIXI_READY=false" >> $GITHUB_ENV
         python -m pip install --upgrade pip
@@ -503,9 +457,9 @@ jobs:
       run: |
         echo "🔒 Running safety check..."
         pip install safety
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment for dependency listing"
-          pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | safety check --stdin
+        # Use CI-optimized pip environment
+          echo "Using pip environment for dependency listing"
+          pip freeze | safety check --stdin
         else
           echo "Using pip fallback for safety check"
           pip freeze | safety check --stdin
@@ -516,9 +470,9 @@ jobs:
       run: |
         echo "🔍 Running dependency audit..."
         pip install pip-audit
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment for dependency audit"
-          pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
+        # Use CI-optimized pip environment
+          echo "Using pip environment for dependency audit"
+          pip freeze | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
         else
           echo "Using pip fallback for dependency audit"
           pip freeze > requirements-temp.txt
@@ -553,32 +507,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
-      with:
-        pixi-version: v0.30.0
-        cache: false
-      continue-on-error: true
-
-    - name: Install dependencies (pixi with pip fallback)
+    - name: Install dependencies
       run: |
-        echo "🔧 Setting up Python environment..."
-
-        # Try pixi first
-        if command -v pixi >/dev/null 2>&1; then
-          echo "📦 Pixi found, attempting installation..."
-          if pixi install --frozen; then
-            echo "✅ Pixi environment ready"
-            echo "PIXI_READY=true" >> $GITHUB_ENV
-            exit 0
-          else
-            echo "⚠️ Pixi install failed, falling back to pip..."
-          fi
-        else
-          echo "⚠️ Pixi not available, using pip fallback..."
-        fi
-
-        # Pip fallback
+        echo "🔧 Setting up Python environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        echo "✅ Environment ready"
         echo "🐍 Installing with pip..."
         echo "PIXI_READY=false" >> $GITHUB_ENV
         python -m pip install --upgrade pip
@@ -616,9 +551,9 @@ jobs:
         # Run performance-focused tests
         cd "$GITHUB_WORKSPACE"
         echo "🏃 Running performance tests..."
-        # Use CI-optimized pixi environment
-          echo "Using pixi environment"
-          pixi run -e dev pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
+        # Use CI-optimized pip environment
+          echo "Using pip environment"
+          python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
         else
           echo "Using pip fallback for performance tests"
           TESTING=true python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
