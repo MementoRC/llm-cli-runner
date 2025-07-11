@@ -3,7 +3,7 @@
 import os
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from mcp_server_git.frameworks.server_security import (
     SecurityFramework,
@@ -314,9 +314,7 @@ class TestSecurityFramework:
         ) as mock_validate:
             mock_validate.return_value = {"warnings": [], "recommendations": []}
 
-            result = security_framework.validate_repository_access(
-                str(mock_repo_path)
-            )
+            result = security_framework.validate_repository_access(str(mock_repo_path))
 
             assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
             assert result.metadata["path_exists"] is True

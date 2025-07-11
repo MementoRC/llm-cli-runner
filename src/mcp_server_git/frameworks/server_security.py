@@ -164,7 +164,7 @@ class TokenValidator:
 
         # Strip whitespace and check if token is empty
         token = token.strip() if token else ""
-        
+
         if not token:
             issues.append(
                 SecurityIssue(
@@ -181,7 +181,7 @@ class TokenValidator:
                 metadata={"token_provided": False},
             )
 
-        # Check token length  
+        # Check token length
         if len(token) > SecurityDefaults.MAX_TOKEN_LENGTH:
             issues.append(
                 SecurityIssue(
@@ -259,13 +259,25 @@ class InputSanitizer:
                 f"Invalid repository path contains directory traversal: {path}",
                 suggested_fix="Use paths without .. components",
             )
-        
+
         # Only reject absolute paths that point to sensitive system directories
-        if normalized.startswith("/") and any(
-            normalized.startswith(dangerous_path) for dangerous_path in [
-                "/etc", "/root", "/home", "/usr", "/var", "/sys", "/proc", "/dev"
-            ]
-        ) and not normalized.startswith("/tmp"):
+        if (
+            normalized.startswith("/")
+            and any(
+                normalized.startswith(dangerous_path)
+                for dangerous_path in [
+                    "/etc",
+                    "/root",
+                    "/home",
+                    "/usr",
+                    "/var",
+                    "/sys",
+                    "/proc",
+                    "/dev",
+                ]
+            )
+            and not normalized.startswith("/tmp")
+        ):
             raise GitValidationError(
                 f"Invalid repository path points to sensitive system directory: {path}",
                 suggested_fix="Use relative paths or paths in safe directories",
@@ -727,11 +739,11 @@ class SecurityFramework(DebuggableComponent):
     def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
         """
         Inspect specific parts of the security component state.
-        
+
         Args:
             path: Optional dot-notation path to specific state
                  If None, returns complete state
-            
+
         Returns:
             Dict containing the requested state information
         """
@@ -745,105 +757,105 @@ class SecurityFramework(DebuggableComponent):
                 "max_failed_attempts": SecurityDefaults.MAX_FAILED_ATTEMPTS,
                 "rate_limit_window": SecurityDefaults.RATE_LIMIT_WINDOW,
                 "rate_limit_requests": SecurityDefaults.RATE_LIMIT_REQUESTS,
-            }
+            },
         }
-        
+
         if path is None:
             return full_state
-            
+
         # Navigate to specific path
-        keys = path.split('.')
+        keys = path.split(".")
         current = full_state
         for key in keys:
             if isinstance(current, dict) and key in current:
                 current = current[key]
             else:
                 return {}
-        
+
         return {path: current}
 
     def get_component_dependencies(self) -> List[str]:
         """
         Get list of component dependencies.
-        
+
         Returns:
             List of component IDs that this security component depends on
         """
-        return [
-            "git_service",
-            "github_api",
-            "configuration_manager",
-            "logging_service"
-        ]
+        return ["git_service", "github_api", "configuration_manager", "logging_service"]
 
     def export_state_json(self) -> str:
         """
         Export security component state as JSON for external analysis.
-        
+
         Returns:
             JSON string representation of complete component state
         """
         import json
         from datetime import datetime
-        
+
         def json_serializer(obj):
             """Custom JSON serializer for datetime objects."""
             if isinstance(obj, datetime):
                 return obj.isoformat()
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-        
+
         state_data = self.inspect_state()
         state_data["component_type"] = "SecurityFramework"
         state_data["export_timestamp"] = datetime.now().isoformat()
         state_data["metrics"] = self.get_security_metrics()
-        
+
         return json.dumps(state_data, indent=2, default=json_serializer)
 
     def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
         """
         Perform a health check on the security component.
-        
+
         Returns:
             Dictionary with health status information
         """
-        import time
         from datetime import datetime
-        
+
         # Check for critical security issues
         validation_result = self.validate_component()
         is_healthy = validation_result.is_valid
-        
+
         # Calculate uptime (simplified - would need actual start time in real implementation)
         uptime = 0.0  # Would calculate from component start time
-        
+
         # Get recent errors
         recent_errors = [
-            event for event in self.security_events
-            if event.get("level") == "ERROR" and 
-            datetime.fromisoformat(event["timestamp"]) > datetime.now().replace(hour=datetime.now().hour-1)
+            event
+            for event in self.security_events
+            if event.get("level") == "ERROR"
+            and datetime.fromisoformat(event["timestamp"])
+            > datetime.now().replace(hour=datetime.now().hour - 1)
         ]
-        
+
         error_count = len(recent_errors)
         last_error = recent_errors[-1]["message"] if recent_errors else None
-        
+
         # Additional health checks
         rate_limit_issues = len(self.rate_limits) > 10  # Too many active rate limits
-        failed_attempt_issues = sum(len(attempts) for attempts in self.failed_attempts.values()) > 100
-        
+        failed_attempt_issues = (
+            sum(len(attempts) for attempts in self.failed_attempts.values()) > 100
+        )
+
         if rate_limit_issues or failed_attempt_issues:
             is_healthy = False
-        
+
         status_message = "healthy"
         if not is_healthy:
             if validation_result.validation_errors:
-                status_message = f"validation_errors: {len(validation_result.validation_errors)}"
+                status_message = (
+                    f"validation_errors: {len(validation_result.validation_errors)}"
+                )
             elif rate_limit_issues:
                 status_message = "excessive_rate_limiting"
             elif failed_attempt_issues:
                 status_message = "excessive_failed_attempts"
             else:
                 status_message = "unknown_issue"
-        
+
         return {
             "healthy": is_healthy,
             "status": status_message,
@@ -851,7 +863,9 @@ class SecurityFramework(DebuggableComponent):
             "last_error": last_error,
             "error_count": error_count,
             "rate_limits_active": len(self.rate_limits),
-            "failed_attempts_total": sum(len(attempts) for attempts in self.failed_attempts.values()),
+            "failed_attempts_total": sum(
+                len(attempts) for attempts in self.failed_attempts.values()
+            ),
             "security_events_count": len(self.security_events),
             "gpg_validated": self.gpg_validated,
         }
@@ -860,44 +874,37 @@ class SecurityFramework(DebuggableComponent):
 def validate_git_security_config(repo_path: str) -> Dict[str, Any]:
     """
     Validate Git repository security configuration.
-    
+
     This function checks various security aspects of a Git repository
     configuration including GPG signing, user configuration, and
     security policies.
-    
+
     Args:
         repo_path: Path to the Git repository
-        
+
     Returns:
         Dictionary containing warnings and recommendations
     """
     warnings = []
     recommendations = []
-    
+
     try:
         # In a real implementation, this would use MCP git tools
         # to check various security configurations
-        
+
         # Check for GPG signing configuration
         # This would use mcp__git__git_show or similar commands
-        recommendations.append(
-            "Consider enabling GPG signing for commits"
-        )
-        
+        recommendations.append("Consider enabling GPG signing for commits")
+
         # Check user configuration
         recommendations.append(
             "Verify user.name and user.email are properly configured"
         )
-        
+
         # Check for security policies
-        recommendations.append(
-            "Review repository access policies and permissions"
-        )
-        
+        recommendations.append("Review repository access policies and permissions")
+
     except Exception as e:
         warnings.append(f"Failed to validate repository security config: {e}")
-    
-    return {
-        "warnings": warnings,
-        "recommendations": recommendations
-    }
+
+    return {"warnings": warnings, "recommendations": recommendations}
