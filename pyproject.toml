@@ -85,9 +85,10 @@ line-ending = "auto"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+platforms = ["linux-64"]  # Start with linux-64 only for CI compatibility
 
 [tool.pixi.dependencies]
+# Core runtime dependencies
 python = ">=3.10"
 aiohttp = ">=3.8.0"
 click = ">=8.1.7"
@@ -104,56 +105,124 @@ tomli = ">=2.0.1"
 [tool.pixi.pypi-dependencies]
 mcp-server-cheap-llm = { path = ".", editable = true }
 
-[tool.pixi.feature.dev.dependencies]
+# ===== TIERED QUALITY FEATURES =====
+# TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
+[tool.pixi.feature.quality.dependencies]
+# Core Testing Framework
 pytest = ">=8.0.0"
-pytest-asyncio = ">=0.21.0"
 pytest-cov = ">=4.0.0"
 pytest-timeout = ">=2.1.0"
-ruff = ">=0.7.3"
-pre-commit = "*"
-hypothesis = ">=6.0.0"
-bandit = ">=1.7.0"
-safety = ">=2.3.0"
-python-build = ">=1.0.0"
-twine = ">=4.0.0"
-pip-audit = ">=2.6.0"
+pytest-asyncio = ">=0.21.0"
+pytest-xdist = ">=3.3.0"
 
-[tool.pixi.feature.dev.pypi-dependencies]
+# Linting & Formatting
+ruff = ">=0.7.3"
+
+# Type Checking
 pyright = ">=1.1.402"
+
+[tool.pixi.feature.quality.pypi-dependencies]
 toml = ">=0.10.2"  # For test fixtures
 
+# TIER 2: Extended Quality & Security
+[tool.pixi.feature.quality-extended.dependencies]
+# Security Scanning
+bandit = ">=1.7.0"
+safety = ">=2.3.0"
+
+# Code Quality Analysis
+hypothesis = ">=6.0.0"
+
+# Git Hooks
+pre-commit = ">=3.0.0"
+
+# TIER 3: CI/CD & Build
+[tool.pixi.feature.quality-ci.dependencies]
+# Build Tools
+python-build = ">=1.0.0"
+pip-audit = ">=2.6.0"
+twine = ">=4.0.0"
+
+# CI Reporting
+coverage = ">=7.0.0"
+
+# ===== LEGACY DEVELOPMENT FEATURES =====
+# Keep existing dev feature for specialized tools
+[tool.pixi.feature.dev-specialized.dependencies]
+# Development tools not needed for CI
+memory_profiler = "*"
+pytest-benchmark = "*"
+
 [tool.pixi.environments]
-dev = ["dev"]
+# Basic runtime environment
+default = {solve-group = "default"}
+
+# Quality gate environments (tiered approach)
+quality = {features = ["quality"], solve-group = "default"}
+quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
+quality-full = {features = ["quality", "quality-extended", "quality-ci"], solve-group = "default"}
+
+# Development environment (full quality + specialized tools)
+dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized"], solve-group = "default"}
+
+# CI environment (quality + CI reporting)
+ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 
 [tool.pixi.tasks]
-# Core development tasks
-test = "pytest tests/ -v --tb=short"
+# ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
+# Installation & Setup
+install-editable = "pip install -e ."
+dev-setup = "echo 'Development environment ready'"
+
+# Testing (ZERO-TOLERANCE QUALITY GATES)
+test = "pytest tests/ -v"
+test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml"
 test-unit = "pytest tests/unit/ -v"
 test-integration = "pytest tests/integration/ -v"
 test-e2e = "pytest tests/e2e/ -v"
-test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --cov-report=html --cov-report=term"
 test-property = "pytest tests/ -m property -v"
 
-# Quality gates (ZERO-TOLERANCE)
+# Quality Gates (CRITICAL - MUST PASS)
 lint = "ruff check src/ tests/ --select=F,E9"
 lint-fix = "ruff check --fix src/ tests/"
 format = "ruff format src/ tests/"
 format-check = "ruff format --check src/ tests/"
 typecheck = "pyright src/"
 
-# Combined quality check
+# Combined Quality Check
 quality = { depends-on = ["test", "lint", "typecheck"] }
 
-# Pre-commit integration
-pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install"
+# ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
+# Security Scanning
+security-scan = "bandit -r src/ --severity-level high"
+safety-check = "safety check"
 
-# Maintenance
+# Static Analysis Suite
+static-analysis = { depends-on = ["security-scan", "safety-check"] }
+
+# Comprehensive Check
+check-all = { depends-on = ["quality", "static-analysis"] }
+
+# ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
+# CI-specific variants
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci" } }
+ci-lint = "ruff check src/ tests/ --output-format=github"
+ci-format-check = "ruff format --check src/ tests/"
+
+# Build & Deploy
+build = "python -m build"
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist build"
 
+# Pre-commit Integration
+pre-commit = "pre-commit run --all-files"
+install-pre-commit = "pre-commit install --install-hooks"
+
+# ===== PROJECT-SPECIFIC TASKS =====
 # MCP server execution
 serve = "python -m mcp_server_cheap_llm"
 serve-debug = { cmd = "python -m mcp_server_cheap_llm --debug", env = { LOG_LEVEL = "DEBUG" } }
 
-# Installation
-install-editable = "pip install -e ."
+# ===== LEGACY/SPECIALIZED TASKS =====
+# Keep existing specialized tasks
+benchmark = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean"
+test-coverage = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing"
