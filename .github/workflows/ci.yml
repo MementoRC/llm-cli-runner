@@ -39,7 +39,7 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.30.0
-        cache: true
+        cache: false
       continue-on-error: true
 
     - name: Install dependencies (pixi with pip fallback)
@@ -145,7 +145,7 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.30.0
-        cache: true
+        cache: false
       continue-on-error: true
 
     - name: Install dependencies (pixi with pip fallback)
@@ -249,7 +249,7 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.30.0
-        cache: true
+        cache: false
       continue-on-error: true
 
     - name: Install dependencies (pixi with pip fallback)
@@ -571,7 +571,7 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.30.0
-        cache: true
+        cache: false
       continue-on-error: true
 
     - name: Install dependencies (pixi with pip fallback)
@@ -658,7 +658,7 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.30.0
-        cache: true
+        cache: false
       continue-on-error: true
 
     - name: Install dependencies (pixi with pip fallback)
