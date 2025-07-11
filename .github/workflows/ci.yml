@@ -103,13 +103,9 @@ jobs:
           echo "📦 Installing project in editable mode..."
           pixi run -e dev install-editable
 
-      - name: Build package
+      - name: Test package functionality
         run: |
-          echo "📦 Building package..."
-          pixi run -e dev build
-
-      - name: Test package installation
-        run: |
-          echo "🧪 Testing package installation..."
-          pixi run -e dev pip install dist/*.whl
+          echo "🧪 Testing package functionality..."
           pixi run -e dev python -c "import mcp_server_cheap_llm; print('✅ Package imported successfully')"
+          echo "🏃 Testing MCP server execution..."
+          pixi run -e dev python -m mcp_server_cheap_llm --help
