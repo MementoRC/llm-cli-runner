@@ -54,46 +54,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup pixi (primary method)
-      id: setup-pixi
-      continue-on-error: true
+    - name: Setup pixi
       uses: prefix-dev/setup-pixi@v0.8.11
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: false  # Disable cache to save memory
         manifest-path: pyproject.toml
-
-    - name: Manual pixi installation (failover)
-      if: steps.setup-pixi.outcome == 'failure'
-      run: |
-        echo "⚠️ setup-pixi action failed, falling back to manual installation"
-        echo "📥 Downloading pixi ${{ env.PIXI_VERSION }}..."
-
-        # Download and install pixi manually with retry logic
-        for i in {1..3}; do
-          echo "🔄 Download attempt $i/3"
-          if curl -fsSL https://pixi.sh/install.sh | bash -s -- --version ${{ env.PIXI_VERSION }}; then
-            echo "✅ Manual pixi installation successful"
-            break
-          else
-            echo "❌ Download attempt $i failed"
-            if [ $i -eq 3 ]; then
-              echo "💥 All download attempts failed"
-              exit 1
-            fi
-            echo "⏳ Waiting 10 seconds before retry..."
-            sleep 10
-          fi
-        done
-
-        # Add to PATH
-        echo "$HOME/.pixi/bin" >> $GITHUB_PATH
-
-        # Verify installation
-        echo "🔍 Verifying pixi installation..."
-        export PATH="$HOME/.pixi/bin:$PATH"
-        pixi --version
-        echo "✅ Pixi failover installation complete"
 
     - name: Set memory limits
       run: |
