@@ -194,5 +194,5 @@ jobs:
       - name: Test package installation
         run: |
           echo "🧪 Testing package installation..."
-          pip install dist/*.whl
-          python -c "import mcp_server_cheap_llm; print('✅ Package imported successfully')"
+          pixi run -e dev pip install dist/*.whl
+          pixi run -e dev python -c "import mcp_server_cheap_llm; print('✅ Package imported successfully')"
