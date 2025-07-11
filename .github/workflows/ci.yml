@@ -35,32 +35,11 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
-      with:
-        pixi-version: v0.30.0
-        cache: false
-      continue-on-error: true
-
-    - name: Install dependencies (pixi with pip fallback)
+    - name: Install dependencies (pip only - pixi disabled)
       run: |
-        echo "🔧 Setting up Python environment with pixi fallback..."
+        echo "🔧 Setting up Python environment with pip (pixi disabled for CI reliability)..."
 
-        # Try pixi first
-        if command -v pixi >/dev/null 2>&1; then
-          echo "📦 Pixi found, attempting installation..."
-          if pixi install --frozen; then
-            echo "✅ Pixi environment ready"
-            echo "PIXI_READY=true" >> $GITHUB_ENV
-            exit 0
-          else
-            echo "⚠️ Pixi install failed, falling back to pip..."
-          fi
-        else
-          echo "⚠️ Pixi not available, using pip fallback..."
-        fi
-
-        # Pip fallback
+        # Force pip fallback for reliable CI
         echo "🐍 Installing with pip..."
         echo "PIXI_READY=false" >> $GITHUB_ENV
         python -m pip install --upgrade pip
@@ -141,32 +120,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install pixi
-      uses: prefix-dev/setup-pixi@v0.8.1
-      with:
-        pixi-version: v0.30.0
-        cache: false
-      continue-on-error: true
-
-    - name: Install dependencies (pixi with pip fallback)
+    - name: Install dependencies (pip only - pixi disabled)
       run: |
-        echo "🔧 Setting up Python environment with pixi fallback..."
+        echo "🔧 Setting up Python environment with pip (pixi disabled for CI reliability)..."
 
-        # Try pixi first
-        if command -v pixi >/dev/null 2>&1; then
-          echo "📦 Pixi found, attempting installation..."
-          if pixi install --frozen; then
-            echo "✅ Pixi environment ready"
-            echo "PIXI_READY=true" >> $GITHUB_ENV
-            exit 0
-          else
-            echo "⚠️ Pixi install failed, falling back to pip..."
-          fi
-        else
-          echo "⚠️ Pixi not available, using pip fallback..."
-        fi
-
-        # Pip fallback
+        # Force pip fallback for reliable CI
         echo "🐍 Installing with pip..."
         echo "PIXI_READY=false" >> $GITHUB_ENV
         python -m pip install --upgrade pip
