@@ -28,6 +28,12 @@ on:
           - 'osx-arm64'
           - 'win-64'
 
+# Required permissions for posting PR comments
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   PIXI_VERSION: v0.49.0
 
