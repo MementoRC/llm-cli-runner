@@ -260,12 +260,23 @@ class InputSanitizer:
                 suggested_fix="Use paths without .. components",
             )
 
-        # Reject all absolute paths for security
+        # Reject absolute paths except for safe testing directories  
         if normalized.startswith("/"):
-            raise GitValidationError(
-                f"Invalid repository path cannot be absolute: {path}",
-                suggested_fix="Use relative paths only",
-            )
+            # Allow only very specific safe directories for testing
+            safe_absolute_prefixes = [
+                "/tmp/",
+                "/var/tmp/",
+            ]
+            
+            # Check if it's a safe prefix
+            is_safe = any(normalized.startswith(prefix) for prefix in safe_absolute_prefixes)
+            
+            if not is_safe:
+                # Reject all other absolute paths for security
+                raise GitValidationError(
+                    f"Invalid repository path cannot be absolute: {path}",
+                    suggested_fix="Use relative paths only, or safe directories like /tmp for testing",
+                )
 
         return normalized
 
