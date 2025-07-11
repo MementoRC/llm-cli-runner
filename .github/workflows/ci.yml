@@ -109,3 +109,8 @@ jobs:
           pixi run -e dev python -c "import mcp_server_cheap_llm; print(\"Package imported successfully\")"
           echo "🏃 Testing MCP server execution..."
           pixi run -e dev python -m mcp_server_cheap_llm --help
+
+      - name: Cleanup dev files
+        uses: MementoRC/ci-framework@v1
+        with:
+          additional_patterns: '.env.local,.cache'
