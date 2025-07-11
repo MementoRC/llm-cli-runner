@@ -145,6 +145,7 @@ class GitService(DebuggableComponent):
         self._operation_lock = Lock()
         self._state_history: List[GitServiceState] = []
         self._is_started = False
+        self._total_duration: float = 0.0
 
         logger.info(f"GitService initialized with ID: {self._service_id}")
 
@@ -656,12 +657,16 @@ class GitService(DebuggableComponent):
 
         # Navigate to specific path
         keys = path.split(".")
-        current = state_dict
+        current: Any = state_dict
         for key in keys:
             if isinstance(current, dict) and key in current:
                 current = current[key]
             else:
                 return {"error": f"Path '{path}' not found"}
+        
+        # Ensure we return the expected format
+        if not isinstance(current, dict):
+            current = {"value": current}
 
         return {path: current}
 
@@ -680,7 +685,7 @@ class GitService(DebuggableComponent):
         # Convert datetime objects to ISO format for JSON serialization
         if "started_at" in state_data:
             state_data["started_at"] = self._state.started_at.isoformat()
-        if "last_operation" in state_data and state_data["last_operation"]:
+        if "last_operation" in state_data and state_data["last_operation"] and self._state.last_operation:
             state_data["last_operation"]["timestamp"] = (
                 self._state.last_operation.timestamp.isoformat()
             )
@@ -712,7 +717,7 @@ class GitService(DebuggableComponent):
                 self._state.last_operation.error_message
                 if self._state.last_operation
                 and self._state.last_operation.error_message
-                else None
+                else ""
             ),
             "error_count": self._state.error_count,
             "error_rate": error_rate,
