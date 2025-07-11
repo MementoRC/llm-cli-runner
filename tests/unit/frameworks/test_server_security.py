@@ -272,11 +272,11 @@ class TestSecurityFramework:
         """Test getting debug information."""
         debug_info = security_framework.get_debug_info()
 
-        assert debug_info["component_type"] == "SecurityFramework"
-        assert debug_info["component_id"] == "test-security"
-        assert "state" in debug_info
-        assert "validation" in debug_info
-        assert "security_summary" in debug_info
+        assert debug_info.debug_data["component_type"] == "SecurityFramework"
+        assert debug_info.debug_data["component_id"] == "test-security"
+        assert "state" in debug_info.debug_data
+        assert "validation" in debug_info.debug_data
+        assert "security_summary" in debug_info.debug_data
 
     @patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_" + "a" * 36})
     def test_authenticate_github_token_success(self, security_framework):
