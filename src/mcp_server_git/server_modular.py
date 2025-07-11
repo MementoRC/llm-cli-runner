@@ -37,9 +37,7 @@ from .server import (
     git_cherry_pick,
     git_abort,
     git_continue,
-    # Security functionality
-    validate_git_security_config,
-    enforce_secure_git_config,
+    # Security functionality removed - will be implemented in frameworks
     # Models and enums
     GitTools,
     GitStatus as GitStatusModel,
@@ -69,8 +67,7 @@ from .server import (
     GitHubListPullRequests,
     GitHubGetPRStatus,
     GitHubGetPRFiles,
-    GitSecurityValidate,
-    GitSecurityEnforce,
+    # Security validation models removed - will be implemented in frameworks
 )
 
 # Try to import modular components, fall back to original if not available
@@ -123,7 +120,7 @@ async def serve_modular(repository: Path | None = None):
     load_environment_variables(repository)
 
     # Create server
-    server = Server("mcp-git")
+    server: Server = Server("mcp-git")
 
     @server.list_tools()
     async def list_tools():
@@ -266,17 +263,7 @@ async def serve_modular(repository: Path | None = None):
                 description="Get files changed in a pull request",
                 inputSchema=GitHubGetPRFiles.model_json_schema(),
             ),
-            # Security tools
-            Tool(
-                name=GitTools.GIT_SECURITY_VALIDATE,
-                description="Validate Git security configuration for the repository",
-                inputSchema=GitSecurityValidate.model_json_schema(),
-            ),
-            Tool(
-                name=GitTools.GIT_SECURITY_ENFORCE,
-                description="Enforce secure Git configuration",
-                inputSchema=GitSecurityEnforce.model_json_schema(),
-            ),
+            # Security tools removed - will be implemented in frameworks module
         ]
 
     @server.call_tool()
@@ -539,35 +526,7 @@ async def serve_modular(repository: Path | None = None):
                         continue_result = git_continue(repo, arguments["operation"])
                         result = [TextContent(type="text", text=continue_result)]
 
-                    # Security tools
-                    case GitTools.GIT_SECURITY_VALIDATE:
-                        validation_result = validate_git_security_config(repo)
-                        status_emoji = (
-                            "✅" if validation_result["status"] == "secure" else "⚠️"
-                        )
-                        result_text = (
-                            f"{status_emoji} Git Security Validation Results\n\n"
-                        )
-
-                        if validation_result["warnings"]:
-                            result_text += "Security Warnings:\n"
-                            for warning in validation_result["warnings"]:
-                                result_text += f"  - {warning}\n"
-                            result_text += "\n"
-
-                        if validation_result["recommendations"]:
-                            result_text += "Recommendations:\n"
-                            for rec in validation_result["recommendations"]:
-                                result_text += f"  - {rec}\n"
-                            result_text += "\n"
-
-                        result_text += f"Overall Status: {validation_result['status']}"
-                        result = [TextContent(type="text", text=result_text)]
-
-                    case GitTools.GIT_SECURITY_ENFORCE:
-                        strict_mode = arguments.get("strict_mode", True)
-                        enforce_result = enforce_secure_git_config(repo, strict_mode)
-                        result = [TextContent(type="text", text=enforce_result)]
+                    # Security tools removed - will be implemented in frameworks module
 
                     case _:
                         logger.error(f"❌ [{request_id}] Unknown tool: {name}")
