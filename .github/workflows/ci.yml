@@ -1,4 +1,4 @@
-name: CI
+name: CI with Pixi Failover
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 env:
   PYTHONNOUSERSITE: 1
   PIXI_VERSION: v0.50.0  # Latest stable version
+  SETUP_PIXI_VERSION: v0.8.11  # Latest setup-pixi action version
 
 jobs:
   quality-gates:
@@ -22,15 +23,62 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.10
+      - name: Setup pixi (primary method)
+        id: setup-pixi
+        continue-on-error: true
+        uses: prefix-dev/setup-pixi@${{ env.SETUP_PIXI_VERSION }}
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: true
           manifest-path: pyproject.toml
 
+      - name: Manual pixi installation (failover)
+        if: steps.setup-pixi.outcome == 'failure'
+        run: |
+          echo "⚠️ setup-pixi action failed, falling back to manual installation"
+          echo "📥 Downloading pixi ${{ env.PIXI_VERSION }}..."
+
+          # Download and install pixi manually with retry logic
+          for i in {1..3}; do
+            echo "🔄 Download attempt $i/3"
+            if curl -fsSL https://pixi.sh/install.sh | bash -s -- --version ${{ env.PIXI_VERSION }}; then
+              echo "✅ Manual pixi installation successful"
+              break
+            else
+              echo "❌ Download attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All download attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 10 seconds before retry..."
+              sleep 10
+            fi
+          done
+
+          # Add to PATH
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+          # Verify installation
+          echo "🔍 Verifying pixi installation..."
+          export PATH="$HOME/.pixi/bin:$PATH"
+          pixi --version
+          echo "✅ Pixi failover installation complete"
+
+      - name: Verify pixi installation
+        run: |
+          echo "🔍 Final pixi verification..."
+          pixi --version
+          echo "📂 Working directory: $(pwd)"
+          echo "📋 Checking pyproject.toml..."
+          ls -la pyproject.toml
+          echo "🔍 Pixi info (if available)..."
+          pixi info || echo "⚠️ Pixi info command not available or no manifest found"
+
       - name: Install dependencies
-        run: pixi install -e dev
+        run: |
+          echo "📦 Installing pixi dependencies..."
+          pixi install -e dev
+          echo "✅ Dependencies installed successfully"
 
       - name: Install project in editable mode
         run: |
@@ -38,22 +86,16 @@ jobs:
 
       - name: Run format check
         run: |
-          echo "=== DEBUGGING FORMAT CHECK ==="
-          echo "Python version: $(python --version)"
-          echo "Ruff version: $(pixi run -e dev ruff --version)"
-          echo "Current directory: $(pwd)"
-          echo "Files in tests/integration/:"
-          ls -la tests/integration/
-          echo "=== Running format check ==="
+          echo "🎨 Running format check..."
           pixi run -e dev format-check || {
-            echo "=== FORMAT CHECK FAILED - SHOWING DIFF ==="
+            echo "❌ Format check failed - showing diff:"
             pixi run -e dev ruff format --diff src/ tests/
-            echo "=== END DIFF ==="
             exit 1
           }
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
+          echo "🔍 Running critical linting..."
           pixi run -e dev lint
           if [ $? -ne 0 ]; then
             echo "::error::Critical lint violations detected - ZERO TOLERANCE POLICY"
@@ -61,10 +103,13 @@ jobs:
           fi
 
       - name: Run type checking
-        run: pixi run -e dev typecheck
+        run: |
+          echo "🏷️ Running type checking..."
+          pixi run -e dev typecheck
 
       - name: Run unit tests with coverage
         run: |
+          echo "🧪 Running tests with coverage..."
           pixi run -e dev test-cov
           if [ $? -ne 0 ]; then
             echo "::error::Unit tests failed - ZERO TOLERANCE POLICY"
@@ -87,12 +132,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.10
+      - name: Setup pixi (primary method)
+        id: setup-pixi
+        continue-on-error: true
+        uses: prefix-dev/setup-pixi@${{ env.SETUP_PIXI_VERSION }}
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: true
           manifest-path: pyproject.toml
+
+      - name: Manual pixi installation (failover)
+        if: steps.setup-pixi.outcome == 'failure'
+        run: |
+          echo "⚠️ setup-pixi action failed, falling back to manual installation"
+          echo "📥 Downloading pixi ${{ env.PIXI_VERSION }}..."
+
+          # Download and install pixi manually with retry logic
+          for i in {1..3}; do
+            echo "🔄 Download attempt $i/3"
+            if curl -fsSL https://pixi.sh/install.sh | bash -s -- --version ${{ env.PIXI_VERSION }}; then
+              echo "✅ Manual pixi installation successful"
+              break
+            else
+              echo "❌ Download attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All download attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 10 seconds before retry..."
+              sleep 10
+            fi
+          done
+
+          # Add to PATH
+          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+
+          # Verify installation
+          echo "🔍 Verifying pixi installation..."
+          export PATH="$HOME/.pixi/bin:$PATH"
+          pixi --version
+          echo "✅ Pixi failover installation complete"
+
+      - name: Verify pixi installation
+        run: |
+          echo "🔍 Final pixi verification..."
+          pixi --version
 
       - name: Install dependencies
         run: pixi install -e dev
@@ -103,10 +187,12 @@ jobs:
 
       - name: Build package
         run: |
+          echo "📦 Building package..."
           pixi run -e dev pip install build
           pixi run -e dev python -m build
 
       - name: Test package installation
         run: |
+          echo "🧪 Testing package installation..."
           pip install dist/*.whl
           python -c "import mcp_server_cheap_llm; print(mcp_server_cheap_llm.__version__)"
