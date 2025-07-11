@@ -35,69 +35,35 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install dependencies (pip only - pixi disabled)
+    - name: Install dependencies (CI-optimized pixi)
       run: |
-        echo "🔧 Setting up Python environment with pip (pixi disabled for CI reliability)..."
-
-        # Force pip fallback for reliable CI
-        echo "🐍 Installing with pip..."
-        echo "PIXI_READY=false" >> $GITHUB_ENV
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
-        echo "✅ Pip environment ready"
+        echo "🔧 Setting up CI environment with pixi..."
+        
+        # Use CI-optimized environment
+        pixi install --environment ci
+        echo "✅ CI environment ready"
 
     - name: Run ruff linting (critical violations)
       run: |
         echo "🔍 Running critical linting checks..."
-        # File-specific TDD support: Use per-file-ignores from pyproject.toml
-        # Only tests/unit/types/*.py have relaxed rules for TDD red phase
-        if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pixi environment"
-          pixi run -e dev lint --output-format=github
-        else
-          echo "Using pip fallback for linting"
-          TESTING=true python -m ruff check src/ tests/ --select=F,E9 --output-format=github
-        fi
+        pixi run -e ci ci-lint
 
-    - name: Run ruff linting (full)
+    - name: Run ruff format check
       run: |
-        echo "🔍 Running full linting checks..."
-        if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pixi environment"
-          pixi run -e dev ruff check --output-format=github
-        else
-          echo "Using pip fallback for full linting"
-          TESTING=true python -m ruff check --output-format=github
-        fi
+        echo "🔍 Running format checks..."
+        pixi run -e ci ci-format-check
       continue-on-error: true
 
     - name: Run type checking with pyright
       run: |
         echo "🔍 Running type checking..."
-        if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pixi environment"
-          pixi run -e dev typecheck
-        else
-          echo "Using pip fallback for type checking"
-          if command -v pyright >/dev/null 2>&1; then
-            TESTING=true pyright src/ tests/
-          else
-            echo "Pyright not available in pip environment, skipping type check"
-          fi
-        fi
+        pixi run -e ci ci-typecheck
       continue-on-error: true
 
     - name: Check code formatting
       run: |
         echo "🔍 Checking code formatting..."
-        if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pixi environment"
-          pixi run -e dev format-check
-        else
-          echo "Using pip fallback for formatting check"
-          TESTING=true python -m ruff format --check src/ tests/
-        fi
+        pixi run -e ci ci-format-check
 
   # Job 2: Unit and Integration Tests
   test:
@@ -120,17 +86,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies (pip only - pixi disabled)
+    - name: Install dependencies (CI-optimized pixi)
       run: |
-        echo "🔧 Setting up Python environment with pip (pixi disabled for CI reliability)..."
-
-        # Force pip fallback for reliable CI
-        echo "🐍 Installing with pip..."
-        echo "PIXI_READY=false" >> $GITHUB_ENV
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
-        echo "✅ Pip environment ready"
+        echo "🔧 Setting up CI environment with pixi..."
+        
+        # Use CI-optimized environment
+        pixi install --environment ci
+        echo "✅ CI environment ready"
 
     - name: Configure Git for testing
       run: |
@@ -143,29 +105,8 @@ jobs:
         echo "🧪 Running tests with coverage..."
         # Run tests with pixi environment (includes all dependencies)
         # Set TESTING=true for safe git imports in ClaudeCode-like environments
-        if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pixi environment for tests"
-          TESTING=true pixi run -e dev python -m pytest --verbose --tb=short \
-            --timeout=60 \
-            --cov=src/mcp_server_git \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --junit-xml=pytest-results.xml \
-            -m "not ci_skip and not e2e and not slow and not stress" \
-            tests/unit/ tests/integration/ \
-            -x
-        else
-          echo "Using pip fallback for tests"
-          TESTING=true python -m pytest --verbose --tb=short \
-            --timeout=60 \
-            --cov=src/mcp_server_git \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --junit-xml=pytest-results.xml \
-            -m "not ci_skip and not e2e and not slow and not stress" \
-            tests/unit/ tests/integration/ \
-            -x
-        fi
+        echo "Using CI-optimized pixi environment for tests"
+        pixi run -e ci ci-test
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -257,7 +198,7 @@ jobs:
     - name: Test MCP server startup and basic functionality
       run: |
         echo "🚀 Testing MCP server startup..."
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment"
           timeout 30s pixi run -e dev python -m mcp_server_git --test-mode &
         else
@@ -339,7 +280,7 @@ jobs:
         EOF
 
         echo "🔍 Running MCP validation..."
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment"
           pixi run -e dev python mcp_validate.py
         else
@@ -407,7 +348,7 @@ jobs:
         EOF
 
         echo "🔔 Running notification tests..."
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment"
           pixi run -e dev python test_notifications.py
         else
@@ -425,7 +366,7 @@ jobs:
 
         # Run the comprehensive E2E verification tests
         echo "🚀 Running E2E verification tests..."
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment"
           pixi run -e dev python -m pytest tests/test_mcp_verification_e2e.py \
             -v \
@@ -562,7 +503,7 @@ jobs:
       run: |
         echo "🔒 Running safety check..."
         pip install safety
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment for dependency listing"
           pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | safety check --stdin
         else
@@ -575,7 +516,7 @@ jobs:
       run: |
         echo "🔍 Running dependency audit..."
         pip install pip-audit
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment for dependency audit"
           pixi list --format=json | jq -r '.[] | select(.name != null) | "\(.name)==\(.version)"' | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
         else
@@ -675,7 +616,7 @@ jobs:
         # Run performance-focused tests
         cd "$GITHUB_WORKSPACE"
         echo "🏃 Running performance tests..."
-        if [ "$PIXI_READY" = "true" ]; then
+        # Use CI-optimized pixi environment
           echo "Using pixi environment"
           pixi run -e dev pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
         else

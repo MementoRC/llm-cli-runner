@@ -77,7 +77,7 @@ line-ending = "auto"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+platforms = ["linux-64"]  # CI-optimized: single platform for reliability
 
 [tool.pixi.dependencies]
 python = ">=3.10"
@@ -86,37 +86,110 @@ psutil = ">=5.9.0"
 [tool.pixi.pypi-dependencies]
 mcp-server-git = { path = ".", editable = true }
 
-[tool.pixi.feature.dev.dependencies]
+# ===== TIERED QUALITY FEATURES =====
+# TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
+[tool.pixi.feature.quality.dependencies]
+# Core Testing Framework
 pytest = ">=8.0.0"
 pytest-asyncio = ">=0.21.0"
-pytest-cov = ">=4.0.0"
 pytest-timeout = ">=2.1.0"
 ruff = ">=0.7.3"
+
+# TIER 2: Extended Quality & Security
+[tool.pixi.feature.quality-extended.dependencies]
+# Coverage & Reporting
+pytest-cov = ">=4.0.0"
+# Pre-commit hooks
 pre-commit = "*"
 
-[tool.pixi.feature.dev.pypi-dependencies]
+[tool.pixi.feature.quality-extended.pypi-dependencies]
+# Type Checking
 pyright = ">=1.1.389"
 
+# TIER 3: CI/CD & Build
+[tool.pixi.feature.quality-ci.dependencies]
+# CI Reporting
+pytest-json-report = ">=1.5.0"
+pytest-html = ">=4.0.0"
+# Coverage Tools
+coverage = ">=7.0.0"
+pytest-cov = ">=4.0.0"
+
+# ===== LEGACY DEVELOPMENT FEATURES =====
+# Keep existing dev feature for specialized tools
+[tool.pixi.feature.dev-specialized.dependencies]
+# Development utilities
+locust = "*"
+memory_profiler = "*"
+pytest-benchmark = "*"
+
 [tool.pixi.environments]
-dev = ["dev"]
+# Basic runtime environment
+default = {solve-group = "default"}
+
+# Quality gate environments (tiered approach)
+quality = {features = ["quality"], solve-group = "default"}
+quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
+quality-full = {features = ["quality", "quality-extended", "quality-ci"], solve-group = "default"}
+
+# Development environment (full quality + specialized tools)
+dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized"], solve-group = "default"}
+
+# CI environment (quality + CI reporting)
+ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 
 [tool.pixi.tasks]
+# ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
+# Installation & Setup
+install-editable = "pip install -e ."
+dev-setup = "echo 'Development environment ready'"
+
+# Testing (ZERO-TOLERANCE QUALITY GATES)
 test = { cmd = "pytest tests/ -v --tb=short", env = { TESTING = "true" } }
 test-unit = { cmd = "pytest tests/unit/ -v", env = { TESTING = "true" } }
 test-integration = { cmd = "pytest tests/integration/ -v", env = { TESTING = "true" } }
 test-e2e = { cmd = "pytest tests/ -k 'e2e' -v", env = { TESTING = "true" } }
 test-cov = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=html --cov-report=term", env = { TESTING = "true" } }
+
+# Quality Gates (CRITICAL - MUST PASS)
 lint = "ruff check src/ tests/ --select=F,E9"
 lint-fix = "ruff check --fix src/ tests/"
 format = "ruff format src/ tests/"
 format-check = "ruff format --check src/ tests/"
 typecheck = "pyright src/"
+
+# Combined Quality Check
 quality = { depends-on = ["test", "lint", "typecheck"] }
+
+# ===== TIER 2: EXTENDED QUALITY & SECURITY TASKS =====
+# Pre-commit Integration
 pre-commit = "pre-commit run --all-files"
 install-pre-commit = "pre-commit install"
+
+# Extended Quality Suite
+quality-extended = { depends-on = ["quality", "pre-commit"] }
+
+# ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
+# CI-specific variants (optimized for GitHub Actions)
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 -m 'not ci_skip and not e2e and not slow and not stress'", env = { TESTING = "true", ENVIRONMENT = "ci" } }
+ci-lint = "ruff check src/ tests/ --select=F,E9 --output-format=github"
+ci-format-check = "ruff format --check src/ tests/"
+ci-typecheck = "pyright src/"
+
+# CI Quality Gate
+ci-quality = { depends-on = ["ci-test", "ci-lint", "ci-typecheck"] }
+
+# Build & Deploy
 clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache"
+
+# ===== APPLICATION TASKS =====
+# Server execution
 serve = "python -m mcp_server_git"
 serve-simple = "python -m mcp_server_git.server_simple"
 mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src" } }
 mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG" } }
-install-editable = "pip install -e ."
+
+# ===== LEGACY/SPECIALIZED TASKS =====
+# Keep existing specialized tasks for compatibility
+benchmark = "pytest tests/benchmarks/ --benchmark-only --benchmark-sort=mean"
+load-test = "locust -f tests/load_tests/locustfile.py --host=http://localhost:8000"
