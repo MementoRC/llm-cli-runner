@@ -260,27 +260,11 @@ class InputSanitizer:
                 suggested_fix="Use paths without .. components",
             )
 
-        # Only reject absolute paths that point to sensitive system directories
-        if (
-            normalized.startswith("/")
-            and any(
-                normalized.startswith(dangerous_path)
-                for dangerous_path in [
-                    "/etc",
-                    "/root",
-                    "/home",
-                    "/usr",
-                    "/var",
-                    "/sys",
-                    "/proc",
-                    "/dev",
-                ]
-            )
-            and not normalized.startswith("/tmp")
-        ):
+        # Reject all absolute paths for security
+        if normalized.startswith("/"):
             raise GitValidationError(
-                f"Invalid repository path points to sensitive system directory: {path}",
-                suggested_fix="Use relative paths or paths in safe directories",
+                f"Invalid repository path cannot be absolute: {path}",
+                suggested_fix="Use relative paths only",
             )
 
         return normalized
