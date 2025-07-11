@@ -91,13 +91,12 @@ jobs:
       run: |
         echo "🔍 Testing dependency resolution for ${{ matrix.platform }} environment ${{ matrix.environment }}..."
 
-        # Test if pixi can resolve dependencies without installing
-        if pixi info -e ${{ matrix.environment }} 2>&1 | grep -q "solve-group"; then
+        # Test if pixi can install the environment (actual dependency resolution test)
+        if pixi install -e ${{ matrix.environment }}; then
           echo "✅ Dependency resolution successful for ${{ matrix.platform }}"
 
-          # Get dependency count
-          DEP_COUNT=$(pixi info -e ${{ matrix.environment }} | grep "Dependency count:" | cut -d: -f2 | xargs || echo "N/A")
-          echo "📦 Dependencies for ${{ matrix.environment }}: $DEP_COUNT"
+          # Get environment info
+          echo "📦 Environment ${{ matrix.environment }} installed successfully"
 
           # Test quality commands (dry run)
           echo "🧪 Testing quality commands..."
