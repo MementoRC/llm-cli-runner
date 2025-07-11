@@ -298,10 +298,10 @@ async def serve_modular(repository: Path | None = None):
                 # Handle git init separately since it doesn't require an existing repo
                 if name == GitTools.INIT:
                     if USE_MODULAR_GIT:
-                        result = modular_git_init(str(repo_path))
+                        init_result = modular_git_init(str(repo_path))
                     else:
-                        result = git_init(str(repo_path))
-                    result = [TextContent(type="text", text=result)]
+                        init_result = git_init(str(repo_path))
+                    result = [TextContent(type="text", text=init_result)]
                     duration = time.time() - start_time
                     logger.info(
                         f"✅ [{request_id}] Tool '{name}' completed in {duration:.2f}s"
@@ -544,8 +544,8 @@ async def serve_modular(repository: Path | None = None):
                     match name:
                         case GitTools.GITHUB_GET_PR_DETAILS:
                             pr_details_result = await modular_github_get_pr_details(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["pr_number"],
                                 arguments.get("include_files", False),
                                 arguments.get("include_reviews", False),
@@ -554,8 +554,8 @@ async def serve_modular(repository: Path | None = None):
 
                         case GitTools.GITHUB_GET_PR_CHECKS:
                             pr_checks_result = await modular_github_get_pr_checks(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["pr_number"],
                                 arguments.get("status"),
                                 arguments.get("conclusion"),
@@ -564,8 +564,8 @@ async def serve_modular(repository: Path | None = None):
 
                         case GitTools.GITHUB_GET_FAILING_JOBS:
                             failing_jobs_result = await modular_github_get_failing_jobs(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["pr_number"],
                                 arguments.get("include_logs", True),
                                 arguments.get("include_annotations", True),
@@ -576,8 +576,8 @@ async def serve_modular(repository: Path | None = None):
 
                         case GitTools.GITHUB_GET_WORKFLOW_RUN:
                             workflow_run_result = await modular_github_get_workflow_run(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["run_id"],
                                 arguments.get("include_logs", False),
                             )
@@ -587,8 +587,8 @@ async def serve_modular(repository: Path | None = None):
 
                         case GitTools.GITHUB_LIST_PULL_REQUESTS:
                             list_prs_result = await modular_github_list_pull_requests(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments.get("state", "open"),
                                 arguments.get("head"),
                                 arguments.get("base"),
@@ -601,16 +601,16 @@ async def serve_modular(repository: Path | None = None):
 
                         case GitTools.GITHUB_GET_PR_STATUS:
                             pr_status_result = await modular_github_get_pr_status(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["pr_number"],
                             )
                             result = [TextContent(type="text", text=pr_status_result)]
 
                         case GitTools.GITHUB_GET_PR_FILES:
                             pr_files_result = await modular_github_get_pr_files(
-                                arguments.get("repo_owner"),
-                                arguments.get("repo_name"),
+                                arguments["repo_owner"],
+                                arguments["repo_name"],
                                 arguments["pr_number"],
                                 arguments.get("per_page", 30),
                                 arguments.get("page", 1),
@@ -627,8 +627,8 @@ async def serve_modular(repository: Path | None = None):
                     # Fall back to original GitHub API functions
                     match name:
                         case GitTools.GITHUB_GET_PR_DETAILS:
-                            repo_owner = arguments.get("repo_owner")
-                            repo_name = arguments.get("repo_name")
+                            repo_owner = arguments["repo_owner"]
+                            repo_name = arguments["repo_name"]
                             if not repo_owner or not repo_name:
                                 result = [
                                     TextContent(
@@ -683,5 +683,5 @@ async def serve_modular(repository: Path | None = None):
 
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
-            read_stream, write_stream, initialization_options={}, raise_exceptions=False
+            read_stream, write_stream, initialization_options=None, raise_exceptions=False  # type: ignore
         )
