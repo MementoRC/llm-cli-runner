@@ -97,6 +97,16 @@ class SecurityValidationResult:
     issues: List[SecurityIssue]
     recommendations: List[SecurityRecommendation]
     metadata: Dict[str, Any]
+
+
+@dataclass
+class SecurityDebugInfo:
+    """Implementation of DebugInfo for the security framework."""
+    
+    debug_level: str
+    debug_data: Dict[str, Any]
+    stack_trace: Optional[List[str]] = None
+    performance_metrics: Dict[str, Union[int, float]] = field(default_factory=dict)
     validation_timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -130,6 +140,22 @@ class SecurityValidationResultImpl:
     errors: List[str]
     warnings: List[str]
     context: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+    
+    @property
+    def validation_errors(self) -> List[str]:
+        """List of validation error messages."""
+        return self.errors
+    
+    @property
+    def validation_warnings(self) -> List[str]:
+        """List of validation warning messages."""
+        return self.warnings
+    
+    @property
+    def validation_timestamp(self) -> datetime:
+        """When the validation was performed."""
+        return self.timestamp
 
 
 class SecurityDefaults:
@@ -140,6 +166,7 @@ class SecurityDefaults:
     DEFAULT_SESSION_TIMEOUT: int = 3600
     MAX_FAILED_ATTEMPTS: int = 5
     RATE_LIMIT_WINDOW: int = 300
+    RATE_LIMIT_REQUESTS: int = 100  # requests per window
     MAX_REQUEST_SIZE: int = 10 * 1024 * 1024  # 10MB
     ALLOWED_EXTENSIONS: Set[str] = {".py", ".md", ".txt", ".json", ".yaml", ".yml"}
 
@@ -160,7 +187,7 @@ class TokenValidator:
     def validate_github_token(token: str) -> SecurityValidationResult:
         """Validate GitHub token format and basic properties."""
         issues = []
-        recommendations = []
+        recommendations: list[SecurityRecommendation] = []
 
         # Strip whitespace and check if token is empty
         token = token.strip() if token else ""
@@ -260,17 +287,19 @@ class InputSanitizer:
                 suggested_fix="Use paths without .. components",
             )
 
-        # Reject absolute paths except for safe testing directories  
+        # Reject absolute paths except for safe testing directories
         if normalized.startswith("/"):
             # Allow only very specific safe directories for testing
             safe_absolute_prefixes = [
                 "/tmp/",
                 "/var/tmp/",
             ]
-            
+
             # Check if it's a safe prefix
-            is_safe = any(normalized.startswith(prefix) for prefix in safe_absolute_prefixes)
-            
+            is_safe = any(
+                normalized.startswith(prefix) for prefix in safe_absolute_prefixes
+            )
+
             if not is_safe:
                 # Reject all other absolute paths for security
                 raise GitValidationError(
@@ -403,29 +432,32 @@ class SecurityFramework(DebuggableComponent):
             },
         )
 
-    def get_debug_info(self) -> DebugInfo:
+    def get_debug_info(self, debug_level: str = "basic") -> DebugInfo:
         """Get debug information for the security framework."""
-        return {
-            "component_type": "SecurityFramework",
-            "component_id": self.component_id,
-            "state": self.get_component_state().state_data,
-            "validation": self.validate_component().__dict__,
-            "security_summary": {
-                "recent_events": len(
-                    [
-                        event
-                        for event in self.security_events
-                        if datetime.fromisoformat(event.get("timestamp", "1970-01-01"))
-                        > datetime.now() - timedelta(hours=1)
-                    ]
-                ),
-                "active_protections": {
-                    "rate_limiting": len(self.rate_limits) > 0,
-                    "gpg_validation": self.gpg_validated,
-                    "input_sanitization": True,
+        return SecurityDebugInfo(
+            debug_level=debug_level,
+            debug_data={
+                "component_type": "SecurityFramework",
+                "component_id": self.component_id,
+                "state": self.get_component_state().state_data,
+                "validation": self.validate_component().__dict__,
+                "security_summary": {
+                    "recent_events": len(
+                        [
+                            event
+                            for event in self.security_events
+                            if datetime.fromisoformat(event.get("timestamp", "1970-01-01"))
+                            > datetime.now() - timedelta(hours=1)
+                        ]
+                    ),
+                    "active_protections": {
+                        "rate_limiting": len(self.rate_limits) > 0,
+                        "gpg_validation": self.gpg_validated,
+                        "input_sanitization": True,
+                    },
                 },
             },
-        }
+        )
 
     def authenticate_github_token(self, token: Optional[str] = None) -> AuthResult:
         """Authenticate GitHub token."""
@@ -553,7 +585,7 @@ class SecurityFramework(DebuggableComponent):
     ) -> SecurityValidationResult:
         """Validate Git operation for security compliance."""
         issues = []
-        recommendations = []
+        recommendations: list[SecurityRecommendation] = []
 
         # Rate limiting check
         if not self._check_rate_limit(operation):
@@ -760,12 +792,16 @@ class SecurityFramework(DebuggableComponent):
 
         # Navigate to specific path
         keys = path.split(".")
-        current = full_state
+        current: Any = full_state
         for key in keys:
             if isinstance(current, dict) and key in current:
                 current = current[key]
             else:
                 return {}
+        
+        # Ensure we return a proper dict
+        if not isinstance(current, dict):
+            current = {"value": current}
 
         return {path: current}
 
@@ -855,7 +891,7 @@ class SecurityFramework(DebuggableComponent):
             "healthy": is_healthy,
             "status": status_message,
             "uptime": uptime,
-            "last_error": last_error,
+            "last_error": str(last_error) if last_error else "",
             "error_count": error_count,
             "rate_limits_active": len(self.rate_limits),
             "failed_attempts_total": sum(
