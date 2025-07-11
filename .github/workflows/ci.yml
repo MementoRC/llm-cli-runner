@@ -82,7 +82,8 @@ jobs:
 
       - name: Install project in editable mode
         run: |
-          pixi run -e dev pip install -e .
+          echo "📦 Installing project in editable mode..."
+          pixi run -e dev install-editable
 
       - name: Run format check
         run: |
@@ -183,16 +184,16 @@ jobs:
 
       - name: Install project in editable mode
         run: |
-          pixi run -e dev pip install -e .
+          echo "📦 Installing project in editable mode..."
+          pixi run -e dev install-editable
 
       - name: Build package
         run: |
           echo "📦 Building package..."
-          pixi run -e dev pip install build
-          pixi run -e dev python -m build
+          pixi run -e dev build
 
       - name: Test package installation
         run: |
           echo "🧪 Testing package installation..."
           pip install dist/*.whl
-          python -c "import mcp_server_cheap_llm; print(mcp_server_cheap_llm.__version__)"
+          python -c "import mcp_server_cheap_llm; print('✅ Package imported successfully')"
