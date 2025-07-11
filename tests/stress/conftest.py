@@ -18,7 +18,7 @@ class MockMCPClient:
         self.client_id = client_id or str(uuid.uuid4())
         self.connected = False
         self.session_id = None
-        self.operations = {}
+        self.operations: dict[str, Any] = {}
         self.message_count = 0
         self.error_count = 0
 

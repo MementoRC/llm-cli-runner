@@ -215,7 +215,7 @@ def current_phase(test_status):
 
 
 # Markers for test categorization
-pytest_plugins = []
+pytest_plugins: list[str] = []
 
 
 def pytest_configure(config):
