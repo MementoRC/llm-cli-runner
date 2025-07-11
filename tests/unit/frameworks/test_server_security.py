@@ -314,19 +314,16 @@ class TestSecurityFramework:
         ) as mock_validate:
             mock_validate.return_value = {"warnings": [], "recommendations": []}
 
-            with patch("git.Repo") as mock_repo:
-                mock_repo.return_value = Mock()
+            result = security_framework.validate_repository_access(
+                str(mock_repo_path)
+            )
 
-                result = security_framework.validate_repository_access(
-                    str(mock_repo_path)
-                )
-
-                assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
-                assert result.metadata["path_exists"] is True
+            assert result.status in [SecurityStatus.SECURE, SecurityStatus.WARNING]
+            assert result.metadata["path_exists"] is True
 
     def test_validate_repository_access_nonexistent(self, security_framework):
         """Test validation of non-existent repository."""
-        result = security_framework.validate_repository_access("/nonexistent/path")
+        result = security_framework.validate_repository_access("nonexistent/path")
 
         assert result.status in [SecurityStatus.INSECURE, SecurityStatus.WARNING]
         # Should have issues about non-existent path
