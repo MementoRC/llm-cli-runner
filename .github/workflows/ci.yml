@@ -40,7 +40,6 @@ jobs:
         echo "🔧 Setting up CI environment with pip..."
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
         echo "✅ CI environment ready"
 
     - name: Run ruff linting (critical violations)
@@ -86,7 +85,6 @@ jobs:
         echo "🔧 Setting up CI environment with pip..."
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
         echo "✅ CI environment ready"
 
     - name: Configure Git for testing
