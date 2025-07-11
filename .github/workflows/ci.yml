@@ -111,6 +111,7 @@ jobs:
           pixi run -e dev python -m mcp_server_cheap_llm --help
 
       - name: Cleanup dev files
+        if: github.ref == 'refs/heads/development' && github.event_name == 'push'
         uses: MementoRC/ci-framework@v1
         with:
           additional_patterns: '.env.local,.cache'
