@@ -187,6 +187,7 @@ lint = "ruff check src/ tests/ --select=F,E9"
 lint-fix = "ruff check --fix src/ tests/"
 format = "ruff format src/ tests/"
 format-check = "ruff format --check src/ tests/"
+format-diff = "ruff format --diff src/ tests/"
 typecheck = "pyright src/"
 
 # Combined Quality Check

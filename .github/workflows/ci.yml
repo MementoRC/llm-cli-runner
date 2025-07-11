@@ -13,7 +13,7 @@ env:
 
 jobs:
   quality-gates:
-    name: Quality Gates
+    name: Quality Gates (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -90,7 +90,7 @@ jobs:
           echo "🎨 Running format check..."
           pixi run -e dev format-check || {
             echo "❌ Format check failed - showing diff:"
-            pixi run -e dev ruff format --diff src/ tests/
+            pixi run -e dev format-diff
             exit 1
           }
 
