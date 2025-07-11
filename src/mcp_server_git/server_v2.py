@@ -29,7 +29,7 @@ async def serve_v2(repository: Path | None = None):
     load_environment_variables(repository)
 
     # Create server
-    server = Server("mcp-git")
+    server: Server = Server("mcp-git")
 
     # Initialize the centralized tool handler
     tool_handler = CallToolHandler()

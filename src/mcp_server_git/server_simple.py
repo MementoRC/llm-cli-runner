@@ -57,7 +57,7 @@ async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
             return
 
     # Create MCP server with minimal setup - exactly like aider
-    server = Server("mcp-git-simple")
+    server: Server = Server("mcp-git-simple")
 
     @server.list_tools()
     async def list_tools() -> List[Tool]:
