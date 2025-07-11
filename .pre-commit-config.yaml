@@ -42,11 +42,12 @@ repos:
       - id: bandit
         args: ['-r', 'src/', '--skip', 'B101']
 
-  # Dependency security
+  # Dependency security (Poetry only - skip for pixi projects)
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
     rev: v1.3.2
     hooks:
       - id: python-safety-dependencies-check
+        stages: [manual]  # Skip in normal pre-commit runs due to pixi incompatibility
 
   # MCP-specific validation (custom)
   - repo: local
