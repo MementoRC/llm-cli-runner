@@ -96,7 +96,9 @@ jobs:
     - name: Run pytest with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        pytest tests/ -v --tb=short --timeout=30 --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
+        TESTING=true pytest tests/ -v --tb=short --timeout=30 --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
+      env:
+        TESTING: true
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
