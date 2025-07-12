@@ -171,13 +171,10 @@ jobs:
     - name: Test MCP server startup and basic functionality
       run: |
         echo "🚀 Testing MCP server startup..."
-        # Use CI-optimized pip environment
-          echo "Using pip environment"
-          timeout 30s python -m mcp_server_git --test-mode &
-        else
-          echo "Using pip fallback for MCP server test"
-          timeout 30s python -m mcp_server_git --test-mode &
-        fi
+        
+        # Use pip environment for MCP server test
+        echo "Using pip environment"
+        timeout 30s python -m mcp_server_git --test-mode &
 
         SERVER_PID=$!
         sleep 5
@@ -253,13 +250,10 @@ jobs:
         EOF
 
         echo "🔍 Running MCP validation..."
-        # Use CI-optimized pip environment
-          echo "Using pip environment"
-          python mcp_validate.py
-        else
-          echo "Using pip fallback for MCP validation"
-          TESTING=true python mcp_validate.py
-        fi
+        
+        # Use pip environment for MCP validation
+        echo "Using pip environment"
+        TESTING=true python mcp_validate.py
 
     - name: Test notification handling
       run: |
@@ -468,32 +462,50 @@ jobs:
         echo "🔍 Running dependency audit..."
         pip install pip-audit
         
-        # Always create the audit results file
-        echo "📄 Creating audit results file..."
-        echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "initialized"}}' > audit-results.json
+        # Debug working directory and permissions
+        echo "🗂️ Current working directory: $(pwd)"
+        echo "👤 Current user: $(whoami)"
+        echo "📂 Directory contents:"
+        ls -la
+        
+        # Create the audit results file with absolute path
+        AUDIT_FILE="$PWD/audit-results.json"
+        echo "📄 Creating audit results file at: $AUDIT_FILE"
+        echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "initialized", "working_dir": "'$(pwd)'"}}' > "$AUDIT_FILE"
+        
+        # Verify initial file creation
+        if [ -f "$AUDIT_FILE" ]; then
+          echo "✅ Initial file created successfully"
+        else
+          echo "❌ Failed to create initial file"
+          exit 1
+        fi
         
         # Run pip-audit with fallback approach
         echo "Using pip freeze for dependency audit"
         pip freeze > requirements-temp.txt
         
         # Try to run audit, but don't fail if it doesn't work
-        if pip-audit --requirement requirements-temp.txt --format=json --output=audit-results.json 2>/dev/null; then
+        if pip-audit --requirement requirements-temp.txt --format=json --output="$AUDIT_FILE" 2>/dev/null; then
           echo "✅ Audit completed successfully"
         else
           echo "⚠️ Audit had issues, using fallback report"
-          echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "completed_with_warnings", "note": "pip-audit encountered issues"}}' > audit-results.json
+          echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "completed_with_warnings", "note": "pip-audit encountered issues", "working_dir": "'$(pwd)'"}}' > "$AUDIT_FILE"
         fi
         
         rm -f requirements-temp.txt
         
-        # Verify and show file contents
-        if [ -f audit-results.json ]; then
-          echo "📄 Audit results file created: $(wc -c < audit-results.json) bytes"
-          echo "📋 File contents preview:"
-          head -c 200 audit-results.json
+        # Final verification
+        echo "📋 Final file check:"
+        ls -la "$AUDIT_FILE" || echo "❌ File does not exist"
+        if [ -f "$AUDIT_FILE" ]; then
+          echo "📄 File size: $(wc -c < "$AUDIT_FILE") bytes"
+          echo "📄 File contents:"
+          cat "$AUDIT_FILE"
         else
-          echo "❌ Still no audit-results.json, creating emergency file"
-          echo '{"status": "emergency_fallback"}' > audit-results.json
+          echo "❌ Creating absolute emergency fallback"
+          mkdir -p "$(dirname "$AUDIT_FILE")" 
+          echo '{"status": "absolute_emergency_fallback"}' > "$AUDIT_FILE"
         fi
       continue-on-error: false
 
