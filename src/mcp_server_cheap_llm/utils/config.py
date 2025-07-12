@@ -1202,9 +1202,10 @@ class ConfigManager:
         Returns:
             Dictionary with configuration state information
         """
+        config = self._ensure_config_loaded()
         return {
             "config_path": self.config_path,
-            "server_config": self.config.get_debug_state(),
+            "server_config": config.get_debug_state(),
             "provider_details": [
                 {
                     "name": p.name,
@@ -1213,7 +1214,7 @@ class ConfigManager:
                     "model": p.model_name,
                     "has_api_key": p.api_key is not None,
                 }
-                for p in self.config.providers
+                for p in config.providers
             ],
         }
 
@@ -1238,6 +1239,8 @@ class ConfigManager:
         """
         # Cache the server config for performance
         if not hasattr(self, "_cached_server_config"):
+            # Ensure config is loaded before accessing it
+            config = self._ensure_config_loaded()
             # Start with file-based server config if available, then environment overrides
             server_data = getattr(self, "_file_server_data", {})
             self._cached_server_config = {
@@ -1247,11 +1250,11 @@ class ConfigManager:
                 "port": int(
                     os.getenv("MCP_SERVER_PORT", str(server_data.get("port", 8000)))
                 ),
-                "log_level": self.config.log_level,
-                "default_provider": self.config.default_provider,
-                "max_concurrent_requests": self.config.max_concurrent_requests,
-                "request_timeout_seconds": self.config.request_timeout_seconds,
-                "enable_metrics": self.config.enable_metrics,
+                "log_level": config.log_level,
+                "default_provider": config.default_provider,
+                "max_concurrent_requests": config.max_concurrent_requests,
+                "request_timeout_seconds": config.request_timeout_seconds,
+                "enable_metrics": config.enable_metrics,
             }
         return self._cached_server_config
 
