@@ -43,11 +43,7 @@ jobs:
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run -e dev format-check || {
-            echo "❌ Format check failed - showing diff:"
-            pixi run -e dev format-diff
-            exit 1
-          }
+          pixi run -e dev format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
