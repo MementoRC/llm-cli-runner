@@ -112,6 +112,6 @@ jobs:
 
       - name: Cleanup dev files
         if: github.ref == 'refs/heads/development' && github.event_name == 'push'
-        uses: MementoRC/ci-framework@v1
+        uses: MementoRC/ci-framework@v1.0.0
         with:
           additional_patterns: '.env.local,.cache'
