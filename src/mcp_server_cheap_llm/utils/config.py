@@ -569,11 +569,14 @@ class EnvironmentLoader:
     """Loads configuration from environment variables.
 
     This utility class provides methods to safely load configuration
-    from environment variables with proper validation.
+    from environment variables with proper validation and type conversion.
     """
 
-    @staticmethod
-    def get_api_key(provider_name: str) -> str | None:
+    def __init__(self):
+        """Initialize the EnvironmentLoader."""
+        self._valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
+    def get_api_key(self, provider_name: str) -> str | None:
         """Get API key for provider from environment.
 
         Args:
@@ -583,7 +586,8 @@ class EnvironmentLoader:
             API key if found, None otherwise
 
         Example:
-            >>> key = EnvironmentLoader.get_api_key("gemini")
+            >>> loader = EnvironmentLoader()
+            >>> key = loader.get_api_key("gemini")
             >>> # Looks for GEMINI_API_KEY, GEMINI_KEY, etc.
         """
         possible_keys = [
@@ -594,11 +598,11 @@ class EnvironmentLoader:
 
         for key in possible_keys:
             value = os.getenv(key)
-            if value:
+            if value and value.strip():  # Check for non-empty after stripping
                 logger.debug(
                     "Found API key for provider", provider=provider_name, env_var=key
                 )
-                return value
+                return value.strip()
 
         logger.warning(
             "No API key found for provider",
@@ -607,24 +611,218 @@ class EnvironmentLoader:
         )
         return None
 
-    @staticmethod
-    def get_server_config() -> dict[str, Any]:
+    def get_server_config(self) -> dict[str, Any]:
         """Load server configuration from environment variables.
+
+        Returns:
+            Dictionary with server configuration values
+
+        Raises:
+            ValueError: If environment variables contain invalid values
+
+        Example:
+            >>> loader = EnvironmentLoader()
+            >>> config = loader.get_server_config()
+            >>> print(config['log_level'])
+        """
+        config = {
+            "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "gemini"),
+            "max_concurrent_requests": self._convert_type(
+                os.getenv("MCP_MAX_CONCURRENT", "10"), int
+            ),
+            "request_timeout_seconds": self._convert_type(
+                os.getenv("MCP_REQUEST_TIMEOUT", "30"), int
+            ),
+            "enable_metrics": self._convert_type(
+                os.getenv("MCP_ENABLE_METRICS", "true"), bool
+            ),
+            "log_level": os.getenv("MCP_LOG_LEVEL", "INFO").upper(),
+        }
+
+        # Validate the configuration
+        self._validate_required_vars(config)
+        return config
+
+    def _convert_type(self, value: str, target_type: type) -> Any:
+        """Convert string value to target type.
+
+        Args:
+            value: String value to convert
+            target_type: Target type for conversion
+
+        Returns:
+            Converted value
+
+        Raises:
+            ValueError: If conversion fails or type is unsupported
+
+        Example:
+            >>> loader = EnvironmentLoader()
+            >>> result = loader._convert_type("123", int)
+            >>> assert result == 123
+        """
+        if target_type == str:
+            return value
+
+        elif target_type == int:
+            try:
+                return int(value)
+            except ValueError as e:
+                raise ValueError(f"Cannot convert '{value}' to integer") from e
+
+        elif target_type == bool:
+            # Handle various boolean representations
+            true_values = {"true", "1", "yes", "on"}
+            false_values = {"false", "0", "no", "off", ""}
+
+            lower_value = value.lower()
+            if lower_value in true_values:
+                return True
+            elif lower_value in false_values:
+                return False
+            else:
+                # Default to False for any unrecognized value
+                return False
+
+        elif target_type == list:
+            # Convert comma-separated string to list
+            if not value:
+                return []
+            return [item.strip() for item in value.split(",") if item.strip()]
+
+        else:
+            raise ValueError(f"Unsupported type conversion: {target_type}")
+
+    def _validate_required_vars(self, config: dict[str, Any]) -> None:
+        """Validate required configuration variables.
+
+        Args:
+            config: Configuration dictionary to validate
+
+        Raises:
+            ValidationError: If validation fails
+
+        Example:
+            >>> loader = EnvironmentLoader()
+            >>> config = {"default_provider": "openai", "log_level": "INFO"}
+            >>> loader._validate_required_vars(config)
+        """
+        from mcp_server_cheap_llm.utils.errors import ValidationError
+
+        # Check required fields
+        required_fields = ["default_provider"]
+        for field in required_fields:
+            if field not in config or not config[field]:
+                raise ValidationError(f"Required configuration field missing: {field}")
+
+        # Validate log level
+        if config.get("log_level") not in self._valid_log_levels:
+            raise ValidationError(
+                f"Invalid log level: {config.get('log_level')}. "
+                f"Valid levels: {', '.join(sorted(self._valid_log_levels))}"
+            )
+
+        # Validate numeric fields
+        if "max_concurrent_requests" in config:
+            max_concurrent = config["max_concurrent_requests"]
+            if not isinstance(max_concurrent, int) or max_concurrent <= 0:
+                raise ValidationError(
+                    f"max_concurrent_requests must be a positive integer, got: {max_concurrent}"
+                )
+
+        if "request_timeout_seconds" in config:
+            timeout = config["request_timeout_seconds"]
+            if not isinstance(timeout, int) or timeout <= 0:
+                raise ValidationError(
+                    f"request_timeout_seconds must be a positive integer, got: {timeout}"
+                )
+
+    @staticmethod
+    def get_api_key_static(provider_name: str) -> str | None:
+        """Static method for backward compatibility.
+
+        Args:
+            provider_name: Name of the provider
+
+        Returns:
+            API key if found, None otherwise
+
+        Example:
+            >>> key = EnvironmentLoader.get_api_key("gemini")
+        """
+        loader = EnvironmentLoader()
+        return loader.get_api_key(provider_name)
+
+    @staticmethod
+    def get_server_config_static() -> dict[str, Any]:
+        """Static method for backward compatibility.
 
         Returns:
             Dictionary with server configuration values
 
         Example:
             >>> config = EnvironmentLoader.get_server_config()
-            >>> print(config['log_level'])
         """
-        return {
-            "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "gemini"),
-            "max_concurrent_requests": int(os.getenv("MCP_MAX_CONCURRENT", "10")),
-            "request_timeout_seconds": int(os.getenv("MCP_REQUEST_TIMEOUT", "30")),
-            "enable_metrics": os.getenv("MCP_ENABLE_METRICS", "true").lower() == "true",
-            "log_level": os.getenv("MCP_LOG_LEVEL", "INFO").upper(),
-        }
+        loader = EnvironmentLoader()
+        return loader.get_server_config()
+
+
+# Override the static methods for backward compatibility after class definition
+def _static_get_api_key(provider_name: str) -> str | None:
+    """Static implementation that calls instance methods directly."""
+    possible_keys = [
+        f"{provider_name.upper()}_API_KEY",
+        f"{provider_name.upper()}_KEY",
+        f"MCP_{provider_name.upper()}_API_KEY",
+    ]
+
+    for key in possible_keys:
+        value = os.getenv(key)
+        if value and value.strip():
+            logger.debug(
+                "Found API key for provider", provider=provider_name, env_var=key
+            )
+            return value.strip()
+
+    logger.warning(
+        "No API key found for provider",
+        provider=provider_name,
+        checked_vars=possible_keys,
+    )
+    return None
+
+
+def _static_get_server_config() -> dict[str, Any]:
+    """Static implementation that duplicates instance logic."""
+    # Create a temporary loader just for validation
+    temp_loader = object.__new__(EnvironmentLoader)
+    temp_loader._valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
+    # Convert values manually
+    def convert_bool(value: str) -> bool:
+        true_values = {"true", "1", "yes", "on"}
+        return value.lower() in true_values
+
+    config = {
+        "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "gemini"),
+        "max_concurrent_requests": int(os.getenv("MCP_MAX_CONCURRENT", "10")),
+        "request_timeout_seconds": int(os.getenv("MCP_REQUEST_TIMEOUT", "30")),
+        "enable_metrics": convert_bool(os.getenv("MCP_ENABLE_METRICS", "true")),
+        "log_level": os.getenv("MCP_LOG_LEVEL", "INFO").upper(),
+    }
+
+    # Basic validation
+    if config.get("log_level") not in temp_loader._valid_log_levels:
+        from mcp_server_cheap_llm.utils.errors import ValidationError
+
+        raise ValidationError(f"Invalid log level: {config.get('log_level')}")
+
+    return config
+
+
+# Replace the static methods
+EnvironmentLoader.get_api_key = staticmethod(_static_get_api_key)  # type: ignore[assignment]
+EnvironmentLoader.get_server_config = staticmethod(_static_get_server_config)  # type: ignore[assignment]
 
 
 class ConfigManager:
@@ -670,7 +868,7 @@ class ConfigManager:
         """
         try:
             # Start with environment configuration
-            config_data = EnvironmentLoader.get_server_config()
+            config_data = EnvironmentLoader.get_server_config()  # type: ignore
 
             # Load from file if provided
             if self.config_path:
@@ -721,7 +919,7 @@ class ConfigManager:
         defaults = []
 
         # Gemini provider
-        gemini_key = EnvironmentLoader.get_api_key("gemini")
+        gemini_key = EnvironmentLoader.get_api_key("gemini")  # type: ignore
         if gemini_key:
             defaults.append(
                 {
@@ -734,7 +932,7 @@ class ConfigManager:
             )
 
         # Codex provider
-        openai_key = EnvironmentLoader.get_api_key("openai")
+        openai_key = EnvironmentLoader.get_api_key("openai")  # type: ignore
         if openai_key:
             defaults.append(
                 {
