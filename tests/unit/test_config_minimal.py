@@ -22,13 +22,20 @@ class TestConfigManagerTDD:
         """Test ConfigManager can be instantiated with default config."""
         from mcp_server_cheap_llm.utils.config import ConfigManager
 
-        # This should work and create default config
+        # ConfigManager should be created without loading config (lazy loading)
+        config_manager = ConfigManager()
+        assert config_manager is not None
+        assert config_manager.config is None  # Config not loaded yet
+
+        # Config should be loaded on first access
         with patch.object(ConfigManager, "_load_configuration") as mock_load:
             mock_config = Mock()
             mock_config.providers = []  # Empty list for len() to work
             mock_load.return_value = mock_config
-            config_manager = ConfigManager()
-            assert config_manager is not None
+
+            # This should trigger config loading
+            providers = config_manager.get_enabled_providers()
+            assert isinstance(providers, list)
             mock_load.assert_called_once()
 
     def test_config_manager_has_required_methods(self):
@@ -102,6 +109,13 @@ class TestConfigManagerTDD:
         gemini_provider = Mock()
         gemini_provider.name = "gemini"
         gemini_provider.enabled = True
+        gemini_provider.provider_type = Mock()
+        gemini_provider.api_key = Mock()
+        gemini_provider.model_name = Mock()
+        gemini_provider.max_tokens = Mock()
+        gemini_provider.endpoint = Mock()
+        gemini_provider.rate_limit = Mock()
+        gemini_provider.quota_limit = Mock()
 
         mock_config = Mock()
         mock_config.providers = [gemini_provider]
@@ -110,9 +124,11 @@ class TestConfigManagerTDD:
             mock_load.return_value = mock_config
             config_manager = ConfigManager()
 
-            # Should find existing provider
+            # Should find existing provider and return as dictionary
             found = config_manager.get_provider_config("gemini")
-            assert found == gemini_provider
+            assert isinstance(found, dict)
+            assert found["name"] == "gemini"
+            assert found["enabled"] is True
 
             # Should return None for non-existing provider
             not_found = config_manager.get_provider_config("nonexistent")

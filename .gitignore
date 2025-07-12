@@ -61,6 +61,8 @@ safety-report.json
 pip-audit-report.json
 
 # TaskMaster and MCP files (tracked in feature branches, removed on merge to development)
+.taskmaster/
+.mcp.json
 
 # Environment files
 .env.*
