@@ -95,7 +95,7 @@ click = ">=8.1.7"
 cryptography = ">=41.0.0"
 httpx = ">=0.24.0"
 llama-cpp-python = ">=0.2.0"
-mcp = ">=1.10.0"
+mcp = ">=1.10.0,<1.12"
 psutil = ">=5.9.0"
 pydantic = ">=2.0.0"
 python-dotenv = ">=1.0.0"
@@ -171,7 +171,7 @@ ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
 # Installation & Setup
-install-editable = "pip install -e ."
+install-editable = "pip install -e . --no-deps || pip install -e ."
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
