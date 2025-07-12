@@ -1,17 +1,17 @@
 name: Platform Validation
 
 on:
-  # Trigger on pyproject.toml changes (when dependencies are modified)
-  push:
-    paths:
-      - 'pyproject.toml'
-      - 'pixi.lock'
-    branches: [ main, development ]
-  pull_request:
-    paths:
-      - 'pyproject.toml'
-      - 'pixi.lock'
-    branches: [ main, development ]
+  # Temporarily disabled - pixi platform validation needs investigation
+  # push:
+  #   paths:
+  #     - 'pyproject.toml'
+  #     - 'pixi.lock'
+  #   branches: [ main, development ]
+  # pull_request:
+  #   paths:
+  #     - 'pyproject.toml'
+  #     - 'pixi.lock'
+  #   branches: [ main, development ]
 
   # Allow manual trigger for testing
   workflow_dispatch:

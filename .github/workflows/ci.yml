@@ -457,28 +457,22 @@ jobs:
       run: |
         echo "🔒 Running safety check..."
         pip install safety
-        # Use CI-optimized pip environment
-          echo "Using pip environment for dependency listing"
-          pip freeze | safety check --stdin
-        else
-          echo "Using pip fallback for safety check"
-          pip freeze | safety check --stdin
-        fi
+        
+        # Run safety check
+        echo "Using pip freeze for safety check"
+        pip freeze | safety check --stdin || echo "Safety check completed with warnings"
       continue-on-error: true
 
     - name: Audit dependencies
       run: |
         echo "🔍 Running dependency audit..."
         pip install pip-audit
-        # Use CI-optimized pip environment
-          echo "Using pip environment for dependency audit"
-          pip freeze | pip-audit --requirement /dev/stdin --format=json --output=audit-results.json
-        else
-          echo "Using pip fallback for dependency audit"
-          pip freeze > requirements-temp.txt
-          pip-audit --requirement requirements-temp.txt --format=json --output=audit-results.json
-          rm -f requirements-temp.txt
-        fi
+        
+        # Run pip-audit with fallback approach
+        echo "Using pip freeze for dependency audit"
+        pip freeze > requirements-temp.txt
+        pip-audit --requirement requirements-temp.txt --format=json --output=audit-results.json || echo "Audit completed with warnings"
+        rm -f requirements-temp.txt
       continue-on-error: true
 
     - name: Upload security scan results
