@@ -121,9 +121,11 @@ ruff = ">=0.7.3"
 # Type Checking
 pyright = ">=1.1.402"
 
+# Test dependencies
+tomli-w = ">=1.0.0"  # For writing TOML files in integration tests
+
 [tool.pixi.feature.quality.pypi-dependencies]
 toml = ">=0.10.2"  # For test fixtures
-tomli_w = ">=1.0.0"  # For writing TOML files in integration tests
 
 # TIER 2: Extended Quality & Security
 [tool.pixi.feature.quality-extended.dependencies]
