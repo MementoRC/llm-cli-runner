@@ -143,12 +143,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev]
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
-        echo "✅ Environment ready"
-        echo "🐍 Installing with pip..."
-        echo "PIXI_READY=false" >> $GITHUB_ENV
-        python -m pip install --upgrade pip
-        pip install -e .
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
 
     - name: Configure Git for MCP testing
@@ -172,7 +168,7 @@ jobs:
     - name: Test MCP server startup and basic functionality
       run: |
         echo "🚀 Testing MCP server startup..."
-        
+
         # Use pip environment for MCP server test
         echo "Using pip environment"
         timeout 30s python -m mcp_server_git --test-mode &
@@ -251,7 +247,7 @@ jobs:
         EOF
 
         echo "🔍 Running MCP validation..."
-        
+
         # Use pip environment for MCP validation
         echo "Using pip environment"
         TESTING=true python mcp_validate.py
@@ -317,6 +313,7 @@ jobs:
 
         echo "🔔 Running notification tests..."
         # Use CI-optimized pip environment
+        if [ "$PIXI_READY" = "true" ]; then
           echo "Using pip environment"
           python test_notifications.py
         else
@@ -335,6 +332,7 @@ jobs:
         # Run the comprehensive E2E verification tests
         echo "🚀 Running E2E verification tests..."
         # Use CI-optimized pip environment
+        if [ "$PIXI_READY" = "true" ]; then
           echo "Using pip environment"
           python -m pytest tests/test_mcp_verification_e2e.py \
             -v \
@@ -441,19 +439,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev]
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
-        echo "✅ Environment ready"
-        echo "🐍 Installing with pip..."
-        echo "PIXI_READY=false" >> $GITHUB_ENV
-        python -m pip install --upgrade pip
-        pip install -e .
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
 
     - name: Run safety check for known vulnerabilities
       run: |
         echo "🔒 Running safety check..."
         pip install safety
-        
+
         # Run safety check
         echo "Using pip freeze for safety check"
         pip freeze | safety check --stdin || echo "Safety check completed with warnings"
@@ -463,18 +457,18 @@ jobs:
       run: |
         echo "🔍 Running dependency audit..."
         pip install pip-audit
-        
+
         # Debug working directory and permissions
         echo "🗂️ Current working directory: $(pwd)"
         echo "👤 Current user: $(whoami)"
         echo "📂 Directory contents:"
         ls -la
-        
+
         # Create the audit results file with absolute path
         AUDIT_FILE="$PWD/audit-results.json"
         echo "📄 Creating audit results file at: $AUDIT_FILE"
         echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "initialized", "working_dir": "'$(pwd)'"}}' > "$AUDIT_FILE"
-        
+
         # Verify initial file creation
         if [ -f "$AUDIT_FILE" ]; then
           echo "✅ Initial file created successfully"
@@ -482,11 +476,11 @@ jobs:
           echo "❌ Failed to create initial file"
           exit 1
         fi
-        
+
         # Run pip-audit with fallback approach
         echo "Using pip freeze for dependency audit"
         pip freeze > requirements-temp.txt
-        
+
         # Try to run audit, but don't fail if it doesn't work
         if pip-audit --requirement requirements-temp.txt --format=json --output="$AUDIT_FILE" 2>/dev/null; then
           echo "✅ Audit completed successfully"
@@ -494,9 +488,9 @@ jobs:
           echo "⚠️ Audit had issues, using fallback report"
           echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "completed_with_warnings", "note": "pip-audit encountered issues", "working_dir": "'$(pwd)'"}}' > "$AUDIT_FILE"
         fi
-        
+
         rm -f requirements-temp.txt
-        
+
         # Final verification
         echo "📋 Final file check:"
         ls -la "$AUDIT_FILE" || echo "❌ File does not exist"
@@ -506,7 +500,7 @@ jobs:
           cat "$AUDIT_FILE"
         else
           echo "❌ Creating absolute emergency fallback"
-          mkdir -p "$(dirname "$AUDIT_FILE")" 
+          mkdir -p "$(dirname "$AUDIT_FILE")"
           echo '{"status": "absolute_emergency_fallback"}' > "$AUDIT_FILE"
         fi
       continue-on-error: false
@@ -543,12 +537,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev]
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
-        echo "✅ Environment ready"
-        echo "🐍 Installing with pip..."
-        echo "PIXI_READY=false" >> $GITHUB_ENV
-        python -m pip install --upgrade pip
-        pip install -e .
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
+        echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
 
     - name: Configure Git for performance testing
@@ -582,6 +572,7 @@ jobs:
         cd "$GITHUB_WORKSPACE"
         echo "🏃 Running performance tests..."
         # Use CI-optimized pip environment
+        if [ "$PIXI_READY" = "true" ]; then
           echo "Using pip environment"
           python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
         else
