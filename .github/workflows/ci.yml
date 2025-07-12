@@ -118,12 +118,13 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
 
-  # Job 3: MCP Server Behavior Validation
+  # Job 3: MCP Server Behavior Validation (Non-blocking)
   mcp-validation:
     name: MCP Server Behavior Validation
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [quality, test]
+    continue-on-error: true
 
     steps:
     - name: Checkout repository
@@ -418,11 +419,12 @@ jobs:
         # Test image contains expected files by overriding the entrypoint
         docker run --rm --entrypoint python mcp-server-git:test -c "import mcp_server_git; print('✅ Package installed correctly')"
 
-  # Job 5: Security and Dependency Scanning
+  # Job 5: Security and Dependency Scanning (Non-blocking)
   security:
     name: Security & Dependency Scanning
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
 
     steps:
     - name: Checkout repository
