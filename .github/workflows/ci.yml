@@ -53,10 +53,6 @@ jobs:
         run: |
           echo "🔍 Running critical linting..."
           pixi run -e dev lint
-          if [ $? -ne 0 ]; then
-            echo "::error::Critical lint violations detected - ZERO TOLERANCE POLICY"
-            exit 1
-          fi
 
       - name: Run type checking
         run: |
@@ -67,10 +63,6 @@ jobs:
         run: |
           echo "🧪 Running tests with coverage..."
           pixi run -e dev test-cov
-          if [ $? -ne 0 ]; then
-            echo "::error::Unit tests failed - ZERO TOLERANCE POLICY"
-            exit 1
-          fi
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
