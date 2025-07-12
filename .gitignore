@@ -60,10 +60,7 @@ bandit-report.json
 safety-report.json
 pip-audit-report.json
 
-# TaskMaster and MCP files (tracked in feature branches, removed on merge)
-# .taskmaster/
-# .mcp.json
-# .claude/
+# TaskMaster and MCP files (tracked in feature branches, removed on merge to development)
 
 # Environment files
 .env.*
@@ -77,9 +74,9 @@ models/
 *.gguf
 *.bin
 
-# Task files
-tasks.json
-tasks/
+# Task files (now tracked in feature branches)
+# tasks.json
+# tasks/
 
 # Temporary development files
 .taskmaster_save/
