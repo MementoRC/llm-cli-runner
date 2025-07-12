@@ -43,12 +43,12 @@ jobs:
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run -e ci format-check
+          pixi run -e ci ci-format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          pixi run -e ci lint
+          pixi run -e ci ci-lint
 
       - name: Run type checking
         run: |
