@@ -309,7 +309,7 @@ async def serve_modular(repository: Path | None = None):
                     return result  # Early return for INIT
 
                 # For all other commands, we need an existing repo
-                import git
+                from .utils.git_import import git
 
                 repo = git.Repo(repo_path)
 
@@ -683,5 +683,8 @@ async def serve_modular(repository: Path | None = None):
 
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
-            read_stream, write_stream, initialization_options=None, raise_exceptions=False  # type: ignore
+            read_stream,
+            write_stream,
+            initialization_options=None,
+            raise_exceptions=False,  # type: ignore
         )
