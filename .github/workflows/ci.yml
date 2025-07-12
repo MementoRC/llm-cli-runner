@@ -32,33 +32,33 @@ jobs:
       - name: Install dependencies
         run: |
           echo "📦 Installing pixi dependencies..."
-          pixi install -e ci
+          pixi install -e quality
           echo "✅ Dependencies installed successfully"
 
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          pixi run -e ci install-editable
+          pixi run -e quality install-editable
 
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run -e ci ci-format-check
+          pixi run -e quality format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          pixi run -e ci ci-lint
+          pixi run -e quality lint
 
       - name: Run type checking
         run: |
           echo "🏷️ Running type checking..."
-          pixi run -e ci typecheck
+          pixi run -e quality typecheck
 
       - name: Run unit tests with coverage
         run: |
           echo "🧪 Running tests with coverage..."
-          pixi run -e ci ci-test
+          pixi run -e quality test-cov
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
