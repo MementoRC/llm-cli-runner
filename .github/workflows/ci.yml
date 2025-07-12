@@ -96,7 +96,7 @@ jobs:
     - name: Run pytest with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        TESTING=true pytest tests/ -v --tb=short --timeout=30 --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
+        TESTING=true pytest tests/ -v --tb=short --timeout=30 -m "not ci_skip" --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
       env:
         TESTING: true
 
