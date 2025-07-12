@@ -188,24 +188,62 @@ class CallToolHandler:
                     github_list_pull_requests,
                     github_get_pr_status,
                     github_get_pr_files,
-                    github_create_issue,
-                    github_list_issues,
-                    github_update_issue,
-                    github_edit_pr_description,
                 )
+                # Import additional functions if not already available
+                try:
+                    from ..server import (
+                        github_create_issue,
+                        github_list_issues,
+                        github_update_issue,
+                        github_edit_pr_description,
+                    )
+                except ImportError:
+                    # Fallback for missing functions
+                    async def github_create_issue(*args, **kwargs):
+                        return "❌ github_create_issue not implemented in server.py"
+
+                    async def github_list_issues(*args, **kwargs):
+                        return "❌ github_list_issues not implemented in server.py"
+
+                    async def github_update_issue(*args, **kwargs):
+                        return "❌ github_update_issue not implemented in server.py"
+
+                    async def github_edit_pr_description(*args, **kwargs):
+                        return "❌ github_edit_pr_description not implemented in server.py"
             except ImportError:
-                # Fallback for missing functions
+                # Complete fallback if server module unavailable
+                async def github_get_pr_checks(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_get_failing_jobs(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_get_workflow_run(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_get_pr_details(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_list_pull_requests(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_get_pr_status(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
+                async def github_get_pr_files(*args, **kwargs):
+                    return "❌ GitHub API not available"
+
                 async def github_create_issue(*args, **kwargs):
-                    return "❌ github_create_issue not implemented in server.py"
+                    return "❌ GitHub API not available"
 
                 async def github_list_issues(*args, **kwargs):
-                    return "❌ github_list_issues not implemented in server.py"
+                    return "❌ GitHub API not available"
 
                 async def github_update_issue(*args, **kwargs):
-                    return "❌ github_update_issue not implemented in server.py"
+                    return "❌ GitHub API not available"
 
                 async def github_edit_pr_description(*args, **kwargs):
-                    return "❌ github_edit_pr_description not implemented in server.py"
+                    return "❌ GitHub API not available"
 
             logger.debug("Using original GitHub API")
 
