@@ -1205,7 +1205,7 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
         return await original_call_tool(*args, **kwargs)
 
     # Monkey patch to track requests (temporary until proper middleware)
-    server.call_tool = call_tool_with_tracking
+    setattr(server, 'call_tool', call_tool_with_tracking)  # type: ignore[method-assign]
 
     @server.list_prompts()
     async def list_prompts() -> list[Prompt]:

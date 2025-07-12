@@ -162,6 +162,10 @@ class CallToolHandler:
 
     def _get_github_handlers(self) -> Dict[str, Any]:
         """Get GitHub API handlers (modular or original)"""
+        # GitHub API import with dynamic fallback
+        github_functions = {}
+
+        # Try modular API first
         try:
             from ..github.api import (
                 github_get_pr_checks,
@@ -176,7 +180,19 @@ class CallToolHandler:
                 github_update_issue,
                 github_edit_pr_description,
             )
-
+            github_functions.update({
+                'github_get_pr_checks': github_get_pr_checks,
+                'github_get_failing_jobs': github_get_failing_jobs,
+                'github_get_workflow_run': github_get_workflow_run,
+                'github_get_pr_details': github_get_pr_details,
+                'github_list_pull_requests': github_list_pull_requests,
+                'github_get_pr_status': github_get_pr_status,
+                'github_get_pr_files': github_get_pr_files,
+                'github_create_issue': github_create_issue,
+                'github_list_issues': github_list_issues,
+                'github_update_issue': github_update_issue,
+                'github_edit_pr_description': github_edit_pr_description,
+            })
             logger.debug("Using modular GitHub API")
         except ImportError:
             try:
@@ -189,63 +205,54 @@ class CallToolHandler:
                     github_get_pr_status,
                     github_get_pr_files,
                 )
-                # Import additional functions if not already available
+                # Import available server functions
+                github_functions.update({
+                    'github_get_pr_checks': github_get_pr_checks,
+                    'github_get_failing_jobs': github_get_failing_jobs,
+                    'github_get_workflow_run': github_get_workflow_run,
+                    'github_get_pr_details': github_get_pr_details,
+                    'github_list_pull_requests': github_list_pull_requests,
+                    'github_get_pr_status': github_get_pr_status,
+                    'github_get_pr_files': github_get_pr_files,
+                })
+                
+                # Try additional server functions separately  
                 try:
-                    from ..server import (
+                    from ..server import (  # type: ignore[attr-defined,no-redef]
                         github_create_issue,
                         github_list_issues,
                         github_update_issue,
                         github_edit_pr_description,
                     )
+                    github_functions.update({
+                        'github_create_issue': github_create_issue,
+                        'github_list_issues': github_list_issues,
+                        'github_update_issue': github_update_issue,
+                        'github_edit_pr_description': github_edit_pr_description,
+                    })
                 except ImportError:
-                    # Fallback for missing functions
-                    async def github_create_issue(*args, **kwargs):
-                        return "❌ github_create_issue not implemented in server.py"
-
-                    async def github_list_issues(*args, **kwargs):
-                        return "❌ github_list_issues not implemented in server.py"
-
-                    async def github_update_issue(*args, **kwargs):
-                        return "❌ github_update_issue not implemented in server.py"
-
-                    async def github_edit_pr_description(*args, **kwargs):
-                        return "❌ github_edit_pr_description not implemented in server.py"
+                    pass  # Will use fallback for missing functions
+                
+                logger.debug("Using server GitHub API")
             except ImportError:
-                # Complete fallback if server module unavailable
-                async def github_get_pr_checks(*args, **kwargs):
-                    return "❌ GitHub API not available"
+                logger.debug("No GitHub API available, using fallbacks")
 
-                async def github_get_failing_jobs(*args, **kwargs):
-                    return "❌ GitHub API not available"
+        # Define fallback function
+        async def fallback_github_function(*args, **kwargs):
+            return "❌ GitHub API not available"
 
-                async def github_get_workflow_run(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_get_pr_details(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_list_pull_requests(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_get_pr_status(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_get_pr_files(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_create_issue(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_list_issues(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_update_issue(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-                async def github_edit_pr_description(*args, **kwargs):
-                    return "❌ GitHub API not available"
-
-            logger.debug("Using original GitHub API")
+        # Extract functions or use fallback (with Any type to avoid signature conflicts)
+        github_get_pr_checks: Any = github_functions.get('github_get_pr_checks', fallback_github_function)  # type: ignore[no-redef]
+        github_get_failing_jobs: Any = github_functions.get('github_get_failing_jobs', fallback_github_function)  # type: ignore[no-redef]
+        github_get_workflow_run: Any = github_functions.get('github_get_workflow_run', fallback_github_function)  # type: ignore[no-redef]
+        github_get_pr_details: Any = github_functions.get('github_get_pr_details', fallback_github_function)  # type: ignore[no-redef]
+        github_list_pull_requests: Any = github_functions.get('github_list_pull_requests', fallback_github_function)  # type: ignore[no-redef]
+        github_get_pr_status: Any = github_functions.get('github_get_pr_status', fallback_github_function)  # type: ignore[no-redef]
+        github_get_pr_files: Any = github_functions.get('github_get_pr_files', fallback_github_function)  # type: ignore[no-redef]
+        github_create_issue: Any = github_functions.get('github_create_issue', fallback_github_function)  # type: ignore[no-redef]
+        github_list_issues: Any = github_functions.get('github_list_issues', fallback_github_function)  # type: ignore[no-redef]
+        github_update_issue: Any = github_functions.get('github_update_issue', fallback_github_function)  # type: ignore[no-redef]
+        github_edit_pr_description: Any = github_functions.get('github_edit_pr_description', fallback_github_function)  # type: ignore[no-redef]
 
         return {
             "github_get_pr_checks": self._create_github_handler(
