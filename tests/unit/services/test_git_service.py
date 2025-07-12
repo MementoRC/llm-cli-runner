@@ -467,7 +467,7 @@ class TestGitService:
         state = service.inspect_state("service_id")
 
         assert "service_id" in state
-        assert state["service_id"] == service._service_id
+        assert state["service_id"]["value"] == service._service_id
 
     def test_inspect_state_invalid_path(self):
         """Test state inspection with invalid path."""
