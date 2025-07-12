@@ -21,9 +21,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 try:
-    import tomllib  # Python 3.11+
+    import tomllib
 except ImportError:
-    import tomli as tomllib  # Python < 3.11  # type: ignore[no-redef,import-not-found]
+    import tomli as tomllib  # type: ignore[no-redef,import-not-found]
 
 import structlog  # type: ignore[import-not-found]
 from cryptography.fernet import Fernet  # type: ignore[import-not-found]
