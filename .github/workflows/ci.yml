@@ -75,16 +75,15 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - name: Install pixi
+      uses: prefix-dev/setup-pixi@v0.8.1
       with:
-        python-version: ${{ matrix.python-version }}
+        pixi-version: latest
 
     - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pip..."
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
+        echo "🔧 Setting up CI environment with pixi..."
+        pixi install
         echo "✅ CI environment ready"
 
     - name: Configure Git for testing
@@ -96,7 +95,7 @@ jobs:
     - name: Run pytest with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        TESTING=true pytest tests/ -v --tb=short --timeout=30 -m "not ci_skip" --cov=src --cov-report=xml --cov-report=term-missing --junitxml=pytest-results.xml
+        pixi run test-cov
       env:
         TESTING: true
 
