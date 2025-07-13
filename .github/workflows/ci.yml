@@ -142,7 +142,7 @@ jobs:
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
@@ -438,7 +438,7 @@ jobs:
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
@@ -506,7 +506,7 @@ jobs:
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker pytest-hypothesis
+        pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
         echo "✅ Pip environment ready"
