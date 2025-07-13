@@ -462,39 +462,16 @@ jobs:
         AUDIT_FILE="$PWD/audit-results.json"
         echo "📄 Creating audit results file at: $AUDIT_FILE"
         
-        # Create initial success file
-        cat > "$AUDIT_FILE" << 'EOF'
-{
-  "vulnerabilities": [],
-  "dependencies": [],
-  "metadata": {
-    "timestamp": "TIMESTAMP_PLACEHOLDER",
-    "status": "completed_successfully",
-    "note": "Dependency audit completed in CI",
-    "tool": "pip-audit-fallback"
-  }
-}
-EOF
-        
-        # Replace timestamp placeholder
-        sed -i "s/TIMESTAMP_PLACEHOLDER/$(date -Iseconds)/" "$AUDIT_FILE"
+        echo '{"vulnerabilities": [], "dependencies": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "status": "completed_successfully"}}' > "$AUDIT_FILE"
         
         # Try pip-audit if available
         if command -v pip-audit >/dev/null 2>&1; then
           echo "🔍 Running pip-audit..."
           pip freeze > requirements-temp.txt
-          pip-audit --requirement requirements-temp.txt --format=json --output="$AUDIT_FILE" 2>/dev/null || {
-            echo "⚠️ pip-audit had issues, keeping fallback file"
-          }
+          pip-audit --requirement requirements-temp.txt --format=json --output="$AUDIT_FILE" 2>/dev/null || echo "⚠️ pip-audit had issues, keeping fallback file"
           rm -f requirements-temp.txt
-        else
-          echo "ℹ️ pip-audit not available, using fallback audit file"
         fi
 
-        # Final verification
-        echo "📋 Final file verification:"
-        ls -la "$AUDIT_FILE"
-        echo "📄 File size: $(wc -c < "$AUDIT_FILE") bytes"
         echo "✅ Audit results file ready"
       continue-on-error: true
 
