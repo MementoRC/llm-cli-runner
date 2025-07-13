@@ -180,7 +180,7 @@ pytest-benchmark = "*"
 # Basic runtime environment
 default = {solve-group = "default"}
 
-# Quality gate environments (tiered approach)
+# Quality gate environments (tiered approach) - inherit from default
 quality = {features = ["quality"], solve-group = "default"}
 quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
 quality-full = {features = ["quality", "quality-extended", "quality-ci"], solve-group = "default"}

@@ -22,48 +22,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup micromamba
-        uses: mamba-org/setup-micromamba@v1
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
-          micromamba-version: 'latest'
-          environment-name: ci-quality
-          create-args: >-
-            python=${{ matrix.python-version }}
-            pytest
-            pytest-cov
-            pytest-timeout
-            pytest-asyncio
-            ruff
-            pyright
-            tomli-w
-            toml
-            -c conda-forge
+          pixi-version: ${{ env.PIXI_VERSION }}
+          cache: true
+          manifest-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing pixi dependencies..."
+          pixi install
+          echo "✅ Dependencies installed successfully"
 
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          micromamba run -n ci-quality pip install -e . --no-deps
-          echo "✅ Project installed successfully"
+          pixi run install-editable
 
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          micromamba run -n ci-quality ruff format --check src/ tests/
+          pixi run format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          micromamba run -n ci-quality ruff check src/ tests/ --select=F,E9
+          pixi run lint
 
       - name: Run type checking
         run: |
           echo "🏷️ Running type checking..."
-          micromamba run -n ci-quality pyright src/
+          pixi run typecheck
 
       - name: Run unit tests with coverage
         run: |
           echo "🧪 Running tests with coverage..."
-          micromamba run -n ci-quality pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml
+          pixi run test-cov
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
