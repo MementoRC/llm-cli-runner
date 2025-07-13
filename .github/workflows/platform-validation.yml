@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue testing other platforms if one fails
       matrix:
-        platform: [linux-64, osx-64, osx-arm64, win-64]
+        platform: [linux-64]  # Only test supported platform
         environment: [quality, quality-extended, ci]
 
     steps:
