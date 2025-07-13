@@ -8,32 +8,33 @@ IMPORTANT: These tests define requirements and are IMMUTABLE once complete.
 Do not modify tests to match implementation - implementation must satisfy these tests.
 """
 
-import pytest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 # Import the types we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.types.validation_types import (
-        ValidationResult,
-        ValidationError,
-        ValidationRule,
-        ValidationContext,
-        Validator,
-        PathValidator,
-        EmailValidator,
-        URLValidator,
-        GitRefValidator,
-        GitHubNameValidator,
-        MCPMethodValidator,
         CompositeValidator,
-        ValidationSchema,
-        ValidationReport,
-        FieldValidator,
+        EmailValidator,
         ErrorCollector,
-        ValidationSeverity,
+        FieldValidator,
+        GitHubNameValidator,
+        GitRefValidator,
+        MCPMethodValidator,
+        PathValidator,
+        URLValidator,
         ValidationCategory,
+        ValidationContext,
+        ValidationError,
+        ValidationReport,
+        ValidationResult,
+        ValidationRule,
+        ValidationSchema,
+        ValidationSeverity,
+        Validator,
     )
 
     TYPES_AVAILABLE = True

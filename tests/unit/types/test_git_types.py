@@ -8,29 +8,30 @@ IMPORTANT: These tests define requirements and are IMMUTABLE once complete.
 Do not modify tests to match implementation - implementation must satisfy these tests.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 # Import the types we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.types.git_types import (
-        GitRepositoryPath,
         GitBranch,
+        GitBranchInfo,
         GitCommitHash,
         GitCommitHashObj,
-        GitRemoteName,
-        GitFileStatus,
-        GitOperationResult,
-        GitStatusResult,
-        GitDiffResult,
-        GitLogResult,
         GitCommitInfo,
-        GitBranchInfo,
-        GitRemoteInfo,
-        GitValidationError,
+        GitDiffResult,
+        GitFileStatus,
+        GitLogResult,
         GitOperationError,
+        GitOperationResult,
+        GitRemoteInfo,
+        GitRemoteName,
+        GitRepositoryPath,
+        GitStatusResult,
+        GitValidationError,
     )
 
     TYPES_AVAILABLE = True

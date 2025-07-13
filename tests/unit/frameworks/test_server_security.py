@@ -1,18 +1,19 @@
 """Unit tests for the SecurityFramework component."""
 
 import os
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
+import pytest
+
 from mcp_server_git.frameworks.server_security import (
-    SecurityFramework,
-    TokenValidator,
     InputSanitizer,
-    SecurityStatus,
-    SecuritySeverity,
     SecurityCategory,
     SecurityDefaults,
+    SecurityFramework,
+    SecuritySeverity,
+    SecurityStatus,
+    TokenValidator,
 )
 from mcp_server_git.types.git_types import GitValidationError
 

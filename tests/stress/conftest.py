@@ -3,18 +3,18 @@
 import os
 import time
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import pytest
 
-from mcp_server_git.session import SessionManager
 from mcp_server_git.metrics import global_metrics_collector
+from mcp_server_git.session import SessionManager
 
 
 class MockMCPClient:
     """Mock MCP client for stress testing."""
 
-    def __init__(self, client_id: Optional[str] = None):
+    def __init__(self, client_id: str | None = None):
         self.client_id = client_id or str(uuid.uuid4())
         self.connected = False
         self.session_id = None
@@ -34,7 +34,7 @@ class MockMCPClient:
         self.connected = False
         self.session_id = None
 
-    async def ping(self) -> Dict[str, Any]:
+    async def ping(self) -> dict[str, Any]:
         """Send a ping message."""
         if not self.connected:
             raise RuntimeError("Client not connected")
@@ -42,7 +42,7 @@ class MockMCPClient:
         self.message_count += 1
         return {"type": "pong", "id": str(uuid.uuid4())}
 
-    async def start_operation(self, operation_id: str) -> Dict[str, Any]:
+    async def start_operation(self, operation_id: str) -> dict[str, Any]:
         """Start a long-running operation."""
         if not self.connected:
             raise RuntimeError("Client not connected")
@@ -60,7 +60,7 @@ class MockMCPClient:
             "operation_id": operation_id,
         }
 
-    async def cancel_operation(self, operation_id: str) -> Dict[str, Any]:
+    async def cancel_operation(self, operation_id: str) -> dict[str, Any]:
         """Cancel a running operation."""
         if not self.connected:
             raise RuntimeError("Client not connected")
@@ -85,7 +85,7 @@ class MockMCPClient:
         # Simulate sending malformed JSON or invalid message type
         raise ValueError("Invalid message format")
 
-    async def send_raw_message(self, message: Dict[str, Any]):
+    async def send_raw_message(self, message: dict[str, Any]):
         """Send a raw message (for error injection)."""
         if not self.connected:
             raise RuntimeError("Client not connected")
@@ -291,8 +291,9 @@ async def metrics_collector():
 @pytest.fixture
 def memory_monitor():
     """Memory monitoring utilities for leak detection."""
-    import psutil
     import gc
+
+    import psutil
 
     class MemoryMonitor:
         def __init__(self):

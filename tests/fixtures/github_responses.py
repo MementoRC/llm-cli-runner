@@ -5,16 +5,17 @@ Provides mock responses for GitHub API calls to enable testing
 without actual API requests.
 """
 
-from typing import Dict, Any
-import pytest
+from typing import Any
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class GitHubResponseFactory:
     """Factory for creating mock GitHub API responses."""
 
     @staticmethod
-    def user_response(login: str = "testuser") -> Dict[str, Any]:
+    def user_response(login: str = "testuser") -> dict[str, Any]:
         """Create a mock user response."""
         return {
             "login": login,
@@ -31,7 +32,7 @@ class GitHubResponseFactory:
     @staticmethod
     def repository_response(
         name: str = "test-repo", owner: str = "testuser"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a mock repository response."""
         return {
             "id": 67890,
@@ -53,7 +54,7 @@ class GitHubResponseFactory:
         }
 
     @staticmethod
-    def pull_request_response(number: int = 1, state: str = "open") -> Dict[str, Any]:
+    def pull_request_response(number: int = 1, state: str = "open") -> dict[str, Any]:
         """Create a mock pull request response."""
         return {
             "id": 123456,
@@ -73,7 +74,7 @@ class GitHubResponseFactory:
     @staticmethod
     def check_run_response(
         status: str = "completed", conclusion: str = "success"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a mock check run response."""
         return {
             "id": 789012,
@@ -91,7 +92,7 @@ class GitHubResponseFactory:
         }
 
     @staticmethod
-    def commit_response(sha: str = "abc123def456") -> Dict[str, Any]:
+    def commit_response(sha: str = "abc123def456") -> dict[str, Any]:
         """Create a mock commit response."""
         return {
             "sha": sha,

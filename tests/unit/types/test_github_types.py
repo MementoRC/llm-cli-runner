@@ -8,34 +8,35 @@ IMPORTANT: These tests define requirements and are IMMUTABLE once complete.
 Do not modify tests to match implementation - implementation must satisfy these tests.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 # Import the types we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.types.github_types import (
-        GitHubRepository,
-        GitHubUser,
-        GitHubPullRequest,
-        GitHubCheckRun,
-        GitHubWorkflowRun,
-        GitHubIssue,
-        GitHubCommit,
-        GitHubBranch,
-        GitHubLabel,
-        GitHubReview,
-        GitHubFile,
-        GitHubAPIResponse,
-        GitHubPagination,
-        GitHubRateLimit,
-        GitHubWebhookEvent,
-        GitHubValidationError,
         GitHubAPIError,
-        GitHubCheckStatus,
+        GitHubAPIResponse,
+        GitHubBranch,
         GitHubCheckConclusion,
+        GitHubCheckRun,
+        GitHubCheckStatus,
+        GitHubCommit,
+        GitHubFile,
+        GitHubIssue,
+        GitHubLabel,
+        GitHubPagination,
         GitHubPRState,
+        GitHubPullRequest,
+        GitHubRateLimit,
+        GitHubRepository,
+        GitHubReview,
         GitHubReviewState,
+        GitHubUser,
+        GitHubValidationError,
+        GitHubWebhookEvent,
+        GitHubWorkflowRun,
     )
 
     TYPES_AVAILABLE = True

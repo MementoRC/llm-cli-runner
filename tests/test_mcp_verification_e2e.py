@@ -37,8 +37,8 @@ async def mcp_client():
 
     # For E2E verification, we'll test the tools directly rather than through MCP protocol
     # This gives us the same verification of the routing fix without MCP protocol complexity
-    from mcp_server_git.core.tools import ToolRegistry
     from mcp_server_git.core.handlers import CallToolHandler
+    from mcp_server_git.core.tools import ToolRegistry
 
     # Initialize the tool infrastructure that server_simple.py uses
     tool_registry = ToolRegistry()
@@ -526,9 +526,9 @@ async def test_comprehensive_verification_report(mcp_client, test_repo):
 
         # Assert that all critical functionality works
         assert verification_results["basic_git_ops"], "Basic git operations must work"
-        assert verification_results["github_api"], (
-            "GitHub API must respond (even if no token)"
-        )
+        assert verification_results[
+            "github_api"
+        ], "GitHub API must respond (even if no token)"
         assert verification_results["advanced_ops"], "Advanced git operations must work"
         assert verification_results["error_handling"], "Error handling must work"
 

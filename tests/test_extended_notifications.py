@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -132,7 +132,7 @@ def test_middleware_with_invalid_cancelled_notification(caplog):
 
 def test_middleware_with_other_notification():
     """Tests that the middleware ignores other notifications."""
-    message: Dict[str, Any] = {
+    message: dict[str, Any] = {
         "jsonrpc": "2.0",
         "method": "textDocument/didChange",
         "params": {},
@@ -143,7 +143,7 @@ def test_middleware_with_other_notification():
 
 def test_middleware_with_non_notification_message():
     """Tests that the middleware ignores messages without a 'method' field."""
-    message: Dict[str, Any] = {
+    message: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": 1,
         "result": "some result",

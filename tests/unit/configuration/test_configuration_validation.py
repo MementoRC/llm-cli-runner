@@ -13,14 +13,15 @@ Test categories:
     - Schema generation tests
 """
 
-import pytest
-from pathlib import Path
-from pydantic import ValidationError
 import json
-import tempfile
 import os
+import tempfile
+from pathlib import Path
 
-from mcp_server_git.configuration import GitServerConfig, GitConfig, GitHubConfig
+import pytest
+from pydantic import ValidationError
+
+from mcp_server_git.configuration import GitConfig, GitHubConfig, GitServerConfig
 
 
 class TestGitServerConfig:

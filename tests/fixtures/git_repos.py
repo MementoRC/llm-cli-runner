@@ -5,14 +5,15 @@ Provides factory functions and fixtures for creating test git repositories
 with various states and configurations.
 """
 
-import subprocess
 import os
+import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
+
 import pytest
 
 
-def _run_git_command(cmd: List[str], cwd: Path, **kwargs):
+def _run_git_command(cmd: list[str], cwd: Path, **kwargs):
     """Run git command with clean PATH environment (no ClaudeCode redirectors)."""
     env = os.environ.copy()
 
@@ -65,9 +66,7 @@ class GitRepositoryFactory:
         return path
 
     @staticmethod
-    def create_dirty_repo(
-        path: Path, modified_files: Optional[List[str]] = None
-    ) -> Path:
+    def create_dirty_repo(path: Path, modified_files: list[str] | None = None) -> Path:
         """Create a git repository with uncommitted changes."""
         GitRepositoryFactory.create_clean_repo(path)
 
@@ -80,7 +79,7 @@ class GitRepositoryFactory:
         return path
 
     @staticmethod
-    def create_repo_with_branches(path: Path, branches: List[str]) -> Path:
+    def create_repo_with_branches(path: Path, branches: list[str]) -> Path:
         """Create a git repository with multiple branches."""
         GitRepositoryFactory.create_clean_repo(path)
 

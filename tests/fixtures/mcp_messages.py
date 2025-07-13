@@ -5,16 +5,17 @@ Provides mock MCP protocol messages for testing server compliance
 and message handling.
 """
 
-from typing import Dict, Any, List, Optional
-import pytest
+from typing import Any, Optional
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class MCPMessageFactory:
     """Factory for creating MCP protocol messages."""
 
     @staticmethod
-    def initialize_request(protocol_version: str = "2024-11-05") -> Dict[str, Any]:
+    def initialize_request(protocol_version: str = "2024-11-05") -> dict[str, Any]:
         """Create an MCP initialize request."""
         return {
             "jsonrpc": "2.0",
@@ -28,7 +29,7 @@ class MCPMessageFactory:
         }
 
     @staticmethod
-    def initialize_response(server_name: str = "mcp-server-git") -> Dict[str, Any]:
+    def initialize_response(server_name: str = "mcp-server-git") -> dict[str, Any]:
         """Create an MCP initialize response."""
         return {
             "jsonrpc": "2.0",
@@ -46,14 +47,14 @@ class MCPMessageFactory:
         }
 
     @staticmethod
-    def list_tools_request() -> Dict[str, Any]:
+    def list_tools_request() -> dict[str, Any]:
         """Create a tools/list request."""
         return {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
 
     @staticmethod
     def list_tools_response(
-        tools: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        tools: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Create a tools/list response."""
         if tools is None:
             tools = [
@@ -76,7 +77,7 @@ class MCPMessageFactory:
         return {"jsonrpc": "2.0", "id": 2, "result": {"tools": tools}}
 
     @staticmethod
-    def call_tool_request(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def call_tool_request(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Create a tools/call request."""
         return {
             "jsonrpc": "2.0",
@@ -86,7 +87,7 @@ class MCPMessageFactory:
         }
 
     @staticmethod
-    def call_tool_response(content: str, is_error: bool = False) -> Dict[str, Any]:
+    def call_tool_response(content: str, is_error: bool = False) -> dict[str, Any]:
         """Create a tools/call response."""
         return {
             "jsonrpc": "2.0",
@@ -100,7 +101,7 @@ class MCPMessageFactory:
     @staticmethod
     def error_response(
         error_code: int, error_message: str, request_id: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create an error response."""
         return {
             "jsonrpc": "2.0",
@@ -110,8 +111,8 @@ class MCPMessageFactory:
 
     @staticmethod
     def notification(
-        method: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Create an MCP notification."""
         message = {"jsonrpc": "2.0", "method": method}
 

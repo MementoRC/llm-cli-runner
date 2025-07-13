@@ -19,10 +19,9 @@ Design principles:
     - Comprehensive error handling and reporting
 """
 
-from pathlib import Path
-from typing import NewType, TypedDict, Literal, Optional, List, Dict, Any, Union
 from dataclasses import dataclass
-
+from pathlib import Path
+from typing import Any, Literal, NewType, TypedDict
 
 # Basic Git Type Aliases
 GitBranchName = NewType("GitBranchName", str)
@@ -56,10 +55,10 @@ class GitValidationError(Exception):
         self,
         message: str,
         value: Any = None,
-        context: Optional[Dict[str, Any]] = None,
-        field_name: Optional[str] = None,
-        validation_rule: Optional[str] = None,
-        suggested_fix: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        field_name: str | None = None,
+        validation_rule: str | None = None,
+        suggested_fix: str | None = None,
     ):
         self.message = message
         self.value = value
@@ -80,8 +79,8 @@ class GitOperationError(Exception):
     def __init__(
         self,
         message: str,
-        command: Optional[str] = None,
-        exit_code: Optional[int] = None,
+        command: str | None = None,
+        exit_code: int | None = None,
     ):
         self.message = message
         self.command = command
@@ -106,13 +105,13 @@ class GitRepositoryPath:
 
     path: Path
     is_bare: bool = False
-    git_dir: Optional[Path] = None
-    work_tree: Optional[Path] = None
-    current_branch: Optional[str] = None
-    remotes: Optional[List[str]] = None
+    git_dir: Path | None = None
+    work_tree: Path | None = None
+    current_branch: str | None = None
+    remotes: list[str] | None = None
     is_clean: bool = True
 
-    def __init__(self, path: Union[str, Path]):
+    def __init__(self, path: str | Path):
         """
         Initialize GitRepositoryPath with validation.
 
@@ -134,7 +133,7 @@ class GitRepositoryPath:
         except (OSError, ValueError) as e:
             raise GitValidationError(
                 f"Invalid path: {path}", value=path, context={"error": str(e)}
-            )
+            ) from e
 
         # Check if path exists
         if not normalized_path.exists():
@@ -162,7 +161,7 @@ class GitRepositoryPath:
         self.remotes = []  # Will be populated on demand
         self.is_clean = True  # Will be populated on demand
 
-    def _validate_git_repository(self, path: Path) -> tuple[Path, Optional[Path], bool]:
+    def _validate_git_repository(self, path: Path) -> tuple[Path, Path | None, bool]:
         """
         Validate that the path is a valid Git repository.
 
@@ -254,7 +253,7 @@ class GitRepositoryPath:
         """
         return self.path.exists()
 
-    def get_repository_info(self) -> Dict[str, Any]:
+    def get_repository_info(self) -> dict[str, Any]:
         """
         Get metadata about the repository.
 
@@ -278,9 +277,9 @@ class GitBranch:
     name: GitBranchName
     is_current: bool = False
     is_remote: bool = False
-    remote_name: Optional[GitRemoteName] = None
-    upstream: Optional[str] = None
-    commit_hash: Optional[GitCommitHash] = None
+    remote_name: GitRemoteName | None = None
+    upstream: str | None = None
+    commit_hash: GitCommitHash | None = None
 
     def __init__(self, name: str, **kwargs):
         """Initialize GitBranch with validation."""
@@ -341,14 +340,14 @@ class GitBranch:
         return str(self.name).startswith("release/")
 
     @property
-    def parent_branch(self) -> Optional[str]:
+    def parent_branch(self) -> str | None:
         """Get the parent branch name."""
         if "/" in str(self.name):
             return str(self.name).split("/")[0]
         return None
 
     @property
-    def namespace(self) -> Optional[str]:
+    def namespace(self) -> str | None:
         """Get the branch namespace."""
         if "/" in str(self.name):
             return str(self.name).split("/")[0]
@@ -413,14 +412,14 @@ class GitFileStatus:
     """Representation of Git file status."""
 
     status: GitFileStatusType
-    path: Optional[str] = None
-    old_path: Optional[str] = None  # For renamed files
+    path: str | None = None
+    old_path: str | None = None  # For renamed files
 
     def __init__(
         self,
         status: GitFileStatusType,
-        path: Optional[str] = None,
-        old_path: Optional[str] = None,
+        path: str | None = None,
+        old_path: str | None = None,
     ):
         if status not in [
             "modified",
@@ -488,13 +487,13 @@ class GitOperationResult:
         self,
         success: bool,
         message: str,
-        command: Optional[str] = None,
-        exit_code: Optional[int] = None,
-        output: Optional[str] = None,
-        error: Optional[str] = None,
-        error_code: Optional[str] = None,
-        operation: Optional[str] = None,
-        duration: Optional[float] = None,
+        command: str | None = None,
+        exit_code: int | None = None,
+        output: str | None = None,
+        error: str | None = None,
+        error_code: str | None = None,
+        operation: str | None = None,
+        duration: float | None = None,
     ):
         self.is_success = success
         self.message = message
@@ -522,7 +521,7 @@ class GitOperationResult:
 
     @classmethod
     def error(
-        cls, error: str, operation: str, error_code: Optional[str] = None, **kwargs
+        cls, error: str, operation: str, error_code: str | None = None, **kwargs
     ) -> "GitOperationResult":
         """Create an error operation result."""
         return cls(
@@ -576,11 +575,11 @@ class GitStatusResult:
         self,
         is_clean: bool,
         current_branch: "GitBranch",
-        modified_files: Optional[List[str]] = None,
-        untracked_files: Optional[List[str]] = None,
-        staged_files: Optional[List[str]] = None,
-        deleted_files: Optional[List[str]] = None,
-        renamed_files: Optional[List[str]] = None,
+        modified_files: list[str] | None = None,
+        untracked_files: list[str] | None = None,
+        staged_files: list[str] | None = None,
+        deleted_files: list[str] | None = None,
+        renamed_files: list[str] | None = None,
     ):
         self.is_clean = is_clean
         self.current_branch = current_branch
@@ -649,7 +648,7 @@ class GitDiffResult(TypedDict):
 class GitLogResult(TypedDict):
     """Result of git log operation."""
 
-    commits: List["GitCommitInfo"]
+    commits: list["GitCommitInfo"]
     total_count: int
     has_more: bool
 
@@ -664,9 +663,9 @@ class GitCommitInfo:
         author_email: str,
         message: str,
         timestamp: str,
-        parent_hashes: Optional[List[GitCommitHash]] = None,
-        committer: Optional[str] = None,
-        committer_email: Optional[str] = None,
+        parent_hashes: list[GitCommitHash] | None = None,
+        committer: str | None = None,
+        committer_email: str | None = None,
     ):
         # Validate email
         if "@" not in author_email or "." not in author_email:
@@ -721,9 +720,9 @@ class GitBranchInfo(TypedDict):
     is_current: bool
     is_remote: bool
     commit_hash: GitCommitHash
-    upstream: Optional[str]
-    ahead: Optional[int]
-    behind: Optional[int]
+    upstream: str | None
+    ahead: int | None
+    behind: int | None
 
 
 class GitRemoteInfo(TypedDict):
@@ -733,7 +732,7 @@ class GitRemoteInfo(TypedDict):
     url: str
     fetch_url: str
     push_url: str
-    branches: List[GitBranchName]
+    branches: list[GitBranchName]
 
 
 # Type Integration Tests Support
@@ -741,7 +740,7 @@ class GitTypeIntegration:
     """Helper class for testing type integration."""
 
     @staticmethod
-    def validate_repository_path(path: Union[str, Path]) -> GitRepositoryPath:
+    def validate_repository_path(path: str | Path) -> GitRepositoryPath:
         """Validate and return GitRepositoryPath."""
         return GitRepositoryPath(path)
 

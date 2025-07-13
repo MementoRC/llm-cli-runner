@@ -1,17 +1,18 @@
 import asyncio
 import json
 import uuid
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
+
+from mcp_server_git.core.notification_interceptor import NotificationInterceptor
+from mcp_server_git.error_handling import ErrorContext, classify_error, handle_error
 from mcp_server_git.models.notifications import (
     CancelledNotification,
     parse_client_notification,
 )
 from mcp_server_git.models.validation import validate_cancelled_notification
-from mcp_server_git.core.notification_interceptor import NotificationInterceptor
 from mcp_server_git.session import SessionManager, SessionState
-from mcp_server_git.error_handling import ErrorContext, classify_error, handle_error
 
 
 @pytest.mark.asyncio
@@ -279,7 +280,7 @@ async def test_message_error_recovery():
         return "success"
 
     # Simulate error handling
-    for attempt in range(5):
+    for _attempt in range(5):
         try:
             result = await failing_message_handler()
             if result == "success":

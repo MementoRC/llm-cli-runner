@@ -1,21 +1,22 @@
 """Tests for error handling and recovery mechanisms."""
 
 import logging
-import pytest
 import time
 from unittest.mock import patch
 
+import pytest
+
 from mcp_server_git.error_handling import (
-    ErrorSeverity,
     ErrorContext,
     ErrorRecoveryStrategy,
-    recoverable,
-    handle_error,
-    classify_error,
-    record_error_metric,
-    get_error_stats,
-    reset_error_stats,
+    ErrorSeverity,
     _attempt_recovery,
+    classify_error,
+    get_error_stats,
+    handle_error,
+    record_error_metric,
+    recoverable,
+    reset_error_stats,
 )
 
 

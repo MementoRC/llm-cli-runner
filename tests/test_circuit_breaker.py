@@ -2,20 +2,21 @@
 
 import asyncio
 import logging
-import pytest
 import time
 
+import pytest
+
 from mcp_server_git.error_handling import (
-    CircuitState,
     CircuitBreaker,
     CircuitOpenError,
-    with_circuit_breaker,
-    get_circuit_breaker,
-    get_all_circuit_breakers,
-    reset_circuit_breaker,
-    reset_all_circuit_breakers,
-    remove_circuit_breaker,
+    CircuitState,
     clear_circuit_breakers,
+    get_all_circuit_breakers,
+    get_circuit_breaker,
+    remove_circuit_breaker,
+    reset_all_circuit_breakers,
+    reset_circuit_breaker,
+    with_circuit_breaker,
 )
 
 

@@ -9,14 +9,16 @@ This file provides:
 5. Enhanced reporting of test status
 """
 
-import pytest
-import tempfile
-import shutil
-import json
 import fnmatch
+import json
+import shutil
+import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator, Dict, Any
+from typing import Any
 from unittest.mock import MagicMock
+
+import pytest
 
 
 # Test environment setup
@@ -70,8 +72,8 @@ def temp_dir() -> Generator[Path, None, None]:
 
 def _run_git_isolated(cmd: list, cwd: Path, **kwargs):
     """Run git command with clean PATH environment (no ClaudeCode redirectors)."""
-    import subprocess
     import os
+    import subprocess
 
     env = os.environ.copy()
 
@@ -123,7 +125,7 @@ def mock_git_repo(temp_dir: Path) -> Path:
 
 
 @pytest.fixture
-def mock_github_responses() -> Dict[str, Any]:
+def mock_github_responses() -> dict[str, Any]:
     """Mock GitHub API responses for testing."""
     return {
         "user": {
@@ -163,16 +165,16 @@ def mock_mcp_client():
 
 
 # Test Status Tracking System
-def load_test_status() -> Dict[str, Any]:
+def load_test_status() -> dict[str, Any]:
     """Load test status configuration from .taskmaster/test-status.json"""
     status_file = Path(__file__).parent.parent / ".taskmaster" / "test-status.json"
     if status_file.exists():
-        with open(status_file, "r") as f:
+        with open(status_file) as f:
             return json.load(f)
     return {"current_phase": "unknown", "test_phases": {}}
 
 
-def should_test_fail(test_nodeid: str, test_status: Dict[str, Any]) -> bool:
+def should_test_fail(test_nodeid: str, test_status: dict[str, Any]) -> bool:
     """Check if a test is expected to fail in the current phase"""
     current_phase = test_status.get("current_phase", "")
     if not current_phase or current_phase not in test_status.get("test_phases", {}):
@@ -187,7 +189,7 @@ def should_test_fail(test_nodeid: str, test_status: Dict[str, Any]) -> bool:
     return False
 
 
-def should_test_pass(test_nodeid: str, test_status: Dict[str, Any]) -> bool:
+def should_test_pass(test_nodeid: str, test_status: dict[str, Any]) -> bool:
     """Check if a test is expected to pass in the current phase"""
     current_phase = test_status.get("current_phase", "")
     if not current_phase or current_phase not in test_status.get("test_phases", {}):

@@ -1,10 +1,9 @@
 import asyncio
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from unittest.mock import AsyncMock, patch
 
 
 @pytest.fixture(scope="session")

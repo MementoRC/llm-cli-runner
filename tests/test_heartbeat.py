@@ -1,7 +1,8 @@
 import asyncio
+
 import pytest
 
-from mcp_server_git.session import SessionManager, HeartbeatManager
+from mcp_server_git.session import HeartbeatManager, SessionManager
 
 
 @pytest.mark.asyncio

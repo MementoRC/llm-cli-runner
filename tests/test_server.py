@@ -1,14 +1,14 @@
-import pytest
-from pathlib import Path
-import shutil
-
 # Use safe git import for testing
 import os
+import shutil
+from pathlib import Path
+
+import pytest
 
 os.environ["TESTING"] = "true"  # Ensure testing mode before import
 
+from mcp_server_git.server import GitTools, git_checkout, git_status
 from mcp_server_git.utils.git_import import git
-from mcp_server_git.server import git_checkout, git_status, GitTools
 
 
 @pytest.fixture
@@ -157,7 +157,7 @@ def test_git_status_porcelain_string_parameter(test_repository):
 
 def test_git_rebase_success(test_repository):
     """Test successful rebase operation"""
-    from mcp_server_git.server import git_rebase, git_create_branch, git_checkout
+    from mcp_server_git.server import git_checkout, git_create_branch, git_rebase
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "feature-branch")
@@ -183,7 +183,7 @@ def test_git_rebase_success(test_repository):
 
 def test_git_merge_success(test_repository):
     """Test successful merge operation"""
-    from mcp_server_git.server import git_merge, git_create_branch, git_checkout
+    from mcp_server_git.server import git_checkout, git_create_branch, git_merge
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "merge-feature")
@@ -205,7 +205,7 @@ def test_git_merge_success(test_repository):
 
 def test_git_merge_squash(test_repository):
     """Test squash merge strategy"""
-    from mcp_server_git.server import git_merge, git_create_branch, git_checkout
+    from mcp_server_git.server import git_checkout, git_create_branch, git_merge
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "squash-feature")
@@ -225,7 +225,7 @@ def test_git_merge_squash(test_repository):
 
 def test_git_cherry_pick_success(test_repository):
     """Test successful cherry-pick operation"""
-    from mcp_server_git.server import git_cherry_pick, git_create_branch, git_checkout
+    from mcp_server_git.server import git_checkout, git_cherry_pick, git_create_branch
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "cherry-source")
@@ -247,7 +247,7 @@ def test_git_cherry_pick_success(test_repository):
 
 def test_git_cherry_pick_no_commit(test_repository):
     """Test cherry-pick with --no-commit option"""
-    from mcp_server_git.server import git_cherry_pick, git_create_branch, git_checkout
+    from mcp_server_git.server import git_checkout, git_cherry_pick, git_create_branch
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "cherry-no-commit")

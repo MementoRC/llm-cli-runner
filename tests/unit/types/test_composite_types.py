@@ -8,33 +8,34 @@ IMPORTANT: These tests define requirements and are IMMUTABLE once complete.
 Do not modify tests to match implementation - implementation must satisfy these tests.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 # Import the types we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.types.composite_types import (
+        DomainBridge,
+        GitHubOperationRequest,
+        GitHubWorkflowResult,
         GitOperationRequest,
         GitOperationResponse,
-        GitHubOperationRequest,
-        RepositoryContext,
-        OperationContext,
         GitWorkflowResult,
-        GitHubWorkflowResult,
         IntegratedOperationResult,
+        OperationContext,
+        RepositoryContext,
         TypeFactory,
         TypeRegistry,
-        DomainBridge,
     )
 
     # Import domain types for integration testing
     from mcp_server_git.types.git_types import (
-        GitRepositoryPath,
         GitBranch,
+        GitRepositoryPath,
         GitStatusResult,
     )
-    from mcp_server_git.types.github_types import GitHubRepository, GitHubPullRequest
+    from mcp_server_git.types.github_types import GitHubPullRequest, GitHubRepository
     from mcp_server_git.types.mcp_types import MCPRequest, MCPResponse
 
     TYPES_AVAILABLE = True

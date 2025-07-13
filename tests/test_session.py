@@ -6,17 +6,19 @@ circuit breaker integration, and SessionManager operations.
 """
 
 import asyncio
-import pytest
 import time
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from mcp_server_git.session import (
     Session,
     SessionManager,
-    SessionState,
     SessionMetrics,
+    SessionState,
 )
+
 # Import error handling for integration testing if needed in future
 
 

@@ -1,7 +1,8 @@
 import asyncio
-import signal
 import json
 import shutil
+import signal
+
 import pytest
 
 
@@ -118,7 +119,7 @@ async def test_restore_missing_or_corrupted_session_file(tmp_path):
     try:
         with open(sessions_file) as f:
             json.load(f)
-        assert False, "Should raise FileNotFoundError"
+        raise AssertionError("Should raise FileNotFoundError")
     except FileNotFoundError:
         pass
 
@@ -128,7 +129,7 @@ async def test_restore_missing_or_corrupted_session_file(tmp_path):
     try:
         with open(sessions_file) as f:
             json.load(f)
-        assert False, "Should raise JSONDecodeError"
+        raise AssertionError("Should raise JSONDecodeError")
     except json.JSONDecodeError:
         pass
 
@@ -216,7 +217,7 @@ async def test_partial_shutdown_scenario(tmp_path):
     try:
         with open(sessions_file) as f:
             json.load(f)
-        assert False, "Should raise JSONDecodeError"
+        raise AssertionError("Should raise JSONDecodeError")
     except json.JSONDecodeError:
         pass
 
@@ -288,6 +289,6 @@ async def test_error_handling_during_shutdown(monkeypatch):
     session_manager = FailingSessionManager()
     try:
         await session_manager.shutdown()
-        assert False, "Should raise RuntimeError"
+        raise AssertionError("Should raise RuntimeError")
     except RuntimeError as e:
         assert "Shutdown failed" in str(e)

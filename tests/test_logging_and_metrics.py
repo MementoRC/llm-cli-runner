@@ -1,6 +1,7 @@
 import asyncio
-import logging
 import json
+import logging
+
 import pytest
 
 from mcp_server_git.logging_config import StructuredLogFormatter

@@ -11,20 +11,20 @@ Critical for TDD Compliance:
     implementation must be fixed to pass these tests.
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
+
+import pytest
 
 from mcp_server_git.operations.git_operations import (
-    CommitRequest,
     BranchRequest,
+    CommitRequest,
     MergeRequest,
     commit_changes_with_validation,
     create_branch_with_checkout,
     merge_branches_with_conflict_detection,
     push_with_validation,
 )
-
 from mcp_server_git.primitives.git_primitives import (
     GitCommandError,
     GitRepositoryError,

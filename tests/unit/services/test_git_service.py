@@ -18,17 +18,17 @@ from unittest.mock import patch
 import pytest
 
 from mcp_server_git.operations.git_operations import (
-    CommitResult,
     BranchResult,
+    CommitResult,
     MergeResult,
 )
 from mcp_server_git.primitives.git_primitives import (
     GitValidationError,
 )
 from mcp_server_git.services.git_service import (
+    GitOperationResult,
     GitService,
     GitServiceConfig,
-    GitOperationResult,
     GitServiceState,
 )
 

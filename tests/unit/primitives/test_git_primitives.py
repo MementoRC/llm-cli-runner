@@ -11,30 +11,31 @@ DO NOT modify these tests to match implementation - implementation must
 satisfy these tests to prevent the LLM compliance issue.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Import the primitives we expect to be implemented
 # These imports will fail initially (RED phase) - that's expected!
 try:
     from mcp_server_git.primitives.git_primitives import (
+        GitCommandError,
+        GitRepositoryError,
+        GitValidationError,
         execute_git_command,
+        format_git_error,
+        get_commit_hash,
+        get_current_branch,
         get_repository_status,
         get_staged_files,
         get_unstaged_files,
         get_untracked_files,
         is_git_repository,
-        get_current_branch,
-        get_commit_hash,
-        validate_repository_path,
-        parse_git_status_output,
         parse_git_log_output,
-        format_git_error,
-        GitCommandError,
-        GitRepositoryError,
-        GitValidationError,
+        parse_git_status_output,
+        validate_repository_path,
     )
 
     PRIMITIVES_AVAILABLE = True

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_git.server import load_environment_variables, get_github_client
+from mcp_server_git.server import get_github_client, load_environment_variables
 
 
 class TestEnvironmentLoading:

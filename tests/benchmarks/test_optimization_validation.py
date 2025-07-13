@@ -4,9 +4,9 @@ import time
 
 from mcp_server_git.models.enhanced_validation import process_notification_safely
 from mcp_server_git.optimizations import (
-    enable_validation_cache,
-    disable_validation_cache,
     clear_validation_cache,
+    disable_validation_cache,
+    enable_validation_cache,
     get_validation_cache_stats,
 )
 
