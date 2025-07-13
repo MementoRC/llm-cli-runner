@@ -99,7 +99,9 @@
       "mcp__uckn-knowledge__search_patterns",
       "mcp__uckn-knowledge__validate_solution"
     ],
-    "deny": []
+    "deny": [
+      "Bash(/usr/bin/:*)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
