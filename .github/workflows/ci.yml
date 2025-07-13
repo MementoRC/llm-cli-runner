@@ -29,11 +29,23 @@ jobs:
           cache: true
           manifest-path: pyproject.toml
 
-      - name: Install dependencies
+      - name: Install dependencies with retry
         run: |
-          echo "📦 Installing pixi dependencies..."
-          pixi install -e quality
-          echo "✅ Dependencies installed successfully"
+          echo "📦 Installing pixi dependencies with retry logic..."
+          for i in {1..3}; do
+            echo "Attempt $i of 3..."
+            if pixi install -e quality; then
+              echo "✅ Dependencies installed successfully on attempt $i"
+              break
+            else
+              echo "❌ Attempt $i failed, retrying..."
+              sleep 5
+            fi
+            if [ $i -eq 3 ]; then
+              echo "❌ All attempts failed"
+              exit 1
+            fi
+          done
 
       - name: Install project in editable mode
         run: |
