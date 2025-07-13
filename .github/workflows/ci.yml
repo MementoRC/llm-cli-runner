@@ -39,28 +39,33 @@ jobs:
       run: |
         echo "🔧 Installing pixi..."
         curl -fsSL https://pixi.sh/install.sh | bash
+        export PATH="$HOME/.pixi/bin:$PATH"
         echo "$HOME/.pixi/bin" >> $GITHUB_PATH
 
     - name: Install dependencies
       run: |
         echo "🔧 Setting up CI environment with pixi..."
+        export PATH="$HOME/.pixi/bin:$PATH"
         pixi install
         echo "✅ CI environment ready"
 
     - name: Run linting checks
       run: |
         echo "🔍 Running linting checks..."
+        export PATH="$HOME/.pixi/bin:$PATH"
         pixi run lint
 
     - name: Run format checks
       run: |
         echo "🔍 Running format checks..."
+        export PATH="$HOME/.pixi/bin:$PATH"
         pixi run format-check
       continue-on-error: true
 
     - name: Run type checks
       run: |
         echo "🔍 Running type checks..."
+        export PATH="$HOME/.pixi/bin:$PATH"
         pixi run typecheck
       continue-on-error: true
 
