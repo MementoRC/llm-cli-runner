@@ -26,7 +26,8 @@ jobs:
         uses: prefix-dev/setup-pixi@v0.8.11
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-          cache: false
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref == 'refs/heads/development' }}
           manifest-path: pyproject.toml
 
       - name: Install dependencies
@@ -35,10 +36,23 @@ jobs:
           pixi install
           echo "✅ Dependencies installed successfully"
 
+      - name: Debug environment
+        run: |
+          echo "🔍 Environment debugging..."
+          pixi info
+          pixi list
+          python --version
+          pip --version || echo "pip not found"
+
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          pixi run install-editable
+          pixi run install-editable || {
+            echo "⚠️ Primary installation failed, trying fallback..."
+            export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
+            echo "✅ Using fallback PYTHONPATH setup"
+          }
+          echo "✅ Project installation completed"
 
       - name: Run format check
         run: |

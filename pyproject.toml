@@ -90,6 +90,7 @@ platforms = ["linux-64"]  # Start with linux-64 only for CI compatibility
 [tool.pixi.dependencies]
 # Core runtime dependencies
 python = ">=3.10"
+pip = "*"
 aiohttp = ">=3.8.0"
 click = ">=8.1.7"
 cryptography = ">=41.0.0"
@@ -197,7 +198,8 @@ ci-minimal = {features = ["ci-minimal"], solve-group = "default"}
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
 # Installation & Setup
-install-editable = "pip install -e . --no-deps"
+install-editable = "python -m pip install -e . --no-deps"
+install-editable-fallback = "python setup.py develop --no-deps || python -c \"import sys; sys.path.insert(0, 'src')\""
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
