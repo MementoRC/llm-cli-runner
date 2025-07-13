@@ -29,48 +29,36 @@ jobs:
           cache: true
           manifest-path: pyproject.toml
 
-      - name: Install dependencies with retry
+      - name: Install dependencies (minimal CI environment)
         run: |
-          echo "📦 Installing pixi dependencies with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3..."
-            if pixi install -e quality; then
-              echo "✅ Dependencies installed successfully on attempt $i"
-              break
-            else
-              echo "❌ Attempt $i failed, retrying..."
-              sleep 5
-            fi
-            if [ $i -eq 3 ]; then
-              echo "❌ All attempts failed"
-              exit 1
-            fi
-          done
+          echo "📦 Installing minimal CI dependencies..."
+          pixi install -e ci-minimal
+          echo "✅ Dependencies installed successfully"
 
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          pixi run -e quality install-editable
+          pixi run -e ci-minimal install-editable
 
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run -e quality format-check
+          pixi run -e ci-minimal ruff format --check src/ tests/
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          pixi run -e quality lint
+          pixi run -e ci-minimal ruff check src/ tests/ --select=F,E9
 
       - name: Run type checking
         run: |
           echo "🏷️ Running type checking..."
-          pixi run -e quality typecheck
+          pixi run -e ci-minimal pyright src/
 
       - name: Run unit tests with coverage
         run: |
           echo "🧪 Running tests with coverage..."
-          pixi run -e quality test-cov
+          pixi run -e ci-minimal pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4

@@ -152,6 +152,25 @@ coverage = ">=7.0.0"
 
 # ===== LEGACY DEVELOPMENT FEATURES =====
 # Keep existing dev feature for specialized tools
+# ===== CI MINIMAL FEATURE =====
+# For GitHub Actions compatibility - minimal dependencies only
+[tool.pixi.feature.ci-minimal.dependencies]
+# Minimal testing (with required pytest plugins)
+pytest = "*"
+pytest-cov = "*"
+pytest-timeout = "*"
+pytest-asyncio = "*"
+
+# Minimal linting
+ruff = "*"
+
+# Minimal type checking
+pyright = "*"
+
+# Test dependencies
+tomli-w = "*"
+toml = "*"
+
 [tool.pixi.feature.dev-specialized.dependencies]
 # Development tools not needed for CI
 memory_profiler = "*"
@@ -171,6 +190,9 @@ dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized
 
 # CI environment (quality + CI reporting)
 ci = {features = ["quality", "quality-ci"], solve-group = "default"}
+
+# Minimal CI environment (for GitHub Actions compatibility)
+ci-minimal = {features = ["ci-minimal"], solve-group = "default"}
 
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
