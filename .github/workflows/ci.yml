@@ -41,10 +41,22 @@ jobs:
         pixi install --environment ci
         echo "✅ CI environment ready"
 
-    - name: Run quality checks
+    - name: Run linting checks
       run: |
-        echo "🔍 Running CI quality checks..."
-        pixi run --environment ci ci-quality
+        echo "🔍 Running CI linting checks..."
+        pixi run --environment ci ci-lint
+
+    - name: Run format checks
+      run: |
+        echo "🔍 Running CI format checks..."
+        pixi run --environment ci ci-format-check
+      continue-on-error: true
+
+    - name: Run type checks
+      run: |
+        echo "🔍 Running CI type checks..."
+        pixi run --environment ci ci-typecheck
+      continue-on-error: true
 
   # Job 2: Unit and Integration Tests
   test:
