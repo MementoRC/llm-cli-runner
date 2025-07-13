@@ -22,43 +22,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.11
+      - name: Setup micromamba
+        uses: mamba-org/setup-micromamba@v1
         with:
-          pixi-version: ${{ env.PIXI_VERSION }}
-          cache: true
-          manifest-path: pyproject.toml
-
-      - name: Install dependencies (minimal CI environment)
-        run: |
-          echo "📦 Installing minimal CI dependencies..."
-          pixi install -e ci-minimal
-          echo "✅ Dependencies installed successfully"
+          micromamba-version: 'latest'
+          environment-name: ci-quality
+          create-args: >-
+            python=${{ matrix.python-version }}
+            pytest
+            pytest-cov
+            pytest-timeout
+            pytest-asyncio
+            ruff
+            pyright
+            tomli-w
+            toml
+            -c conda-forge
 
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          pixi run -e ci-minimal install-editable
+          micromamba run -n ci-quality pip install -e . --no-deps
+          echo "✅ Project installed successfully"
 
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run -e ci-minimal ruff format --check src/ tests/
+          micromamba run -n ci-quality ruff format --check src/ tests/
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          pixi run -e ci-minimal ruff check src/ tests/ --select=F,E9
+          micromamba run -n ci-quality ruff check src/ tests/ --select=F,E9
 
       - name: Run type checking
         run: |
           echo "🏷️ Running type checking..."
-          pixi run -e ci-minimal pyright src/
+          micromamba run -n ci-quality pyright src/
 
       - name: Run unit tests with coverage
         run: |
           echo "🧪 Running tests with coverage..."
-          pixi run -e ci-minimal pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml
+          micromamba run -n ci-quality pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
