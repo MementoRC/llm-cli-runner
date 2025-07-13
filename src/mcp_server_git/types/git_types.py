@@ -21,7 +21,7 @@ Design principles:
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, NewType, TypedDict
+from typing import Any, Literal, NewType, TypedDict, Union
 
 # Basic Git Type Aliases
 GitBranchName = NewType("GitBranchName", str)
@@ -55,10 +55,10 @@ class GitValidationError(Exception):
         self,
         message: str,
         value: Any = None,
-        context: dict[str, Any] | None = None,
-        field_name: str | None = None,
-        validation_rule: str | None = None,
-        suggested_fix: str | None = None,
+        context: Union[dict[str, Any], None] = None,
+        field_name: Union[str, None] = None,
+        validation_rule: Union[str, None] = None,
+        suggested_fix: Union[str, None] = None,
     ):
         self.message = message
         self.value = value
@@ -79,8 +79,8 @@ class GitOperationError(Exception):
     def __init__(
         self,
         message: str,
-        command: str | None = None,
-        exit_code: int | None = None,
+        command: Union[str, None] = None,
+        exit_code: Union[int, None] = None,
     ):
         self.message = message
         self.command = command
@@ -105,13 +105,13 @@ class GitRepositoryPath:
 
     path: Path
     is_bare: bool = False
-    git_dir: Path | None = None
-    work_tree: Path | None = None
-    current_branch: str | None = None
-    remotes: list[str] | None = None
+    git_dir: Union[Path, None] = None
+    work_tree: Union[Path, None] = None
+    current_branch: Union[str, None] = None
+    remotes: Union[list[str], None] = None
     is_clean: bool = True
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: Union[str, Path]):
         """
         Initialize GitRepositoryPath with validation.
 
@@ -161,7 +161,7 @@ class GitRepositoryPath:
         self.remotes = []  # Will be populated on demand
         self.is_clean = True  # Will be populated on demand
 
-    def _validate_git_repository(self, path: Path) -> tuple[Path, Path | None, bool]:
+    def _validate_git_repository(self, path: Path) -> tuple[Path, Union[Path, None], bool]:
         """
         Validate that the path is a valid Git repository.
 
@@ -277,9 +277,9 @@ class GitBranch:
     name: GitBranchName
     is_current: bool = False
     is_remote: bool = False
-    remote_name: GitRemoteName | None = None
-    upstream: str | None = None
-    commit_hash: GitCommitHash | None = None
+    remote_name: Union[GitRemoteName, None] = None
+    upstream: Union[str, None] = None
+    commit_hash: Union[GitCommitHash, None] = None
 
     def __init__(self, name: str, **kwargs):
         """Initialize GitBranch with validation."""
@@ -340,14 +340,14 @@ class GitBranch:
         return str(self.name).startswith("release/")
 
     @property
-    def parent_branch(self) -> str | None:
+    def parent_branch(self) -> Union[str, None]:
         """Get the parent branch name."""
         if "/" in str(self.name):
             return str(self.name).split("/")[0]
         return None
 
     @property
-    def namespace(self) -> str | None:
+    def namespace(self) -> Union[str, None]:
         """Get the branch namespace."""
         if "/" in str(self.name):
             return str(self.name).split("/")[0]
@@ -412,14 +412,14 @@ class GitFileStatus:
     """Representation of Git file status."""
 
     status: GitFileStatusType
-    path: str | None = None
-    old_path: str | None = None  # For renamed files
+    path: Union[str, None] = None
+    old_path: Union[str, None] = None  # For renamed files
 
     def __init__(
         self,
         status: GitFileStatusType,
-        path: str | None = None,
-        old_path: str | None = None,
+        path: Union[str, None] = None,
+        old_path: Union[str, None] = None,
     ):
         if status not in [
             "modified",
@@ -487,13 +487,13 @@ class GitOperationResult:
         self,
         success: bool,
         message: str,
-        command: str | None = None,
-        exit_code: int | None = None,
-        output: str | None = None,
-        error: str | None = None,
-        error_code: str | None = None,
-        operation: str | None = None,
-        duration: float | None = None,
+        command: Union[str, None] = None,
+        exit_code: Union[int, None] = None,
+        output: Union[str, None] = None,
+        error: Union[str, None] = None,
+        error_code: Union[str, None] = None,
+        operation: Union[str, None] = None,
+        duration: Union[float, None] = None,
     ):
         self.is_success = success
         self.message = message
@@ -521,7 +521,7 @@ class GitOperationResult:
 
     @classmethod
     def error(
-        cls, error: str, operation: str, error_code: str | None = None, **kwargs
+        cls, error: str, operation: str, error_code: Union[str, None] = None, **kwargs
     ) -> "GitOperationResult":
         """Create an error operation result."""
         return cls(
@@ -575,11 +575,11 @@ class GitStatusResult:
         self,
         is_clean: bool,
         current_branch: "GitBranch",
-        modified_files: list[str] | None = None,
-        untracked_files: list[str] | None = None,
-        staged_files: list[str] | None = None,
-        deleted_files: list[str] | None = None,
-        renamed_files: list[str] | None = None,
+        modified_files: Union[list[str], None] = None,
+        untracked_files: Union[list[str], None] = None,
+        staged_files: Union[list[str], None] = None,
+        deleted_files: Union[list[str], None] = None,
+        renamed_files: Union[list[str], None] = None,
     ):
         self.is_clean = is_clean
         self.current_branch = current_branch
@@ -663,9 +663,9 @@ class GitCommitInfo:
         author_email: str,
         message: str,
         timestamp: str,
-        parent_hashes: list[GitCommitHash] | None = None,
-        committer: str | None = None,
-        committer_email: str | None = None,
+        parent_hashes: Union[list[GitCommitHash], None] = None,
+        committer: Union[str, None] = None,
+        committer_email: Union[str, None] = None,
     ):
         # Validate email
         if "@" not in author_email or "." not in author_email:
@@ -720,9 +720,9 @@ class GitBranchInfo(TypedDict):
     is_current: bool
     is_remote: bool
     commit_hash: GitCommitHash
-    upstream: str | None
-    ahead: int | None
-    behind: int | None
+    upstream: Union[str, None]
+    ahead: Union[int, None]
+    behind: Union[int, None]
 
 
 class GitRemoteInfo(TypedDict):
@@ -740,7 +740,7 @@ class GitTypeIntegration:
     """Helper class for testing type integration."""
 
     @staticmethod
-    def validate_repository_path(path: str | Path) -> GitRepositoryPath:
+    def validate_repository_path(path: Union[str, Path]) -> GitRepositoryPath:
         """Validate and return GitRepositoryPath."""
         return GitRepositoryPath(path)
 

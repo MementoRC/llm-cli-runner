@@ -1,7 +1,7 @@
 import asyncio
 import time
-from typing import Any, Dict, Optional
 from collections import defaultdict
+from typing import Any, Union
 
 
 class MetricsCollector:
@@ -42,7 +42,7 @@ class MetricsCollector:
                 )
 
     async def record_operation(
-        self, operation_type: str, success: bool, duration_ms: Optional[float] = None
+        self, operation_type: str, success: bool, duration_ms: Union[float, None] = None
     ):
         async with self._lock:
             self._metrics["operations"][operation_type] += 1
@@ -55,7 +55,7 @@ class MetricsCollector:
         async with self._lock:
             self._metrics["errors"][error_type] += 1
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         async with self._lock:
             # Compute summary stats
             durations = self._metrics["message_durations_ms"]
@@ -75,7 +75,7 @@ class MetricsCollector:
                 "uptime_sec": time.time() - self._metrics["startup_time"],
             }
 
-    async def get_health_status(self) -> Dict[str, Any]:
+    async def get_health_status(self) -> dict[str, Any]:
         async with self._lock:
             health = {
                 "uptime_sec": time.time() - self._metrics["startup_time"],

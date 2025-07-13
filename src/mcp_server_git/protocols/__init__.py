@@ -20,10 +20,11 @@ Usage:
     ...         # Implementation here
     ...         pass
 """
+from typing import Union
 
 # Debugging Protocol Exports
 # Convenience type aliases for common protocol combinations
-# Union types now use | syntax
+# Union types now Union[use, syntax]
 
 from .debugging_protocol import (
     ComponentState,
@@ -76,10 +77,10 @@ from .repository_protocol import (
 )
 
 # Common protocol combinations for dependency injection
-DebuggableRepositoryComponent = DebuggableComponent | RepositoryOperations
-MonitoredComponent = DebuggableComponent | MetricsSystem | NotificationSystem
+DebuggableRepositoryComponent = Union[DebuggableComponent, RepositoryOperations]
+MonitoredComponent = Union[DebuggableComponent, MetricsSystem, NotificationSystem]
 FullServiceComponent = (
-    DebuggableComponent | RepositoryOperations | NotificationSystem | MetricsSystem
+    Union[DebuggableComponent, RepositoryOperations, NotificationSystem, MetricsSystem]
 )
 
 # Export all protocol classes

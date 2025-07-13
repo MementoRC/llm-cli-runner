@@ -3,7 +3,7 @@
 import logging
 import os
 import subprocess
-from typing import Dict, Any
+from typing import Any
 
 # Safe git import that handles ClaudeCode redirector conflicts
 from ..utils.git_import import Repo
@@ -11,7 +11,7 @@ from ..utils.git_import import Repo
 logger = logging.getLogger(__name__)
 
 
-def validate_git_security_config(repo: Repo) -> Dict[str, Any]:
+def validate_git_security_config(repo: Repo) -> dict[str, Any]:
     """Validate Git security configuration for the repository"""
 
     warnings = []

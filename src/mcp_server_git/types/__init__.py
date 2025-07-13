@@ -77,26 +77,27 @@ See also:
 
 # Core type imports - implementing git_types first
 from .git_types import (
-    GitRepositoryPath,
     GitBranch,
-    GitCommitHash,
-    GitRemoteName,
-    GitBranchName,
-    GitTagName,
-    GitFileStatus,
-    GitOperationResult,
-    GitStatusResult,
-    GitDiffResult,
-    GitLogResult,
-    GitCommitInfo,
     GitBranchInfo,
-    GitRemoteInfo,
-    GitValidationError,
-    GitOperationError,
+    GitBranchName,
+    GitCommitHash,
+    GitCommitInfo,
+    GitDiffResult,
+    GitFileStatus,
     GitFileStatusType,
+    GitLogResult,
+    GitOperationError,
+    GitOperationResult,
     GitOperationStatus,
+    GitRemoteInfo,
+    GitRemoteName,
+    GitRepositoryPath,
+    GitStatusResult,
+    GitTagName,
     GitTypeIntegration,
+    GitValidationError,
 )
+
 # from .github_types import *
 # from .session_types import *
 # from .mcp_types import *

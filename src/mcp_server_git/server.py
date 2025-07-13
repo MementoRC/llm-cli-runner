@@ -1,15 +1,13 @@
+from typing import Union
 import logging
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Sequence, Optional
 
 import aiohttp
 from dotenv import load_dotenv
-
-# Safe git import that handles ClaudeCode redirector conflicts
-from .utils.git_import import git
 from mcp.server.session import ServerSession
 from mcp.types import (
     ClientCapabilities,
@@ -29,50 +27,53 @@ from mcp_server_git.frameworks import MCPGitServerCore
 
 # Import canonical git operations from git/operations.py
 from mcp_server_git.git.operations import (
-    git_status,
-    git_diff_unstaged,
-    git_diff_staged,
-    git_diff,
-    git_commit,
-    git_add,
-    git_reset,
-    git_log,
-    git_create_branch,
-    git_checkout,
-    git_show,
-    git_init,
-    git_push,
-    git_pull,
-    git_diff_branches,
-    git_rebase,
-    git_merge,
-    git_cherry_pick,
     git_abort,
+    git_add,
+    git_checkout,
+    git_cherry_pick,
+    git_commit,
     git_continue,
-    git_remote_list,
+    git_create_branch,
+    git_diff,
+    git_diff_branches,
+    git_diff_staged,
+    git_diff_unstaged,
+    git_fetch,
+    git_init,
+    git_log,
+    git_merge,
+    git_pull,
+    git_push,
+    git_rebase,
     git_remote_add,
+    git_remote_get_url,
+    git_remote_list,
     git_remote_remove,
     git_remote_rename,
     git_remote_set_url,
-    git_remote_get_url,
-    git_fetch,
+    git_reset,
+    git_show,
+    git_status,
 )
 
 # Import GitHub CLI models
 from mcp_server_git.github.models import (
+    GitHubCLIClosePR,
     GitHubCLICreatePR,
     GitHubCLIEditPR,
     GitHubCLIMergePR,
-    GitHubCLIClosePR,
-    GitHubCLIReopenPR,
     GitHubCLIReadyPR,
+    GitHubCLIReopenPR,
 )
+
+# Safe git import that handles ClaudeCode redirector conflicts
+from .utils.git_import import git
 
 # Module-level logger for this file
 logger = logging.getLogger(__name__)
 
 
-def load_environment_variables(repository_path: Path | None = None):
+def load_environment_variables(repository_path: Union[Path, None] = None):
     """Load environment variables from .env files with proper precedence.
 
     NEW Order of precedence (HIGHEST to LOWEST):
@@ -271,8 +272,8 @@ def get_github_client() -> GitHubClient:
 
 def validate_gpg_environment() -> dict:
     """Validate GPG environment for headless operations and provide diagnostics"""
-    import subprocess
     import os
+    import subprocess
 
     issues = []
     suggestions = []
@@ -400,7 +401,7 @@ class GitCommit(BaseModel):
     repo_path: str
     message: str
     gpg_sign: bool = False
-    gpg_key_id: str | None = None
+    gpg_key_id: Union[str, None] = None
 
 
 class GitAdd(BaseModel):
@@ -417,13 +418,13 @@ class GitLog(BaseModel):
     max_count: int = 10
     oneline: bool = False
     graph: bool = False
-    format: str | None = None
+    format: Union[str, None] = None
 
 
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    base_branch: str | None = None
+    base_branch: Union[str, None] = None
 
 
 class GitCheckout(BaseModel):
@@ -443,7 +444,7 @@ class GitInit(BaseModel):
 class GitPush(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: str | None = None
+    branch: Union[str, None] = None
     force: bool = False
     set_upstream: bool = False
 
@@ -451,7 +452,7 @@ class GitPush(BaseModel):
 class GitPull(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: str | None = None
+    branch: Union[str, None] = None
 
 
 class GitDiffBranches(BaseModel):
@@ -497,7 +498,7 @@ class GitRemoteGetUrl(BaseModel):
 class GitFetch(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Optional[str] = None
+    branch: Union[str, None] = None
     prune: bool = False
 
 
@@ -510,7 +511,7 @@ class GitMerge(BaseModel):
     repo_path: str
     source_branch: str
     strategy: str = "merge"
-    message: Optional[str] = None
+    message: Union[str, None] = None
 
 
 class GitCherryPick(BaseModel):
@@ -534,8 +535,8 @@ class GitHubGetPRChecks(BaseModel):
     repo_owner: str
     repo_name: str
     pr_number: int
-    status: str | None = None  # "completed", "in_progress", "queued"
-    conclusion: str | None = None  # "failure", "success", "cancelled"
+    status: Union[str, None] = None  # "completed", "in_progress", "queued"
+    conclusion: Union[str, None] = None  # "failure", "success", "cancelled"
 
 
 class GitHubGetFailingJobs(BaseModel):
@@ -565,8 +566,8 @@ class GitHubListPullRequests(BaseModel):
     repo_owner: str
     repo_name: str
     state: str = "open"  # "open", "closed", "all"
-    head: str | None = None  # Filter by head branch
-    base: str | None = None  # Filter by base branch
+    head: Union[str, None] = None  # Filter by head branch
+    base: Union[str, None] = None  # Filter by base branch
     sort: str = "created"  # "created", "updated", "popularity"
     direction: str = "desc"  # "asc", "desc"
     per_page: int = 30  # Max 100
@@ -673,8 +674,8 @@ async def github_get_pr_checks(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    status: str | None = None,
-    conclusion: str | None = None,
+    status: Union[str, None] = None,
+    conclusion: Union[str, None] = None,
 ) -> str:
     """Get check runs for a pull request"""
     try:
@@ -942,8 +943,8 @@ async def github_list_pull_requests(
     repo_owner: str,
     repo_name: str,
     state: str = "open",
-    head: str | None = None,
-    base: str | None = None,
+    head: Union[str, None] = None,
+    base: Union[str, None] = None,
     sort: str = "created",
     direction: str = "desc",
     per_page: int = 30,
@@ -1179,7 +1180,7 @@ async def github_get_pr_files(
         return f"Error getting PR files: {str(e)}"
 
 
-async def serve(repository: Path | None, test_mode: bool = False) -> None:
+async def serve(repository: Union[Path, None], test_mode: bool = False) -> None:
     logger = logging.getLogger(__name__)
 
     # Load environment variables from .env files with proper precedence
@@ -1205,7 +1206,7 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
         return await original_call_tool(*args, **kwargs)
 
     # Monkey patch to track requests (temporary until proper middleware)
-    setattr(server, 'call_tool', call_tool_with_tracking)  # type: ignore[method-assign]
+    server.call_tool = call_tool_with_tracking  # type: ignore[method-assign]
 
     @server.list_prompts()
     async def list_prompts() -> list[Prompt]:
@@ -1436,7 +1437,7 @@ async def serve(repository: Path | None, test_mode: bool = False) -> None:
 
     @server.get_prompt()
     async def get_prompt(
-        name: str, arguments: dict[str, str] | None
+        name: str, arguments: Union[dict[str, str], None]
     ) -> GetPromptResult:
         """Generate specific git workflow prompts"""
         args = arguments or {}

@@ -1,9 +1,9 @@
 """GitHub CLI operations for MCP Git Server"""
+from typing import Union
 
 import logging
 import os
 import subprocess
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,9 @@ def _validate_repo_path(repo_path: str) -> str:
 def gh_create_pr(
     repo_path: str,
     title: str,
-    body: Optional[str] = None,
-    base: Optional[str] = None,
-    head: Optional[str] = None,
+    body: Union[str, None] = None,
+    base: Union[str, None] = None,
+    head: Union[str, None] = None,
     draft: bool = False,
     web: bool = False,
 ) -> str:
@@ -88,15 +88,15 @@ def gh_create_pr(
 def gh_edit_pr(
     repo_path: str,
     pr_number: int,
-    title: Optional[str] = None,
-    body: Optional[str] = None,
-    base: Optional[str] = None,
-    add_assignee: Optional[list[str]] = None,
-    remove_assignee: Optional[list[str]] = None,
-    add_label: Optional[list[str]] = None,
-    remove_label: Optional[list[str]] = None,
-    add_reviewer: Optional[list[str]] = None,
-    remove_reviewer: Optional[list[str]] = None,
+    title: Union[str, None] = None,
+    body: Union[str, None] = None,
+    base: Union[str, None] = None,
+    add_assignee: Union[list[str], None] = None,
+    remove_assignee: Union[list[str], None] = None,
+    add_label: Union[list[str], None] = None,
+    remove_label: Union[list[str], None] = None,
+    add_reviewer: Union[list[str], None] = None,
+    remove_reviewer: Union[list[str], None] = None,
 ) -> str:
     """Edit a pull request using GitHub CLI"""
     # Validate repository
@@ -196,7 +196,7 @@ def gh_merge_pr(
 def gh_close_pr(
     repo_path: str,
     pr_number: int,
-    comment: Optional[str] = None,
+    comment: Union[str, None] = None,
 ) -> str:
     """Close a pull request using GitHub CLI"""
     # Validate repository
@@ -226,7 +226,7 @@ def gh_close_pr(
 def gh_reopen_pr(
     repo_path: str,
     pr_number: int,
-    comment: Optional[str] = None,
+    comment: Union[str, None] = None,
 ) -> str:
     """Reopen a pull request using GitHub CLI"""
     # Validate repository

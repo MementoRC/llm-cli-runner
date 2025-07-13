@@ -1,7 +1,7 @@
 """GitHub API operations for MCP Git Server"""
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Any, Union
 
 from .client import get_github_client
 
@@ -12,8 +12,8 @@ async def github_get_pr_checks(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    status: Optional[str] = None,
-    conclusion: Optional[str] = None,
+    status: Union[str, None] = None,
+    conclusion: Union[str, None] = None,
 ) -> str:
     """Get check runs for a pull request"""
     client = None
@@ -333,8 +333,8 @@ async def github_list_pull_requests(
     repo_owner: str,
     repo_name: str,
     state: str = "open",
-    head: Optional[str] = None,
-    base: Optional[str] = None,
+    head: Union[str, None] = None,
+    base: Union[str, None] = None,
     sort: str = "created",
     direction: str = "desc",
     per_page: int = 30,
@@ -552,9 +552,9 @@ async def github_update_pr(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    title: Optional[str] = None,
-    body: Optional[str] = None,
-    state: Optional[str] = None,
+    title: Union[str, None] = None,
+    body: Union[str, None] = None,
+    state: Union[str, None] = None,
 ) -> str:
     """Update a pull request's title, body, or state."""
     logger.debug(f"🚀 Updating PR #{pr_number} in {repo_owner}/{repo_name}")
@@ -567,7 +567,7 @@ async def github_update_pr(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
         if body is not None:
@@ -610,7 +610,7 @@ async def github_create_pr(
     title: str,
     head: str,
     base: str,
-    body: Optional[str] = None,
+    body: Union[str, None] = None,
     draft: bool = False,
 ) -> str:
     """Create a new pull request."""
@@ -658,8 +658,8 @@ async def github_merge_pr(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    commit_title: Optional[str] = None,
-    commit_message: Optional[str] = None,
+    commit_title: Union[str, None] = None,
+    commit_message: Union[str, None] = None,
     merge_method: str = "merge",
 ) -> str:
     """Merge a pull request."""
@@ -766,10 +766,10 @@ async def github_create_issue(
     repo_owner: str,
     repo_name: str,
     title: str,
-    body: Optional[str] = None,
-    labels: Optional[list[str]] = None,
-    assignees: Optional[list[str]] = None,
-    milestone: Optional[int] = None,
+    body: Union[str, None] = None,
+    labels: Union[list[str], None] = None,
+    assignees: Union[list[str], None] = None,
+    milestone: Union[int, None] = None,
 ) -> str:
     """Create a new GitHub issue."""
     logger.debug(f"🚀 Creating issue in {repo_owner}/{repo_name}: {title}")
@@ -782,7 +782,7 @@ async def github_create_issue(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload: Dict[str, Any] = {"title": title}
+        payload: dict[str, Any] = {"title": title}
         if body is not None:
             payload["body"] = body
         if labels is not None:
@@ -818,14 +818,14 @@ async def github_list_issues(
     repo_owner: str,
     repo_name: str,
     state: str = "open",
-    labels: Optional[list[str]] = None,
-    assignee: Optional[str] = None,
-    creator: Optional[str] = None,
-    mentioned: Optional[str] = None,
-    milestone: Optional[str] = None,
+    labels: Union[list[str], None] = None,
+    assignee: Union[str, None] = None,
+    creator: Union[str, None] = None,
+    mentioned: Union[str, None] = None,
+    milestone: Union[str, None] = None,
     sort: str = "created",
     direction: str = "desc",
-    since: Optional[str] = None,
+    since: Union[str, None] = None,
     per_page: int = 30,
     page: int = 1,
 ) -> str:
@@ -912,12 +912,12 @@ async def github_update_issue(
     repo_owner: str,
     repo_name: str,
     issue_number: int,
-    title: Optional[str] = None,
-    body: Optional[str] = None,
-    state: Optional[str] = None,
-    labels: Optional[list[str]] = None,
-    assignees: Optional[list[str]] = None,
-    milestone: Optional[int] = None,
+    title: Union[str, None] = None,
+    body: Union[str, None] = None,
+    state: Union[str, None] = None,
+    labels: Union[list[str], None] = None,
+    assignees: Union[list[str], None] = None,
+    milestone: Union[int, None] = None,
 ) -> str:
     """Update a GitHub issue."""
     logger.debug(f"🚀 Updating issue #{issue_number} in {repo_owner}/{repo_name}")
@@ -930,7 +930,7 @@ async def github_update_issue(
                 "❌ GitHub token not configured. Set GITHUB_TOKEN environment variable."
             )
 
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
         if body is not None:

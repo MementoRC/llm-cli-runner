@@ -45,8 +45,7 @@ See also:
 """
 
 # Import primitive modules
-from . import git_primitives
-from . import github_primitives
+from . import git_primitives, github_primitives
 
 # Exports
 __all__: list[str] = [

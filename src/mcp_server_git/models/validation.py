@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Type, TypeVar, Optional
+from typing import Any, TypeVar, Union
 
 from pydantic import BaseModel, ValidationError
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
-def validate_notification(data: Dict[str, Any], model: Type[T]) -> T:
+def validate_notification(data: dict[str, Any], model: type[T]) -> T:
     """
     Validates a dictionary against a Pydantic model.
 
@@ -31,7 +31,7 @@ def validate_notification(data: Dict[str, Any], model: Type[T]) -> T:
         raise ValueError(f"Invalid notification format for {model.__name__}") from e
 
 
-def validate_cancelled_notification(data: Dict[str, Any]) -> CancelledNotification:
+def validate_cancelled_notification(data: dict[str, Any]) -> CancelledNotification:
     """
     Validates a dictionary to ensure it's a valid CancelledNotification.
     """
@@ -43,9 +43,9 @@ class ValidationResult:
 
     def __init__(
         self,
-        model: Optional[BaseModel] = None,
-        error: Optional[Exception] = None,
-        raw_data: Optional[Dict[str, Any]] = None,
+        model: Union[BaseModel, None] = None,
+        error: Union[Exception, None] = None,
+        raw_data: Union[dict[str, Any], None] = None,
     ):
         self.model = model
         self.error = error
@@ -60,7 +60,7 @@ class ValidationResult:
         return self.raw_data.get("method", "unknown")
 
 
-def safe_parse_notification(data: Dict[str, Any]) -> ValidationResult:
+def safe_parse_notification(data: dict[str, Any]) -> ValidationResult:
     """Parse a notification with fallback handling."""
     try:
         model = parse_client_notification(data)
@@ -70,7 +70,7 @@ def safe_parse_notification(data: Dict[str, Any]) -> ValidationResult:
         return ValidationResult(error=e, raw_data=data)
 
 
-def handle_unknown_notification(data: Dict[str, Any]) -> ValidationResult:
+def handle_unknown_notification(data: dict[str, Any]) -> ValidationResult:
     """Handle unknown notification types with graceful fallback."""
     method = data.get("method", "unknown")
     logger.warning(f"Received unknown notification type: {method}")

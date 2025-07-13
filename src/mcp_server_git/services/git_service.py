@@ -28,11 +28,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Union
 
 from ..operations.git_operations import (
-    CommitRequest,
     BranchRequest,
+    CommitRequest,
     MergeRequest,
     commit_changes_with_validation,
     create_branch_with_checkout,
@@ -61,7 +61,7 @@ class GitServiceConfig:
     default_remote: str = "origin"
     auto_push_after_commit: bool = False
     gpg_signing_enabled: bool = False
-    gpg_key_id: Optional[str] = None
+    gpg_key_id: Union[str, None] = None
 
 
 @dataclass
@@ -71,8 +71,8 @@ class GitOperationResult:
     success: bool
     operation_type: str
     repository_path: str
-    result_data: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    result_data: Union[dict[str, Any], None] = None
+    error_message: Union[str, None] = None
     duration_seconds: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -85,10 +85,10 @@ class GitServiceState:
     started_at: datetime
     operation_count: int = 0
     error_count: int = 0
-    last_operation: Optional[GitOperationResult] = None
+    last_operation: Union[GitOperationResult, None] = None
     active_operations: int = 0
     configuration: GitServiceConfig = field(default_factory=GitServiceConfig)
-    performance_metrics: Dict[str, Union[int, float]] = field(default_factory=dict)
+    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
 
 
 class GitService(DebuggableComponent):
@@ -125,7 +125,7 @@ class GitService(DebuggableComponent):
         True
     """
 
-    def __init__(self, config: Optional[GitServiceConfig] = None):
+    def __init__(self, config: Union[GitServiceConfig, None] = None):
         """
         Initialize GitService with configuration.
 
@@ -143,7 +143,7 @@ class GitService(DebuggableComponent):
             max_workers=max(1, self._config.max_concurrent_operations)
         )
         self._operation_lock = Lock()
-        self._state_history: List[GitServiceState] = []
+        self._state_history: list[GitServiceState] = []
         self._is_started = False
         self._total_duration: float = 0.0
 
@@ -212,10 +212,10 @@ class GitService(DebuggableComponent):
         self,
         repository_path: Union[str, Path],
         message: str,
-        files: Optional[List[str]] = None,
-        author: Optional[str] = None,
-        email: Optional[str] = None,
-        auto_push: Optional[bool] = None,
+        files: Union[list[str], None] = None,
+        author: Union[str, None] = None,
+        email: Union[str, None] = None,
+        auto_push: Union[bool, None] = None,
     ) -> GitOperationResult:
         """
         Commit changes to a Git repository.
@@ -314,7 +314,7 @@ class GitService(DebuggableComponent):
         self,
         repository_path: Union[str, Path],
         branch_name: str,
-        base_branch: Optional[str] = None,
+        base_branch: Union[str, None] = None,
         checkout: bool = True,
         force: bool = False,
     ) -> GitOperationResult:
@@ -394,8 +394,8 @@ class GitService(DebuggableComponent):
         self,
         repository_path: Union[str, Path],
         source_branch: str,
-        target_branch: Optional[str] = None,
-        message: Optional[str] = None,
+        target_branch: Union[str, None] = None,
+        message: Union[str, None] = None,
         no_fast_forward: bool = False,
         squash: bool = False,
     ) -> GitOperationResult:
@@ -542,7 +542,7 @@ class GitService(DebuggableComponent):
                 return "GitService"
 
             @property
-            def state_data(self) -> Dict[str, Any]:
+            def state_data(self) -> dict[str, Any]:
                 return asdict(self._state)
 
             @property
@@ -555,7 +555,7 @@ class GitService(DebuggableComponent):
         """Validate the current state and configuration of the GitService."""
 
         class GitServiceValidationResult:
-            def __init__(self, is_valid: bool, errors: List[str], warnings: List[str]):
+            def __init__(self, is_valid: bool, errors: list[str], warnings: list[str]):
                 self._is_valid = is_valid
                 self._errors = errors
                 self._warnings = warnings
@@ -566,11 +566,11 @@ class GitService(DebuggableComponent):
                 return self._is_valid
 
             @property
-            def validation_errors(self) -> List[str]:
+            def validation_errors(self) -> list[str]:
                 return self._errors
 
             @property
-            def validation_warnings(self) -> List[str]:
+            def validation_warnings(self) -> list[str]:
                 return self._warnings
 
             @property
@@ -612,7 +612,7 @@ class GitService(DebuggableComponent):
                 return self._debug_level
 
             @property
-            def debug_data(self) -> Dict[str, Any]:
+            def debug_data(self) -> dict[str, Any]:
                 return {
                     "service_id": self._state.service_id,
                     "is_started": self._is_started,
@@ -625,16 +625,16 @@ class GitService(DebuggableComponent):
                 }
 
             @property
-            def stack_trace(self) -> Optional[List[str]]:
+            def stack_trace(self) -> Union[list[str], None]:
                 return None  # No stack trace for normal operation
 
             @property
-            def performance_metrics(self) -> Dict[str, Union[int, float]]:
+            def performance_metrics(self) -> dict[str, Union[int, float]]:
                 return self._state.performance_metrics.copy()
 
         return GitServiceDebugInfo(debug_level, self._state, self._is_started)
 
-    def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
         """Inspect specific parts of the GitService state."""
         state_dict = {
             "service_id": self._state.service_id,
@@ -663,14 +663,14 @@ class GitService(DebuggableComponent):
                 current = current[key]
             else:
                 return {"error": f"Path '{path}' not found"}
-        
+
         # Ensure we return the expected format
         if not isinstance(current, dict):
             current = {"value": current}
 
         return {path: current}
 
-    def get_component_dependencies(self) -> List[str]:
+    def get_component_dependencies(self) -> list[str]:
         """Get list of GitService dependencies."""
         return [
             "git_operations",
@@ -685,14 +685,18 @@ class GitService(DebuggableComponent):
         # Convert datetime objects to ISO format for JSON serialization
         if "started_at" in state_data:
             state_data["started_at"] = self._state.started_at.isoformat()
-        if "last_operation" in state_data and state_data["last_operation"] and self._state.last_operation:
+        if (
+            "last_operation" in state_data
+            and state_data["last_operation"]
+            and self._state.last_operation
+        ):
             state_data["last_operation"]["timestamp"] = (
                 self._state.last_operation.timestamp.isoformat()
             )
 
         return json.dumps(state_data, indent=2, default=str)
 
-    def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
         """Perform a health check on the GitService."""
         uptime = (datetime.now() - self._state.started_at).total_seconds()
         error_rate = self._state.error_count / max(self._state.operation_count, 1) * 100
@@ -822,7 +826,7 @@ class GitService(DebuggableComponent):
         if self._config.gpg_signing_enabled and not self._config.gpg_key_id:
             logger.warning("GPG signing enabled but no GPG key ID provided")
 
-    async def _push_changes(self, repository_path: Union[str, Path]) -> Dict[str, Any]:
+    async def _push_changes(self, repository_path: Union[str, Path]) -> dict[str, Any]:
         """Internal helper to push changes."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(

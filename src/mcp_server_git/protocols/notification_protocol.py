@@ -5,11 +5,12 @@ This module defines protocols for event notification, status updates,
 error reporting, and message broadcasting throughout the system.
 """
 
-from typing import Protocol, Dict, Any, List, Optional, Union, AsyncIterator
 from abc import abstractmethod
-from enum import Enum
-from datetime import datetime
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Protocol, Union
 
 
 class NotificationLevel(Enum):
@@ -43,8 +44,8 @@ class NotificationEvent:
     message: str
     timestamp: datetime
     source_component: str
-    metadata: Dict[str, Any]
-    channels: List[NotificationChannel]
+    metadata: dict[str, Any]
+    channels: list[NotificationChannel]
 
 
 class EventSubscriber(Protocol):
@@ -66,7 +67,7 @@ class EventSubscriber(Protocol):
         ...
 
     @abstractmethod
-    def get_subscription_filters(self) -> Dict[str, Any]:
+    def get_subscription_filters(self) -> dict[str, Any]:
         """
         Get filters for events this subscriber is interested in.
 
@@ -145,7 +146,7 @@ class EventPublisher(Protocol):
         ...
 
     @abstractmethod
-    def get_active_subscriptions(self) -> List[str]:
+    def get_active_subscriptions(self) -> list[str]:
         """Get list of active subscription IDs."""
         ...
 
@@ -155,7 +156,7 @@ class StatusReporter(Protocol):
 
     @abstractmethod
     def report_status(
-        self, status: str, component_id: str, metadata: Optional[Dict[str, Any]] = None
+        self, status: str, component_id: str, metadata: Union[dict[str, Any], None] = None
     ) -> None:
         """
         Report status update for a component.
@@ -181,7 +182,7 @@ class StatusReporter(Protocol):
         progress: float,
         component_id: str,
         operation: str,
-        details: Optional[str] = None,
+        details: Union[str, None] = None,
     ) -> None:
         """
         Report progress update for a long-running operation.
@@ -204,7 +205,7 @@ class StatusReporter(Protocol):
         component_id: str,
         operation: str,
         success: bool,
-        result_data: Optional[Dict[str, Any]] = None,
+        result_data: Union[dict[str, Any], None] = None,
     ) -> None:
         """
         Report completion of an operation.
@@ -233,8 +234,8 @@ class ErrorReporter(Protocol):
         self,
         error: Exception,
         component_id: str,
-        operation: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        operation: Union[str, None] = None,
+        context: Union[dict[str, Any], None] = None,
     ) -> str:
         """
         Report an error that occurred in a component.
@@ -261,7 +262,7 @@ class ErrorReporter(Protocol):
 
     @abstractmethod
     def report_warning(
-        self, message: str, component_id: str, context: Optional[Dict[str, Any]] = None
+        self, message: str, component_id: str, context: Union[dict[str, Any], None] = None
     ) -> str:
         """
         Report a warning condition.
@@ -278,8 +279,8 @@ class ErrorReporter(Protocol):
 
     @abstractmethod
     def get_error_history(
-        self, component_id: Optional[str] = None, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self, component_id: Union[str, None] = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """
         Get recent error history.
 
@@ -314,10 +315,10 @@ class MessageBroadcaster(Protocol):
     def broadcast_message(
         self,
         message: str,
-        channels: List[NotificationChannel],
+        channels: list[NotificationChannel],
         level: NotificationLevel = NotificationLevel.INFO,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[str]:
+        metadata: Union[dict[str, Any], None] = None,
+    ) -> list[str]:
         """
         Broadcast a message to multiple channels.
 
@@ -344,10 +345,10 @@ class MessageBroadcaster(Protocol):
     def send_targeted_message(
         self,
         message: str,
-        recipients: List[str],
+        recipients: list[str],
         channel: NotificationChannel,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[str]:
+        metadata: Union[dict[str, Any], None] = None,
+    ) -> list[str]:
         """
         Send message to specific recipients.
 
@@ -363,7 +364,7 @@ class MessageBroadcaster(Protocol):
         ...
 
     @abstractmethod
-    def get_delivery_status(self, delivery_ids: List[str]) -> Dict[str, str]:
+    def get_delivery_status(self, delivery_ids: list[str]) -> dict[str, str]:
         """
         Get delivery status for messages.
 
@@ -391,7 +392,7 @@ class NotificationSystem(Protocol):
     message_broadcaster: MessageBroadcaster
 
     @abstractmethod
-    def initialize_notifications(self, config: Dict[str, Any]) -> None:
+    def initialize_notifications(self, config: dict[str, Any]) -> None:
         """
         Initialize the notification system with configuration.
 
@@ -417,7 +418,7 @@ class NotificationSystem(Protocol):
         ...
 
     @abstractmethod
-    def get_notification_stats(self) -> Dict[str, Union[int, float]]:
+    def get_notification_stats(self) -> dict[str, Union[int, float]]:
         """
         Get statistics about notification system usage.
 
@@ -433,7 +434,7 @@ class NotificationSystem(Protocol):
         ...
 
     @abstractmethod
-    def health_check_notifications(self) -> Dict[str, Union[bool, str]]:
+    def health_check_notifications(self) -> dict[str, Union[bool, str]]:
         """
         Perform health check on notification system.
 
@@ -453,14 +454,14 @@ class AsyncNotificationSystem(Protocol):
 
     @abstractmethod
     async def broadcast_message_async(
-        self, message: str, channels: List[NotificationChannel]
-    ) -> List[str]:
+        self, message: str, channels: list[NotificationChannel]
+    ) -> list[str]:
         """Async version of broadcast_message."""
         ...
 
     @abstractmethod
     async def notification_stream(
-        self, filters: Optional[Dict[str, Any]] = None
+        self, filters: Union[dict[str, Any], None] = None
     ) -> AsyncIterator[NotificationEvent]:
         """
         Stream notifications matching filters.

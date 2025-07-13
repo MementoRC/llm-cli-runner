@@ -5,23 +5,23 @@ This module defines protocols for repository operations, path validation,
 branch management, and Git command execution interfaces.
 """
 
-from typing import Protocol, List, Optional, Dict, Any, Union, AsyncIterator, Callable
 from abc import abstractmethod
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, Union
 
 if TYPE_CHECKING:
     from ..types.git_types import (
-        GitRepositoryPath,
         GitBranch,
+        GitBranchInfo,
         GitCommitHash,
-        GitOperationResult,
-        GitStatusResult,
+        GitCommitInfo,
         GitDiffResult,
         GitLogResult,
-        GitCommitInfo,
-        GitBranchInfo,
+        GitOperationResult,
         GitRemoteInfo,
+        GitRepositoryPath,
+        GitStatusResult,
     )
 else:
     # Runtime imports - create type aliases to avoid import errors
@@ -58,7 +58,7 @@ class RepositoryValidator(Protocol):
         ...
 
     @abstractmethod
-    def get_repository_info(self, path: Union[str, Path]) -> Dict[str, Any]:
+    def get_repository_info(self, path: Union[str, Path]) -> dict[str, Any]:
         """
         Get repository information and metadata.
 
@@ -78,7 +78,7 @@ class RepositoryValidator(Protocol):
     @abstractmethod
     def check_repository_health(
         self, path: Union[str, Path]
-    ) -> Dict[str, Union[bool, str, List[str]]]:
+    ) -> dict[str, Union[bool, str, list[str]]]:
         """
         Check the health and integrity of a Git repository.
 
@@ -103,7 +103,7 @@ class BranchManager(Protocol):
     @abstractmethod
     def list_branches(
         self, repo_path: GitRepositoryPath, remote: bool = False
-    ) -> List[GitBranchInfo]:
+    ) -> list[GitBranchInfo]:
         """
         List all branches in the repository.
 
@@ -127,7 +127,7 @@ class BranchManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         branch_name: str,
-        base_branch: Optional[str] = None,
+        base_branch: Union[str, None] = None,
     ) -> GitOperationResult:
         """
         Create a new branch.
@@ -192,7 +192,7 @@ class BranchManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         source_branch: str,
-        target_branch: Optional[str] = None,
+        target_branch: Union[str, None] = None,
     ) -> GitOperationResult:
         """
         Merge one branch into another.
@@ -216,7 +216,7 @@ class CommitManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         max_count: int = 10,
-        branch: Optional[str] = None,
+        branch: Union[str, None] = None,
     ) -> GitLogResult:
         """
         Get commit history for the repository.
@@ -242,9 +242,9 @@ class CommitManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         message: str,
-        files: Optional[List[str]] = None,
-        author_name: Optional[str] = None,
-        author_email: Optional[str] = None,
+        files: Union[list[str], None] = None,
+        author_name: Union[str, None] = None,
+        author_email: Union[str, None] = None,
     ) -> GitOperationResult:
         """
         Create a new commit.
@@ -290,7 +290,7 @@ class CommitManager(Protocol):
 
     @abstractmethod
     def stage_files(
-        self, repo_path: GitRepositoryPath, files: List[str]
+        self, repo_path: GitRepositoryPath, files: list[str]
     ) -> GitOperationResult:
         """
         Stage files for commit.
@@ -306,7 +306,7 @@ class CommitManager(Protocol):
 
     @abstractmethod
     def unstage_files(
-        self, repo_path: GitRepositoryPath, files: List[str]
+        self, repo_path: GitRepositoryPath, files: list[str]
     ) -> GitOperationResult:
         """
         Unstage files from the staging area.
@@ -388,7 +388,7 @@ class RemoteManager(Protocol):
     """Protocol for Git remote operations."""
 
     @abstractmethod
-    def list_remotes(self, repo_path: GitRepositoryPath) -> List[GitRemoteInfo]:
+    def list_remotes(self, repo_path: GitRepositoryPath) -> list[GitRemoteInfo]:
         """
         List all configured remotes.
 
@@ -438,7 +438,7 @@ class RemoteManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         remote_name: str = "origin",
-        branch_name: Optional[str] = None,
+        branch_name: Union[str, None] = None,
         force: bool = False,
     ) -> GitOperationResult:
         """
@@ -509,7 +509,7 @@ class RepositoryOperations(Protocol):
 
     @abstractmethod
     def clone_repository(
-        self, url: str, destination: Union[str, Path], branch: Optional[str] = None
+        self, url: str, destination: Union[str, Path], branch: Union[str, None] = None
     ) -> GitOperationResult:
         """
         Clone a remote repository.
@@ -547,7 +547,7 @@ class AsyncRepositoryOperations(Protocol):
         self,
         url: str,
         destination: Union[str, Path],
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Union[Callable, None] = None,
     ) -> GitOperationResult:
         """
         Async clone with progress reporting.

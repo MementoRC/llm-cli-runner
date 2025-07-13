@@ -19,19 +19,18 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
+from typing import Any, Union
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import ClientCapabilities
 
 from ..protocols.debugging_protocol import (
-    DebuggableComponent,
     ComponentState,
-    ValidationResult,
+    DebuggableComponent,
     DebugInfo,
+    ValidationResult,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class ServerComponentState:
 
     component_id: str
     component_type: str
-    state_data: Dict[str, Any]
+    state_data: dict[str, Any]
     last_updated: datetime = field(default_factory=datetime.now)
 
 
@@ -51,8 +50,8 @@ class ServerValidationResult:
     """Implementation of ValidationResult for the server core."""
 
     is_valid: bool
-    validation_errors: List[str] = field(default_factory=list)
-    validation_warnings: List[str] = field(default_factory=list)
+    validation_errors: list[str] = field(default_factory=list)
+    validation_warnings: list[str] = field(default_factory=list)
     validation_timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -61,9 +60,9 @@ class ServerDebugInfo:
     """Implementation of DebugInfo for the server core."""
 
     debug_level: str
-    debug_data: Dict[str, Any]
-    stack_trace: Optional[List[str]] = None
-    performance_metrics: Dict[str, Union[int, float]] = field(default_factory=dict)
+    debug_data: dict[str, Any]
+    stack_trace: Union[list[str], None] = None
+    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
 
 
 class MCPGitServerCore(DebuggableComponent):
@@ -83,22 +82,22 @@ class MCPGitServerCore(DebuggableComponent):
             server_name: Name identifier for the server
         """
         self.server_name = server_name
-        self.server: Optional[Server] = None
-        self.repository_path: Optional[Path] = None
+        self.server: Union[Server, None] = None
+        self.repository_path: Union[Path, None] = None
         self.is_running = False
-        self.start_time: Optional[datetime] = None
+        self.start_time: Union[datetime, None] = None
         self.error_count = 0
-        self.last_error: Optional[str] = None
+        self.last_error: Union[str, None] = None
         self.request_count = 0
-        self.client_capabilities: Optional[ClientCapabilities] = None
+        self.client_capabilities: Union[ClientCapabilities, None] = None
 
         # State tracking
-        self._state_history: List[ComponentState] = []
+        self._state_history: list[ComponentState] = []
         self._max_state_history = 100
 
         logger.info(f"Initialized MCPGitServerCore with name: {server_name}")
 
-    def initialize_server(self, repository_path: Optional[Path] = None) -> Server:
+    def initialize_server(self, repository_path: Union[Path, None] = None) -> Server:
         """
         Initialize the MCP server instance.
 
@@ -194,7 +193,7 @@ class MCPGitServerCore(DebuggableComponent):
             self.is_running = False
             self._update_state_history()
 
-    def get_server_instance(self) -> Optional[Server]:
+    def get_server_instance(self) -> Union[Server, None]:
         """
         Get the current server instance.
 
@@ -309,7 +308,7 @@ class MCPGitServerCore(DebuggableComponent):
             performance_metrics=performance_metrics,
         )
 
-    def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
         """Inspect specific parts of the component state."""
         state = self.get_component_state().state_data
 
@@ -328,7 +327,7 @@ class MCPGitServerCore(DebuggableComponent):
 
         return {path: current}
 
-    def get_component_dependencies(self) -> List[str]:
+    def get_component_dependencies(self) -> list[str]:
         """Get list of component dependencies."""
         return ["mcp.server", "mcp.server.stdio", "logging", "asyncio"]
 
@@ -352,7 +351,7 @@ class MCPGitServerCore(DebuggableComponent):
 
         return json.dumps(export_data, indent=2, default=datetime_handler)
 
-    def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
         """Perform a health check on the server core."""
         validation = self.validate_component()
         uptime = (
@@ -389,7 +388,7 @@ class MCPGitServerCore(DebuggableComponent):
         if len(self._state_history) > self._max_state_history:
             self._state_history = self._state_history[-self._max_state_history :]
 
-    def get_state_history(self, limit: int = 10) -> List[ComponentState]:
+    def get_state_history(self, limit: int = 10) -> list[ComponentState]:
         """
         Get historical state information.
 

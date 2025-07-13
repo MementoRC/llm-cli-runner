@@ -1,7 +1,7 @@
 """Pydantic models for Git operations"""
 
+from typing import Union
 from pydantic import BaseModel
-from typing import Optional
 
 
 class GitStatus(BaseModel):
@@ -11,28 +11,28 @@ class GitStatus(BaseModel):
 
 class GitDiffUnstaged(BaseModel):
     repo_path: str
-    stat_only: Optional[bool] = False
-    max_lines: Optional[int] = None
+    stat_only: Union[bool, None] = False
+    max_lines: Union[int, None] = None
 
 
 class GitDiffStaged(BaseModel):
     repo_path: str
-    stat_only: Optional[bool] = False
-    max_lines: Optional[int] = None
+    stat_only: Union[bool, None] = False
+    max_lines: Union[int, None] = None
 
 
 class GitDiff(BaseModel):
     repo_path: str
     target: str
-    stat_only: Optional[bool] = False
-    max_lines: Optional[int] = None
+    stat_only: Union[bool, None] = False
+    max_lines: Union[int, None] = None
 
 
 class GitCommit(BaseModel):
     repo_path: str
     message: str
     gpg_sign: bool = False
-    gpg_key_id: Optional[str] = None
+    gpg_key_id: Union[str, None] = None
 
 
 class GitAdd(BaseModel):
@@ -42,9 +42,9 @@ class GitAdd(BaseModel):
 
 class GitReset(BaseModel):
     repo_path: str
-    mode: Optional[str] = None  # --soft, --mixed, --hard
-    target: Optional[str] = None  # commit hash, branch, tag
-    files: Optional[list[str]] = None  # specific files to reset
+    mode: Union[str, None] = None  # --soft, --mixed, --hard
+    target: Union[str, None] = None  # commit hash, branch, tag
+    files: Union[list[str], None] = None  # specific files to reset
 
 
 class GitLog(BaseModel):
@@ -52,13 +52,13 @@ class GitLog(BaseModel):
     max_count: int = 10
     oneline: bool = False
     graph: bool = False
-    format: Optional[str] = None
+    format: Union[str, None] = None
 
 
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    base_branch: Optional[str] = None
+    base_branch: Union[str, None] = None
 
 
 class GitCheckout(BaseModel):
@@ -69,8 +69,8 @@ class GitCheckout(BaseModel):
 class GitShow(BaseModel):
     repo_path: str
     revision: str
-    stat_only: Optional[bool] = False
-    max_lines: Optional[int] = None
+    stat_only: Union[bool, None] = False
+    max_lines: Union[int, None] = None
 
 
 class GitInit(BaseModel):
@@ -80,7 +80,7 @@ class GitInit(BaseModel):
 class GitPush(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Optional[str] = None
+    branch: Union[str, None] = None
     set_upstream: bool = False
     force: bool = False
 
@@ -88,15 +88,15 @@ class GitPush(BaseModel):
 class GitPull(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Optional[str] = None
+    branch: Union[str, None] = None
 
 
 class GitDiffBranches(BaseModel):
     repo_path: str
     base_branch: str
     compare_branch: str
-    stat_only: Optional[bool] = False
-    max_lines: Optional[int] = None
+    stat_only: Union[bool, None] = False
+    max_lines: Union[int, None] = None
 
 
 class GitRebase(BaseModel):
@@ -108,7 +108,7 @@ class GitMerge(BaseModel):
     repo_path: str
     source_branch: str
     strategy: str = "merge"
-    message: Optional[str] = None
+    message: Union[str, None] = None
 
 
 class GitCherryPick(BaseModel):

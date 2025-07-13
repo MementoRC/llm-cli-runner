@@ -22,7 +22,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 
 # Exception classes for error handling
@@ -32,10 +32,10 @@ class GitCommandError(Exception):
     def __init__(
         self,
         message: str,
-        command: list[str] | None = None,
-        repo_path: str | None = None,
-        return_code: int | None = None,
-        stderr: str | None = None,
+        command: Union[list[str], None] = None,
+        repo_path: Union[str, None] = None,
+        return_code: Union[int, None] = None,
+        stderr: Union[str, None] = None,
     ):
         super().__init__(message)
         self.command = command
@@ -50,8 +50,8 @@ class GitRepositoryError(Exception):
     def __init__(
         self,
         message: str,
-        repo_path: str | None = None,
-        suggested_action: str | None = None,
+        repo_path: Union[str, None] = None,
+        suggested_action: Union[str, None] = None,
     ):
         super().__init__(message)
         self.repo_path = repo_path
@@ -64,9 +64,9 @@ class GitValidationError(Exception):
     def __init__(
         self,
         message: str,
-        field: str | None = None,
-        value: Any | None = None,
-        validation_rule: str | None = None,
+        field: Union[str, None] = None,
+        value: Union[Any, None] = None,
+        validation_rule: Union[str, None] = None,
     ):
         super().__init__(message)
         self.field = field
@@ -81,7 +81,7 @@ class GitCommandResult:
 
     success: bool
     output: str
-    error: str | None = None
+    error: Union[str, None] = None
     return_code: int = 0
 
 
@@ -133,7 +133,7 @@ class GitFormattedError:
     message: str
     context: str
     command: list[str]
-    suggestion: str | None = None
+    suggestion: Union[str, None] = None
 
 
 # Core primitive operations
@@ -365,7 +365,7 @@ def get_untracked_files(repo_path: str) -> list[str]:
     return parsed.untracked_files
 
 
-def get_current_branch(repo_path: str) -> str | None:
+def get_current_branch(repo_path: str) -> Union[str, None]:
     """
     Get the current branch name.
 

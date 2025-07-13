@@ -5,9 +5,9 @@ This module contains Pydantic models for handling MCP protocol messages
 and validating incoming client notifications.
 """
 
+from .middleware import notification_validator_middleware
 from .notifications import CancelledNotification, CancelledParams
 from .validation import validate_cancelled_notification, validate_notification
-from .middleware import notification_validator_middleware
 
 __all__ = [
     "CancelledNotification",

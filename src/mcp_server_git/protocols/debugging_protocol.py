@@ -5,9 +5,9 @@ This module defines the DebuggableComponent protocol and related interfaces
 for enabling comprehensive debugging and state inspection capabilities.
 """
 
-from typing import Protocol, Dict, Any, List, Optional, Union
 from abc import abstractmethod
 from datetime import datetime
+from typing import Any, Protocol, Union
 
 
 class ComponentState(Protocol):
@@ -27,7 +27,7 @@ class ComponentState(Protocol):
 
     @property
     @abstractmethod
-    def state_data(self) -> Dict[str, Any]:
+    def state_data(self) -> dict[str, Any]:
         """Current state data of the component."""
         ...
 
@@ -49,13 +49,13 @@ class ValidationResult(Protocol):
 
     @property
     @abstractmethod
-    def validation_errors(self) -> List[str]:
+    def validation_errors(self) -> list[str]:
         """List of validation error messages."""
         ...
 
     @property
     @abstractmethod
-    def validation_warnings(self) -> List[str]:
+    def validation_warnings(self) -> list[str]:
         """List of validation warning messages."""
         ...
 
@@ -77,19 +77,19 @@ class DebugInfo(Protocol):
 
     @property
     @abstractmethod
-    def debug_data(self) -> Dict[str, Any]:
+    def debug_data(self) -> dict[str, Any]:
         """Debug-specific data and metadata."""
         ...
 
     @property
     @abstractmethod
-    def stack_trace(self) -> Optional[List[str]]:
+    def stack_trace(self) -> Union[list[str], None]:
         """Stack trace information if available."""
         ...
 
     @property
     @abstractmethod
-    def performance_metrics(self) -> Dict[str, Union[int, float]]:
+    def performance_metrics(self) -> dict[str, Union[int, float]]:
         """Performance metrics for the component."""
         ...
 
@@ -155,7 +155,7 @@ class DebuggableComponent(Protocol):
         ...
 
     @abstractmethod
-    def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
         """
         Inspect specific parts of the component state.
 
@@ -174,7 +174,7 @@ class DebuggableComponent(Protocol):
         ...
 
     @abstractmethod
-    def get_component_dependencies(self) -> List[str]:
+    def get_component_dependencies(self) -> list[str]:
         """
         Get list of component dependencies.
 
@@ -204,7 +204,7 @@ class DebuggableComponent(Protocol):
         ...
 
     @abstractmethod
-    def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
         """
         Perform a health check on the component.
 
@@ -229,7 +229,7 @@ class StateInspector(Protocol):
     """Protocol for advanced state inspection capabilities."""
 
     @abstractmethod
-    def get_state_history(self, limit: int = 10) -> List[ComponentState]:
+    def get_state_history(self, limit: int = 10) -> list[ComponentState]:
         """
         Get historical state information.
 
@@ -244,7 +244,7 @@ class StateInspector(Protocol):
     @abstractmethod
     def compare_states(
         self, state1: ComponentState, state2: ComponentState
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Compare two component states and return differences.
 
@@ -258,7 +258,7 @@ class StateInspector(Protocol):
         ...
 
     @abstractmethod
-    def get_state_diff(self, timestamp: datetime) -> Dict[str, Any]:
+    def get_state_diff(self, timestamp: datetime) -> dict[str, Any]:
         """
         Get state differences since a specific timestamp.
 
@@ -285,12 +285,12 @@ class DebuggingContext(Protocol):
         ...
 
     @abstractmethod
-    def get_all_components(self) -> List[DebuggableComponent]:
+    def get_all_components(self) -> list[DebuggableComponent]:
         """Get all registered debuggable components."""
         ...
 
     @abstractmethod
-    def validate_all_components(self) -> Dict[str, ValidationResult]:
+    def validate_all_components(self) -> dict[str, ValidationResult]:
         """Validate all registered components."""
         ...
 

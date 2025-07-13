@@ -2,6 +2,7 @@
 MCP Git Server v2 - Clean modular architecture
 Uses tool registry and routing system for better maintainability
 """
+from typing import Union
 
 import logging
 import time
@@ -10,16 +11,16 @@ from pathlib import Path
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
-# Import configuration handling from original server
-from .server import load_environment_variables
-
 # Import the new modular components
 from .core.handlers import CallToolHandler
+
+# Import configuration handling from original server
+from .server import load_environment_variables
 
 logger = logging.getLogger(__name__)
 
 
-async def serve_v2(repository: Path | None = None):
+async def serve_v2(repository: Union[Path, None] = None):
     """Serve the MCP Git Server v2 with clean modular architecture"""
 
     start_time = time.time()

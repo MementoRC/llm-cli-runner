@@ -2,20 +2,20 @@
 
 import json
 import logging
-import time
 import threading
-from functools import lru_cache, wraps
+import time
+from collections.abc import Callable
+from functools import (
+    _CacheInfo,  # Import the internal CacheInfo type for type hinting
+    lru_cache,
+    wraps,
+)
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Optional,
     Protocol,
+    Union,
     runtime_checkable,
-    List,
-    Tuple,
 )
-from functools import _CacheInfo  # Import the internal CacheInfo type for type hinting
 
 from .models.validation import ValidationResult
 
@@ -57,7 +57,7 @@ class CPUProfiler:
             self.stats_output = s.getvalue()
             logger.info(f"CPU Profile [{self.profile_name}]:\n{self.stats_output}")
 
-    def get_stats(self) -> Optional[str]:
+    def get_stats(self) -> Union[str, None]:
         return self.stats_output
 
 
@@ -91,7 +91,7 @@ class MemoryLeakDetector:
 
         self.gc = gc
         self.tracemalloc = tracemalloc
-        self.snapshots: List[Tuple[float, int, int]] = []
+        self.snapshots: list[tuple[float, int, int]] = []
         self.tracemalloc.start()
 
     def take_snapshot(self, label: str = ""):
@@ -104,7 +104,7 @@ class MemoryLeakDetector:
             f"[MemoryLeakDetector] {label}: {current / 1024 / 1024:.2f} MB, {obj_count} objects"
         )
 
-    def report_growth(self) -> Dict[str, float]:
+    def report_growth(self) -> dict[str, float]:
         if len(self.snapshots) < 2:
             return {"memory_growth_mb": 0.0, "object_growth": 0}
         start = self.snapshots[0]
@@ -129,8 +129,8 @@ class PerformanceRegressionMonitor:
     """
 
     def __init__(self):
-        self.baselines: Dict[str, float] = {}
-        self.regressions: List[str] = []
+        self.baselines: dict[str, float] = {}
+        self.regressions: list[str] = []
 
     def set_baseline(self, test_name: str, value: float):
         self.baselines[test_name] = value
@@ -157,7 +157,7 @@ class PerformanceRegressionMonitor:
         )
         return False
 
-    def get_regressions(self) -> List[str]:
+    def get_regressions(self) -> list[str]:
         return self.regressions
 
 
@@ -174,7 +174,7 @@ class PerformanceMonitor:
         self.name = name
         self.report_interval = report_interval
         self.lock = threading.Lock()
-        self.timings: List[float] = []
+        self.timings: list[float] = []
         self.count = 0
         self.last_report = time.time()
 
@@ -203,7 +203,7 @@ class PerformanceMonitor:
             self.timings.clear()
             self.count = 0
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         with self.lock:
             if not self.timings:
                 return {"count": 0, "avg": 0.0, "p95": 0.0}
@@ -229,7 +229,7 @@ class LRUCachedFunction(Protocol):
 
 
 # This will hold the reference to the actual cached function
-_cached_parse_function: Optional[LRUCachedFunction] = None
+_cached_parse_function: Union[LRUCachedFunction, None] = None
 _cache_maxsize: int = 1024
 _cache_enabled: bool = True
 
@@ -267,7 +267,7 @@ def clear_validation_cache():
     _clear_cache()
 
 
-def get_validation_cache_stats() -> Dict[str, Any]:
+def get_validation_cache_stats() -> dict[str, Any]:
     """Returns validation cache statistics."""
     info = _get_cache_info()
     if info:
@@ -288,7 +288,7 @@ def get_validation_cache_stats() -> Dict[str, Any]:
         }
 
 
-def _create_cache_key(data: Dict[str, Any]) -> str:
+def _create_cache_key(data: dict[str, Any]) -> str:
     """Create a stable cache key from message data."""
     try:
         # Create a reproducible key from the essential fields
@@ -314,8 +314,8 @@ def _create_cache_key(data: Dict[str, Any]) -> str:
 
 
 def apply_validation_cache(
-    func: Callable[[Dict[str, Any]], ValidationResult],
-) -> Callable[[Dict[str, Any]], ValidationResult]:
+    func: Callable[[dict[str, Any]], ValidationResult],
+) -> Callable[[dict[str, Any]], ValidationResult]:
     """
     Decorator to apply caching to validation functions.
 
@@ -338,7 +338,7 @@ def apply_validation_cache(
             return ValidationResult(error=e, raw_data={})
 
     @wraps(func)
-    def wrapper(data: Dict[str, Any]) -> ValidationResult:
+    def wrapper(data: dict[str, Any]) -> ValidationResult:
         """Wrapper that handles caching logic."""
         if not _cache_enabled:
             # Cache disabled, call function directly
@@ -370,8 +370,8 @@ class PerformanceTimer:
 
     def __init__(self, name: str):
         self.name = name
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
+        self.start_time: Union[float, None] = None
+        self.end_time: Union[float, None] = None
 
     def __enter__(self):
         import time
@@ -416,7 +416,7 @@ def measure_performance(name: str):
 
 
 # Memory optimization utilities
-def optimize_message_validation(data: Dict[str, Any]) -> ValidationResult:
+def optimize_message_validation(data: dict[str, Any]) -> ValidationResult:
     """
     Optimized message validation function.
 

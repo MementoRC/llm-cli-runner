@@ -11,17 +11,17 @@ import json
 import logging
 import os
 import time
-from enum import Enum, auto
-from typing import Optional, Dict, Any, Set
-from pathlib import Path
 from dataclasses import dataclass, field
+from enum import Enum, auto
+from pathlib import Path
+from typing import Any, Union
 
 from mcp.server.session import ServerSession
 
 from .error_handling import (
+    CircuitBreaker,
     ErrorContext,
     classify_error,
-    CircuitBreaker,
     get_circuit_breaker,
 )
 
@@ -49,7 +49,7 @@ class SessionMetrics:
     heartbeat_count: int = 0
     state_transitions: int = 0
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "start_time": self.start_time,
             "last_active": self.last_active,
@@ -75,8 +75,8 @@ class Session:
     def __init__(
         self,
         session_id: str,
-        user: Optional[str] = None,
-        repository: Optional[Path] = None,
+        user: Union[str, None] = None,
+        repository: Union[Path, None] = None,
         idle_timeout: float = 900.0,  # 15 minutes default
         heartbeat_timeout: float = 60.0,  # 1 minute default
     ):
@@ -86,16 +86,16 @@ class Session:
         self.state = SessionState.CREATED
         self.metrics = SessionMetrics()
         self._lock = asyncio.Lock()
-        self._error_context: Optional[ErrorContext] = None
+        self._error_context: Union[ErrorContext, None] = None
         self._circuit: CircuitBreaker = get_circuit_breaker(f"session-{session_id}")
         self._idle_timeout = idle_timeout
         self._heartbeat_timeout = heartbeat_timeout
-        self._cleanup_task: Optional[asyncio.Task] = None
-        self._server_session: Optional[ServerSession] = None
+        self._cleanup_task: asyncio.Union[Task, None] = None
+        self._server_session: Union[ServerSession, None] = None
         self._closed_event = asyncio.Event()
         # Define a set of valid commands for demonstration/testing purposes
         # In a real application, these would likely be dynamically loaded or more extensive.
-        self._valid_commands: Set[str] = {
+        self._valid_commands: set[str] = {
             "git_status",
             "git_commit",
             "git_push",
@@ -154,7 +154,7 @@ class Session:
             self.metrics.last_active = time.time()
             logger.info(f"Session {self.session_id} resumed")
 
-    async def close(self, reason: Optional[str] = None):
+    async def close(self, reason: Union[str, None] = None):
         async with self._lock:
             if self.state in (SessionState.CLOSING, SessionState.CLOSED):
                 return
@@ -265,19 +265,19 @@ class Session:
             self.metrics.heartbeat_count += 1
             logger.debug(f"Session {self.session_id} heartbeat received at {now}")
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         return self.metrics.as_dict()
 
     def get_state(self) -> str:
         return self.state.name
 
-    def get_error_context(self) -> Optional[ErrorContext]:
+    def get_error_context(self) -> Union[ErrorContext, None]:
         return self._error_context
 
-    def get_circuit_stats(self) -> Dict[str, Any]:
+    def get_circuit_stats(self) -> dict[str, Any]:
         return self._circuit.get_stats()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize session state for persistence."""
         return {
             "session_id": self.session_id,
@@ -290,7 +290,7 @@ class Session:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Session":
+    def from_dict(cls, data: dict[str, Any]) -> "Session":
         """Restore session from serialized state."""
         session = cls(
             session_id=data["session_id"],
@@ -342,9 +342,9 @@ class HeartbeatManager:
         self._session_manager = session_manager
         self._heartbeat_interval = heartbeat_interval
         self._missed_threshold = missed_threshold
-        self._last_heartbeats: Dict[str, float] = {}
+        self._last_heartbeats: dict[str, float] = {}
         self._lock = asyncio.Lock()
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Union[Task, None] = None
         self._running = False
         self._logger = logging.getLogger(__name__)
 
@@ -402,10 +402,10 @@ class HeartbeatManager:
                 await self._session_manager.close_session(session_id)
                 self._last_heartbeats.pop(session_id, None)
 
-    def get_last_heartbeat(self, session_id: str) -> Optional[float]:
+    def get_last_heartbeat(self, session_id: str) -> Union[float, None]:
         return self._last_heartbeats.get(session_id)
 
-    def get_all_heartbeats(self) -> Dict[str, float]:
+    def get_all_heartbeats(self) -> dict[str, float]:
         return dict(self._last_heartbeats)
 
 
@@ -416,17 +416,17 @@ class SessionManager:
     """
 
     def __init__(self, idle_timeout: float = 900.0, heartbeat_timeout: float = 60.0):
-        self._sessions: Dict[str, Session] = {}
+        self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
         self._idle_timeout = idle_timeout
         self._heartbeat_timeout = heartbeat_timeout
-        self.heartbeat_manager: Optional[HeartbeatManager] = None
+        self.heartbeat_manager: Union[HeartbeatManager, None] = None
 
     async def create_session(
         self,
         session_id: str,
-        user: Optional[str] = None,
-        repository: Optional[Path] = None,
+        user: Union[str, None] = None,
+        repository: Union[Path, None] = None,
     ) -> Session:
         async with self._lock:
             if session_id in self._sessions:
@@ -446,7 +446,7 @@ class SessionManager:
             logger.info(f"SessionManager: Created and started session {session_id}")
             return session
 
-    async def get_session(self, session_id: str) -> Optional[Session]:
+    async def get_session(self, session_id: str) -> Union[Session, None]:
         async with self._lock:
             return self._sessions.get(session_id)
 
@@ -477,11 +477,11 @@ class SessionManager:
                 await self._sessions[session_id].close()
                 del self._sessions[session_id]
 
-    async def get_all_sessions(self) -> Dict[str, Session]:
+    async def get_all_sessions(self) -> dict[str, Session]:
         async with self._lock:
             return dict(self._sessions)
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         async with self._lock:
             return {
                 sid: session.get_metrics() for sid, session in self._sessions.items()
@@ -522,7 +522,7 @@ class SessionManager:
                 logger.debug("No session file to restore from")
                 return
 
-            with open(sessions_file, "r") as f:
+            with open(sessions_file) as f:
                 session_data = json.load(f)
 
             if not session_data:

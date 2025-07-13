@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ValidationError
 
@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 class CancelledParams(BaseModel):
     """Parameters for a cancelled notification."""
 
-    requestId: str | int
-    reason: str | None = None
+    requestId: Union[str, int]
+    reason: Union[str, None] = None
 
 
 class CancelledNotification(BaseModel):

@@ -1,11 +1,12 @@
 """Tool registry and routing system for MCP Git Server"""
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Union
 
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ class ToolRegistry:
     """Central registry for all MCP Git Server tools"""
 
     def __init__(self):
-        self.tools: Dict[str, ToolDefinition] = {}
+        self.tools: dict[str, ToolDefinition] = {}
         self._initialized = False
 
     def register(self, tool_def: ToolDefinition):
@@ -89,11 +90,11 @@ class ToolRegistry:
         self.tools[tool_def.name] = tool_def
         logger.debug(f"Registered tool: {tool_def.name} ({tool_def.category})")
 
-    def get_tool(self, name: str) -> Optional[ToolDefinition]:
+    def get_tool(self, name: str) -> Union[ToolDefinition, None]:
         """Get tool definition by name"""
         return self.tools.get(name)
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self) -> list[Tool]:
         """Get all tools as MCP Tool objects"""
         return [
             Tool(
@@ -104,7 +105,7 @@ class ToolRegistry:
             for tool_def in self.tools.values()
         ]
 
-    def get_tools_by_category(self, category: ToolCategory) -> List[ToolDefinition]:
+    def get_tools_by_category(self, category: ToolCategory) -> list[ToolDefinition]:
         """Get all tools in a specific category"""
         return [
             tool_def
@@ -119,41 +120,41 @@ class ToolRegistry:
 
         # Import models and handlers
         from ..git.models import (
-            GitStatus,
-            GitDiffUnstaged,
-            GitDiffStaged,
-            GitDiff,
-            GitCommit,
-            GitAdd,
-            GitReset,
-            GitLog,
-            GitCreateBranch,
-            GitCheckout,
-            GitShow,
-            GitInit,
-            GitPush,
-            GitPull,
-            GitDiffBranches,
-            GitRebase,
-            GitMerge,
-            GitCherryPick,
             GitAbort,
+            GitAdd,
+            GitCheckout,
+            GitCherryPick,
+            GitCommit,
             GitContinue,
-            GitSecurityValidate,
+            GitCreateBranch,
+            GitDiff,
+            GitDiffBranches,
+            GitDiffStaged,
+            GitDiffUnstaged,
+            GitInit,
+            GitLog,
+            GitMerge,
+            GitPull,
+            GitPush,
+            GitRebase,
+            GitReset,
             GitSecurityEnforce,
+            GitSecurityValidate,
+            GitShow,
+            GitStatus,
         )
         from ..github.models import (
-            GitHubGetPRChecks,
-            GitHubGetFailingJobs,
-            GitHubGetWorkflowRun,
-            GitHubGetPRDetails,
-            GitHubListPullRequests,
-            GitHubGetPRStatus,
-            GitHubGetPRFiles,
             GitHubCreateIssue,
-            GitHubListIssues,
-            GitHubUpdateIssue,
             GitHubEditPRDescription,
+            GitHubGetFailingJobs,
+            GitHubGetPRChecks,
+            GitHubGetPRDetails,
+            GitHubGetPRFiles,
+            GitHubGetPRStatus,
+            GitHubGetWorkflowRun,
+            GitHubListIssues,
+            GitHubListPullRequests,
+            GitHubUpdateIssue,
         )
 
         # Import handlers (will be set by the router)
@@ -464,9 +465,9 @@ class GitToolRouter:
 
     def set_handlers(
         self,
-        git_handlers: Dict[str, Callable],
-        github_handlers: Dict[str, Callable],
-        security_handlers: Dict[str, Callable],
+        git_handlers: dict[str, Callable],
+        github_handlers: dict[str, Callable],
+        security_handlers: dict[str, Callable],
     ):
         """Set up actual tool handlers"""
 
@@ -489,8 +490,8 @@ class GitToolRouter:
         logger.info("Tool handlers initialized")
 
     async def route_tool_call(
-        self, name: str, arguments: Dict[str, Any]
-    ) -> List[TextContent]:
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Route a tool call to the appropriate handler"""
 
         if not self._handlers_initialized:

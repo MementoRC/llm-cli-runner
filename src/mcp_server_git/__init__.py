@@ -1,9 +1,12 @@
-import click
-from pathlib import Path
+from typing import Union
 import logging
-import sys
 import os
+import sys
 from datetime import datetime
+from pathlib import Path
+
+import click
+
 from .server import main as serve
 from .session import Session, SessionManager
 
@@ -24,7 +27,7 @@ __all__ = ["Session", "SessionManager", "main"]
     help="Run in test mode for CI (stays alive without immediate stdio)",
 )
 def main(
-    repository: Path | None, verbose: bool, enable_file_logging: bool, test_mode: bool
+    repository: Union[Path, None], verbose: bool, enable_file_logging: bool, test_mode: bool
 ) -> None:
     """MCP Git Server - Git functionality for MCP"""
     import asyncio

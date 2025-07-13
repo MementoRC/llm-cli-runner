@@ -104,9 +104,9 @@ See also:
 """
 
 # Import all configuration models
-from .server_config import GitServerConfig
 from .git_config import GitConfig
 from .github_config import GitHubConfig
+from .server_config import GitServerConfig
 
 # Export all configuration models and utilities
 __all__: list[str] = [

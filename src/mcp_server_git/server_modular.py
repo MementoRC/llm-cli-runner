@@ -2,6 +2,7 @@
 Modular MCP Git Server - New structure that imports from existing server.py
 This allows us to refactor incrementally while keeping the original working
 """
+from typing import Union
 
 import logging
 import time
@@ -13,74 +14,88 @@ from mcp.types import TextContent, Tool
 
 # Import everything from original server for now
 from .server import (
-    # Configuration and environment
-    load_environment_variables,
-    # GitHub functionality - will be replaced with modular imports
-    github_get_pr_details,
-    git_status,
-    git_diff_unstaged,
-    git_diff_staged,
-    git_diff,
-    git_commit,
-    git_add,
-    git_reset,
-    git_log,
-    git_create_branch,
-    git_checkout,
-    git_show,
-    git_init,
-    git_push,
-    git_pull,
-    git_diff_branches,
-    git_rebase,
-    git_merge,
-    git_cherry_pick,
-    git_abort,
-    git_continue,
+    GitAbort,
+    GitAdd,
+    GitCheckout,
+    GitCherryPick,
+    GitCommit,
+    GitContinue,
+    GitCreateBranch,
+    GitDiff,
+    GitDiffBranches,
+    GitDiffStaged,
+    GitDiffUnstaged,
+    GitHubGetFailingJobs,
+    GitHubGetPRChecks,
+    GitHubGetPRDetails,
+    GitHubGetPRFiles,
+    # Security validation models removed - will be implemented in frameworks
+    GitHubGetPRStatus,
+    GitHubGetWorkflowRun,
+    GitHubListPullRequests,
+    GitInit,
+    GitLog,
+    GitMerge,
+    GitPull,
+    GitPush,
+    GitRebase,
+    GitReset,
+    GitShow,
     # Security functionality removed - will be implemented in frameworks
     # Models and enums
     GitTools,
+    git_abort,
+    git_add,
+    git_checkout,
+    git_cherry_pick,
+    git_commit,
+    git_continue,
+    git_create_branch,
+    git_diff,
+    git_diff_branches,
+    git_diff_staged,
+    git_diff_unstaged,
+    git_init,
+    git_log,
+    git_merge,
+    git_pull,
+    git_push,
+    git_rebase,
+    git_reset,
+    git_show,
+    git_status,
+    # GitHub functionality - will be replaced with modular imports
+    github_get_pr_details,
+    # Configuration and environment
+    load_environment_variables,
+)
+from .server import (
     GitStatus as GitStatusModel,
-    GitDiffUnstaged,
-    GitDiffStaged,
-    GitDiff,
-    GitCommit,
-    GitAdd,
-    GitReset,
-    GitLog,
-    GitCreateBranch,
-    GitCheckout,
-    GitShow,
-    GitInit,
-    GitPush,
-    GitPull,
-    GitDiffBranches,
-    GitRebase,
-    GitMerge,
-    GitCherryPick,
-    GitAbort,
-    GitContinue,
-    GitHubGetPRChecks,
-    GitHubGetFailingJobs,
-    GitHubGetWorkflowRun,
-    GitHubGetPRDetails,
-    GitHubListPullRequests,
-    GitHubGetPRStatus,
-    GitHubGetPRFiles,
-    # Security validation models removed - will be implemented in frameworks
 )
 
 # Try to import modular components, fall back to original if not available
 try:
     from .github.api import (
+        github_get_failing_jobs as modular_github_get_failing_jobs,
+    )
+    from .github.api import (
         # Read operations
         github_get_pr_checks as modular_github_get_pr_checks,
+    )
+    from .github.api import (
         github_get_pr_details as modular_github_get_pr_details,
-        github_get_failing_jobs as modular_github_get_failing_jobs,
-        github_get_workflow_run as modular_github_get_workflow_run,
-        github_list_pull_requests as modular_github_list_pull_requests,
-        github_get_pr_status as modular_github_get_pr_status,
+    )
+    from .github.api import (
         github_get_pr_files as modular_github_get_pr_files,
+    )
+    from .github.api import (
+        github_get_pr_status as modular_github_get_pr_status,
+    )
+    from .github.api import (
+        github_get_workflow_run as modular_github_get_workflow_run,
+    )
+    from .github.api import (
+        github_list_pull_requests as modular_github_list_pull_requests,
     )
 
     print("✅ Using modular GitHub API functions")
@@ -91,14 +106,28 @@ except ImportError:
 
 try:
     from .git.operations import (
-        git_status as modular_git_status,
-        git_diff_unstaged as modular_git_diff_unstaged,
-        git_diff_staged as modular_git_diff_staged,
-        git_diff as modular_git_diff,
-        git_commit as modular_git_commit,
         git_add as modular_git_add,
-        git_reset as modular_git_reset,
+    )
+    from .git.operations import (
+        git_commit as modular_git_commit,
+    )
+    from .git.operations import (
+        git_diff as modular_git_diff,
+    )
+    from .git.operations import (
+        git_diff_staged as modular_git_diff_staged,
+    )
+    from .git.operations import (
+        git_diff_unstaged as modular_git_diff_unstaged,
+    )
+    from .git.operations import (
         git_init as modular_git_init,
+    )
+    from .git.operations import (
+        git_reset as modular_git_reset,
+    )
+    from .git.operations import (
+        git_status as modular_git_status,
     )
 
     print("✅ Using modular Git operations")
@@ -110,7 +139,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-async def serve_modular(repository: Path | None = None):
+async def serve_modular(repository: Union[Path, None] = None):
     """Serve the MCP Git Server with modular structure"""
 
     start_time = time.time()

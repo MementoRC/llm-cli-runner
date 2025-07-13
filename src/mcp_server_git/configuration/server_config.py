@@ -47,8 +47,9 @@ See also:
 """
 
 from pathlib import Path
-from typing import Optional, List, Literal
-from pydantic import BaseModel, field_validator, Field
+from typing import Literal, Union
+
+from pydantic import BaseModel, Field, field_validator
 
 # Import custom types - these should be defined in the types module
 # For now, we'll use str as a placeholder for GitHubToken
@@ -106,11 +107,11 @@ class GitServerConfig(BaseModel):
     enable_security_validation: bool = Field(
         default=True, description="Enable security validation for Git operations"
     )
-    allowed_repository_paths: List[Path] = Field(
+    allowed_repository_paths: list[Path] = Field(
         default_factory=list,
         description="List of allowed repository paths (must exist and be Git repos)",
     )
-    forbidden_operations: List[str] = Field(
+    forbidden_operations: list[str] = Field(
         default_factory=list,
         description="List of forbidden Git operations (e.g., 'force-push', 'rebase')",
     )
@@ -119,7 +120,7 @@ class GitServerConfig(BaseModel):
     )
 
     # GitHub integration
-    github_token: Optional[GitHubToken] = Field(
+    github_token: Union[GitHubToken, None] = Field(
         default=None, description="GitHub API token for authentication"
     )
     github_api_timeout: int = Field(
@@ -148,7 +149,7 @@ class GitServerConfig(BaseModel):
 
     @field_validator("allowed_repository_paths")
     @classmethod
-    def validate_repository_paths(cls, v: List[Path]) -> List[Path]:
+    def validate_repository_paths(cls, v: list[Path]) -> list[Path]:
         """Validate that all repository paths exist and are Git repositories.
 
         Args:
@@ -169,7 +170,7 @@ class GitServerConfig(BaseModel):
 
     @field_validator("github_token")
     @classmethod
-    def validate_github_token(cls, v: Optional[str]) -> Optional[str]:
+    def validate_github_token(cls, v: Union[str, None]) -> Union[str, None]:
         """Validate GitHub token format.
 
         GitHub tokens must start with specific prefixes:
@@ -198,7 +199,7 @@ class GitServerConfig(BaseModel):
 
     @field_validator("forbidden_operations")
     @classmethod
-    def validate_forbidden_operations(cls, v: List[str]) -> List[str]:
+    def validate_forbidden_operations(cls, v: list[str]) -> list[str]:
         """Validate forbidden operations list.
 
         Ensures that forbidden operations are recognized Git operations.

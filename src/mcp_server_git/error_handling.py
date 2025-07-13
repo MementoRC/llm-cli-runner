@@ -4,8 +4,9 @@ import asyncio
 import functools
 import logging
 import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, TypeVar, cast, Union
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,9 @@ class ErrorContext:
         error: Exception,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         operation: str = "",
-        session_id: Optional[str] = None,
+        session_id: Union[str, None] = None,
         recoverable: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Union[dict[str, Any], None] = None,
     ):
         self.error = error
         self.severity = severity
@@ -289,7 +290,7 @@ def classify_error(error: Exception, operation: str = "") -> ErrorContext:
 
 
 # Error metrics tracking
-_error_stats: Dict[str, Any] = {
+_error_stats: dict[str, Any] = {
     "total_errors": 0,
     "errors_by_type": {},
     "errors_by_severity": {severity.value: 0 for severity in ErrorSeverity},
@@ -316,7 +317,7 @@ def record_error_metric(context: ErrorContext) -> None:
         _error_stats["critical_errors"] += 1
 
 
-def get_error_stats() -> Dict[str, Any]:
+def get_error_stats() -> dict[str, Any]:
     """Get current error statistics."""
     return _error_stats.copy()
 
@@ -462,7 +463,7 @@ class CircuitBreaker:
             return 0.0
         return self._successful_requests / self._total_requests
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get circuit breaker statistics."""
         return {
             "name": self.name,
@@ -523,7 +524,7 @@ def with_circuit_breaker(circuit: CircuitBreaker):
 
 
 # Global circuit breaker registry
-_circuit_breakers: Dict[str, CircuitBreaker] = {}
+_circuit_breakers: dict[str, CircuitBreaker] = {}
 
 
 def get_circuit_breaker(
@@ -543,7 +544,7 @@ def get_circuit_breaker(
     return _circuit_breakers[name]
 
 
-def get_all_circuit_breakers() -> Dict[str, CircuitBreaker]:
+def get_all_circuit_breakers() -> dict[str, CircuitBreaker]:
     """Get all registered circuit breakers."""
     return _circuit_breakers.copy()
 

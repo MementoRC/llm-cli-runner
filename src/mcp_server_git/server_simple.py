@@ -10,26 +10,28 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Union
 
-# Safe git import that handles ClaudeCode redirector conflicts
-from .utils.git_import import Repo, InvalidGitRepositoryError
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
+from .core.handlers import CallToolHandler
+
 # Import core functionality from main server
 from .core.tools import ToolRegistry
-from .core.handlers import CallToolHandler
 from .logging_config import configure_logging
 from .server import load_environment_variables
+
+# Safe git import that handles ClaudeCode redirector conflicts
+from .utils.git_import import InvalidGitRepositoryError, Repo
 
 # Global instances
 _tool_handler = None
 _tool_registry = None
 
 
-async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
+async def main_simple(repository: Union[Path, None], test_mode: bool = False) -> None:
     """
     Simplified MCP Git Server main function following aider pattern.
 
@@ -60,7 +62,7 @@ async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
     server: Server = Server("mcp-git-simple")
 
     @server.list_tools()
-    async def list_tools() -> List[Tool]:
+    async def list_tools() -> list[Tool]:
         """Return available git tools"""
         global _tool_registry
         if _tool_registry is None:
@@ -69,7 +71,7 @@ async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
         return _tool_registry.list_tools()
 
     @server.call_tool()
-    async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls with minimal wrapper"""
         logger.info(f"Tool call: {name}")
 
@@ -123,7 +125,7 @@ def main_cli() -> None:
     @click.option("--enable-file-logging", is_flag=True, help="Enable file logging")
     @click.option("--test-mode", is_flag=True, help="Run in test mode for CI")
     def cli(
-        repository: Path | None,
+        repository: Union[Path, None],
         verbose: int,
         enable_file_logging: bool,
         test_mode: bool,

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Union
 
 from .notifications import CancelledNotification
 from .validation import validate_cancelled_notification
@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 def notification_validator_middleware(
-    message: Dict[str, Any],
-) -> Optional[CancelledNotification]:
+    message: dict[str, Any],
+) -> Union[CancelledNotification, None]:
     """
     A middleware that validates incoming notifications.
     It specifically looks for and validates "notifications/cancelled".

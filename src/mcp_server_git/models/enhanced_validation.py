@@ -4,11 +4,11 @@ This module provides comprehensive validation that can handle unexpected or malf
 without crashing the server.
 """
 
-import logging
 import json
-from typing import Dict, Any, Optional, Union, Callable
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-
+from typing import Any, Union
 
 from .notifications import CancelledNotification
 from .validation import ValidationResult, safe_parse_notification
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Define placeholders for caching functions and a flag
 _caching_available: bool = False
 _apply_validation_cache_func: Callable[[Callable[..., Any]], Callable[..., Any]]
-_get_validation_cache_stats_func: Callable[[], Dict[str, Any]]
+_get_validation_cache_stats_func: Callable[[], dict[str, Any]]
 
 
 # Default no-op decorator and stats function if caching is not available
@@ -26,7 +26,7 @@ def _no_op_apply_validation_cache(func: Callable[..., Any]) -> Callable[..., Any
     return func
 
 
-def _no_op_get_validation_cache_stats() -> Dict[str, Any]:
+def _no_op_get_validation_cache_stats() -> dict[str, Any]:
     return {
         "hits": 0,
         "misses": 0,
@@ -62,7 +62,7 @@ class NotificationInfo:
 
     method: str
     has_params: bool
-    request_id: Optional[Union[str, int]] = None
+    request_id: Union[str, int, None] = None
     raw_size: int = 0
 
 
@@ -77,7 +77,7 @@ class RobustNotificationHandler:
         self.error_count = 0
         self.unknown_count = 0
 
-    def extract_notification_info(self, data: Dict[str, Any]) -> NotificationInfo:
+    def extract_notification_info(self, data: dict[str, Any]) -> NotificationInfo:
         """Extract basic information from notification data for logging."""
         try:
             method = data.get("method", "unknown")
@@ -100,7 +100,7 @@ class RobustNotificationHandler:
             logger.error(f"Failed to extract notification info: {e}")
             return NotificationInfo(method="error", has_params=False)
 
-    def handle_notification(self, data: Dict[str, Any]) -> ValidationResult:
+    def handle_notification(self, data: dict[str, Any]) -> ValidationResult:
         """
         Handle a notification with comprehensive error handling and fallback logic.
 
@@ -141,9 +141,9 @@ class RobustNotificationHandler:
 
     def _handle_parsing_failure(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         info: NotificationInfo,
-        original_error: Optional[Exception],
+        original_error: Union[Exception, None],
     ) -> ValidationResult:
         """Handle cases where notification parsing fails."""
 
@@ -200,7 +200,7 @@ class RobustNotificationHandler:
         # Final fallback - return error result but don't crash
         return ValidationResult(error=original_error, raw_data=data)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get processing statistics."""
         return {
             "processed": self.processed_count,
@@ -215,7 +215,7 @@ notification_handler = RobustNotificationHandler()
 
 
 # Define the base function to be cached/called
-def _base_safe_parse_notification(data: Dict[str, Any]) -> ValidationResult:
+def _base_safe_parse_notification(data: dict[str, Any]) -> ValidationResult:
     """Base function for safe notification processing."""
     return safe_parse_notification(data)
 
@@ -226,7 +226,7 @@ _cached_safe_parse_notification = _apply_validation_cache_func(
 )
 
 
-def process_notification_safely(data: Dict[str, Any]) -> ValidationResult:
+def process_notification_safely(data: dict[str, Any]) -> ValidationResult:
     """
     Main entry point for safe notification processing.
 

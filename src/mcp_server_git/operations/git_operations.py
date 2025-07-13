@@ -19,19 +19,19 @@ Critical for TDD Compliance:
 """
 
 import logging
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Union
 
 from ..primitives.git_primitives import (
-    execute_git_command,
-    validate_repository_path,
-    get_repository_status,
-    get_current_branch,
-    get_commit_hash,
     GitCommandError,
     GitRepositoryError,
     GitValidationError,
+    execute_git_command,
+    get_commit_hash,
+    get_current_branch,
+    get_repository_status,
+    validate_repository_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,13 +42,13 @@ class CommitRequest:
     """Request parameters for commit operations."""
 
     message: str
-    files: Optional[List[str]] = None
-    author: Optional[str] = None
-    email: Optional[str] = None
+    files: Union[list[str], None] = None
+    author: Union[str, None] = None
+    email: Union[str, None] = None
     allow_empty: bool = False
     sign_off: bool = False
     gpg_sign: bool = False
-    gpg_key_id: Optional[str] = None
+    gpg_key_id: Union[str, None] = None
 
 
 @dataclass
@@ -56,10 +56,10 @@ class CommitResult:
     """Result of a commit operation."""
 
     success: bool
-    commit_hash: Optional[str] = None
+    commit_hash: Union[str, None] = None
     message: str = ""
-    files_committed: Optional[List[str]] = None
-    error: Optional[str] = None
+    files_committed: Union[list[str], None] = None
+    error: Union[str, None] = None
 
 
 @dataclass
@@ -67,7 +67,7 @@ class BranchRequest:
     """Request parameters for branch operations."""
 
     name: str
-    base_branch: Optional[str] = None
+    base_branch: Union[str, None] = None
     checkout: bool = True
     force: bool = False
 
@@ -77,10 +77,10 @@ class BranchResult:
     """Result of a branch operation."""
 
     success: bool
-    branch_name: Optional[str] = None
+    branch_name: Union[str, None] = None
     message: str = ""
-    previous_branch: Optional[str] = None
-    error: Optional[str] = None
+    previous_branch: Union[str, None] = None
+    error: Union[str, None] = None
 
 
 @dataclass
@@ -88,8 +88,8 @@ class MergeRequest:
     """Request parameters for merge operations."""
 
     source_branch: str
-    target_branch: Optional[str] = None
-    message: Optional[str] = None
+    target_branch: Union[str, None] = None
+    message: Union[str, None] = None
     no_fast_forward: bool = False
     squash: bool = False
 
@@ -99,10 +99,10 @@ class MergeResult:
     """Result of a merge operation."""
 
     success: bool
-    merge_commit_hash: Optional[str] = None
+    merge_commit_hash: Union[str, None] = None
     message: str = ""
-    conflicts: Optional[List[str]] = None
-    error: Optional[str] = None
+    conflicts: Union[list[str], None] = None
+    error: Union[str, None] = None
 
 
 def commit_changes_with_validation(
@@ -501,10 +501,10 @@ def merge_branches_with_conflict_detection(
 def push_with_validation(
     repo_path: Union[str, Path],
     remote: str = "origin",
-    branch: Optional[str] = None,
+    branch: Union[str, None] = None,
     force: bool = False,
     set_upstream: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Push changes to remote repository with comprehensive validation.
 

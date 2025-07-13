@@ -22,16 +22,15 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Set, Union
+from typing import Any, Union
 
 from ..protocols.debugging_protocol import (
-    DebuggableComponent,
     ComponentState,
-    ValidationResult,
+    DebuggableComponent,
     DebugInfo,
+    ValidationResult,
 )
 from ..types.git_types import GitValidationError
-
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +73,8 @@ class SecurityIssue:
     severity: SecuritySeverity
     category: SecurityCategory
     message: str
-    suggested_fix: Optional[str] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    suggested_fix: Union[str, None] = None
+    context: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -85,7 +84,7 @@ class SecurityRecommendation:
 
     priority: SecuritySeverity
     description: str
-    implementation_steps: List[str]
+    implementation_steps: list[str]
     estimated_effort: str  # "low", "medium", "high"
 
 
@@ -94,19 +93,19 @@ class SecurityValidationResult:
     """Comprehensive security validation result."""
 
     status: SecurityStatus
-    issues: List[SecurityIssue]
-    recommendations: List[SecurityRecommendation]
-    metadata: Dict[str, Any]
+    issues: list[SecurityIssue]
+    recommendations: list[SecurityRecommendation]
+    metadata: dict[str, Any]
 
 
 @dataclass
 class SecurityDebugInfo:
     """Implementation of DebugInfo for the security framework."""
-    
+
     debug_level: str
-    debug_data: Dict[str, Any]
-    stack_trace: Optional[List[str]] = None
-    performance_metrics: Dict[str, Union[int, float]] = field(default_factory=dict)
+    debug_data: dict[str, Any]
+    stack_trace: Union[list[str], None] = None
+    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
     validation_timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -115,11 +114,11 @@ class AuthResult:
     """Authentication result with context."""
 
     success: bool
-    user_id: Optional[str] = None
-    token_type: Optional[str] = None
-    scopes: List[str] = field(default_factory=list)
-    expires_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    user_id: Union[str, None] = None
+    token_type: Union[str, None] = None
+    scopes: list[str] = field(default_factory=list)
+    expires_at: Union[datetime, None] = None
+    error_message: Union[str, None] = None
 
 
 @dataclass
@@ -128,7 +127,7 @@ class SecurityComponentState:
 
     component_id: str
     component_type: str
-    state_data: Dict[str, Any]
+    state_data: dict[str, Any]
     last_updated: datetime = field(default_factory=datetime.now)
 
 
@@ -137,21 +136,21 @@ class SecurityValidationResultImpl:
     """Implementation of ValidationResult for security validation."""
 
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
-    context: Dict[str, Any] = field(default_factory=dict)
+    errors: list[str]
+    warnings: list[str]
+    context: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     @property
-    def validation_errors(self) -> List[str]:
+    def validation_errors(self) -> list[str]:
         """List of validation error messages."""
         return self.errors
-    
+
     @property
-    def validation_warnings(self) -> List[str]:
+    def validation_warnings(self) -> list[str]:
         """List of validation warning messages."""
         return self.warnings
-    
+
     @property
     def validation_timestamp(self) -> datetime:
         """When the validation was performed."""
@@ -168,7 +167,7 @@ class SecurityDefaults:
     RATE_LIMIT_WINDOW: int = 300
     RATE_LIMIT_REQUESTS: int = 100  # requests per window
     MAX_REQUEST_SIZE: int = 10 * 1024 * 1024  # 10MB
-    ALLOWED_EXTENSIONS: Set[str] = {".py", ".md", ".txt", ".json", ".yaml", ".yml"}
+    ALLOWED_EXTENSIONS: set[str] = {".py", ".md", ".txt", ".json", ".yaml", ".yml"}
 
 
 class TokenValidator:
@@ -378,9 +377,9 @@ class SecurityFramework(DebuggableComponent):
 
     def __init__(self, component_id: str = "security_framework"):
         self.component_id = component_id
-        self.failed_attempts: Dict[str, List[datetime]] = {}
-        self.rate_limits: Dict[str, List[datetime]] = {}
-        self.security_events: List[Dict[str, Any]] = []
+        self.failed_attempts: dict[str, list[datetime]] = {}
+        self.rate_limits: dict[str, list[datetime]] = {}
+        self.security_events: list[dict[str, Any]] = []
         self.gpg_validated = False
         self.token_validator = TokenValidator()
         self.input_sanitizer = InputSanitizer()
@@ -446,7 +445,9 @@ class SecurityFramework(DebuggableComponent):
                         [
                             event
                             for event in self.security_events
-                            if datetime.fromisoformat(event.get("timestamp", "1970-01-01"))
+                            if datetime.fromisoformat(
+                                event.get("timestamp", "1970-01-01")
+                            )
                             > datetime.now() - timedelta(hours=1)
                         ]
                     ),
@@ -459,7 +460,7 @@ class SecurityFramework(DebuggableComponent):
             },
         )
 
-    def authenticate_github_token(self, token: Optional[str] = None) -> AuthResult:
+    def authenticate_github_token(self, token: Union[str, None] = None) -> AuthResult:
         """Authenticate GitHub token."""
         if token is None:
             token = os.getenv("GITHUB_TOKEN")
@@ -581,7 +582,7 @@ class SecurityFramework(DebuggableComponent):
         )
 
     def validate_git_operation(
-        self, operation: str, params: Dict[str, Any]
+        self, operation: str, params: dict[str, Any]
     ) -> SecurityValidationResult:
         """Validate Git operation for security compliance."""
         issues = []
@@ -721,7 +722,7 @@ class SecurityFramework(DebuggableComponent):
             },
         )
 
-    def _log_security_event(self, event_type: str, details: Dict[str, Any]):
+    def _log_security_event(self, event_type: str, details: dict[str, Any]):
         """Log security events for audit purposes."""
         event = {
             "timestamp": datetime.now().isoformat(),
@@ -739,7 +740,7 @@ class SecurityFramework(DebuggableComponent):
         # Log to standard logger as well
         logger.info(f"Security event [{event_type}]: {details}")
 
-    def get_security_metrics(self) -> Dict[str, Any]:
+    def get_security_metrics(self) -> dict[str, Any]:
         """Get security metrics and statistics."""
         current_time = datetime.now()
         one_hour_ago = current_time - timedelta(hours=1)
@@ -763,7 +764,7 @@ class SecurityFramework(DebuggableComponent):
             "last_updated": current_time.isoformat(),
         }
 
-    def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
         """
         Inspect specific parts of the security component state.
 
@@ -798,14 +799,14 @@ class SecurityFramework(DebuggableComponent):
                 current = current[key]
             else:
                 return {}
-        
+
         # Ensure we return a proper dict
         if not isinstance(current, dict):
             current = {"value": current}
 
         return {path: current}
 
-    def get_component_dependencies(self) -> List[str]:
+    def get_component_dependencies(self) -> list[str]:
         """
         Get list of component dependencies.
 
@@ -837,7 +838,7 @@ class SecurityFramework(DebuggableComponent):
 
         return json.dumps(state_data, indent=2, default=json_serializer)
 
-    def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
         """
         Perform a health check on the security component.
 
@@ -902,7 +903,7 @@ class SecurityFramework(DebuggableComponent):
         }
 
 
-def validate_git_security_config(repo_path: str) -> Dict[str, Any]:
+def validate_git_security_config(repo_path: str) -> dict[str, Any]:
     """
     Validate Git repository security configuration.
 

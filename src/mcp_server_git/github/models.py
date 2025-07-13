@@ -1,15 +1,15 @@
 """Pydantic models for GitHub API tools"""
 
+from typing import Union
 from pydantic import BaseModel
-from typing import Optional
 
 
 class GitHubGetPRChecks(BaseModel):
     repo_owner: str
     repo_name: str
     pr_number: int
-    status: Optional[str] = None
-    conclusion: Optional[str] = None
+    status: Union[str, None] = None
+    conclusion: Union[str, None] = None
 
 
 class GitHubGetFailingJobs(BaseModel):
@@ -39,8 +39,8 @@ class GitHubListPullRequests(BaseModel):
     repo_owner: str
     repo_name: str
     state: str = "open"
-    head: Optional[str] = None
-    base: Optional[str] = None
+    head: Union[str, None] = None
+    base: Union[str, None] = None
     sort: str = "created"
     direction: str = "desc"
     per_page: int = 30
@@ -66,9 +66,9 @@ class GitHubGetPRFiles(BaseModel):
 class GitHubCLICreatePR(BaseModel):
     repo_path: str
     title: str
-    body: Optional[str] = None
-    base: Optional[str] = None
-    head: Optional[str] = None
+    body: Union[str, None] = None
+    base: Union[str, None] = None
+    head: Union[str, None] = None
     draft: bool = False
     web: bool = False
 
@@ -76,15 +76,15 @@ class GitHubCLICreatePR(BaseModel):
 class GitHubCLIEditPR(BaseModel):
     repo_path: str
     pr_number: int
-    title: Optional[str] = None
-    body: Optional[str] = None
-    base: Optional[str] = None
-    add_assignee: Optional[list[str]] = None
-    remove_assignee: Optional[list[str]] = None
-    add_label: Optional[list[str]] = None
-    remove_label: Optional[list[str]] = None
-    add_reviewer: Optional[list[str]] = None
-    remove_reviewer: Optional[list[str]] = None
+    title: Union[str, None] = None
+    body: Union[str, None] = None
+    base: Union[str, None] = None
+    add_assignee: Union[list[str], None] = None
+    remove_assignee: Union[list[str], None] = None
+    add_label: Union[list[str], None] = None
+    remove_label: Union[list[str], None] = None
+    add_reviewer: Union[list[str], None] = None
+    remove_reviewer: Union[list[str], None] = None
 
 
 class GitHubCLIMergePR(BaseModel):
@@ -98,13 +98,13 @@ class GitHubCLIMergePR(BaseModel):
 class GitHubCLIClosePR(BaseModel):
     repo_path: str
     pr_number: int
-    comment: Optional[str] = None
+    comment: Union[str, None] = None
 
 
 class GitHubCLIReopenPR(BaseModel):
     repo_path: str
     pr_number: int
-    comment: Optional[str] = None
+    comment: Union[str, None] = None
 
 
 class GitHubCLIReadyPR(BaseModel):
@@ -117,24 +117,24 @@ class GitHubCreateIssue(BaseModel):
     repo_owner: str
     repo_name: str
     title: str
-    body: Optional[str] = None
-    labels: Optional[list[str]] = None
-    assignees: Optional[list[str]] = None
-    milestone: Optional[int] = None
+    body: Union[str, None] = None
+    labels: Union[list[str], None] = None
+    assignees: Union[list[str], None] = None
+    milestone: Union[int, None] = None
 
 
 class GitHubListIssues(BaseModel):
     repo_owner: str
     repo_name: str
     state: str = "open"  # open, closed, all
-    labels: Optional[list[str]] = None
-    assignee: Optional[str] = None
-    creator: Optional[str] = None
-    mentioned: Optional[str] = None
-    milestone: Optional[str] = None
+    labels: Union[list[str], None] = None
+    assignee: Union[str, None] = None
+    creator: Union[str, None] = None
+    mentioned: Union[str, None] = None
+    milestone: Union[str, None] = None
     sort: str = "created"  # created, updated, comments
     direction: str = "desc"  # asc, desc
-    since: Optional[str] = None
+    since: Union[str, None] = None
     per_page: int = 30
     page: int = 1
 
@@ -143,12 +143,12 @@ class GitHubUpdateIssue(BaseModel):
     repo_owner: str
     repo_name: str
     issue_number: int
-    title: Optional[str] = None
-    body: Optional[str] = None
-    state: Optional[str] = None  # open, closed
-    labels: Optional[list[str]] = None
-    assignees: Optional[list[str]] = None
-    milestone: Optional[int] = None
+    title: Union[str, None] = None
+    body: Union[str, None] = None
+    state: Union[str, None] = None  # open, closed
+    labels: Union[list[str], None] = None
+    assignees: Union[list[str], None] = None
+    milestone: Union[int, None] = None
 
 
 class GitHubEditPRDescription(BaseModel):
