@@ -38,25 +38,13 @@ jobs:
     - name: Install dependencies
       run: |
         echo "🔧 Setting up CI environment with pixi..."
-        pixi install
+        pixi install --environment ci
         echo "✅ CI environment ready"
 
-    - name: Run ruff linting (critical violations)
+    - name: Run quality checks
       run: |
-        echo "🔍 Running critical linting checks..."
-        pixi run lint
-
-    - name: Run ruff format check
-      run: |
-        echo "🔍 Running format checks..."
-        pixi run format-check
-      continue-on-error: true
-
-    - name: Run type checking with mypy
-      run: |
-        echo "🔍 Running type checking..."
-        pixi run typecheck
-      continue-on-error: true
+        echo "🔍 Running CI quality checks..."
+        pixi run --environment ci ci-quality
 
   # Job 2: Unit and Integration Tests
   test:
