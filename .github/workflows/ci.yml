@@ -35,38 +35,28 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install pixi
-      run: |
-        echo "🔧 Installing pixi..."
-        curl -fsSL https://pixi.sh/install.sh | bash
-        export PATH="$HOME/.pixi/bin:$PATH"
-        echo "$HOME/.pixi/bin" >> $GITHUB_PATH
-
     - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pixi..."
-        export PATH="$HOME/.pixi/bin:$PATH"
-        pixi install
+        echo "🔧 Setting up CI environment with pip..."
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
         echo "✅ CI environment ready"
 
-    - name: Run linting checks
+    - name: Run ruff linting (critical violations)
       run: |
-        echo "🔍 Running linting checks..."
-        export PATH="$HOME/.pixi/bin:$PATH"
-        pixi run lint
+        echo "🔍 Running critical linting checks..."
+        ruff check src/ tests/ --select=F,E9
 
-    - name: Run format checks
+    - name: Run ruff format check
       run: |
         echo "🔍 Running format checks..."
-        export PATH="$HOME/.pixi/bin:$PATH"
-        pixi run format-check
+        ruff format --check src/ tests/
       continue-on-error: true
 
-    - name: Run type checks
+    - name: Run type checking with mypy
       run: |
-        echo "🔍 Running type checks..."
-        export PATH="$HOME/.pixi/bin:$PATH"
-        pixi run typecheck
+        echo "🔍 Running type checking..."
+        mypy src/ --ignore-missing-imports
       continue-on-error: true
 
   # Job 2: Unit and Integration Tests
