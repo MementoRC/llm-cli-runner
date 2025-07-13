@@ -49,13 +49,13 @@ jobs:
     - name: Run ruff format check
       run: |
         echo "🔍 Running format checks..."
-        pixi run ruff format --check src/ tests/
+        pixi run format-check
       continue-on-error: true
 
     - name: Run type checking with mypy
       run: |
         echo "🔍 Running type checking..."
-        pixi run mypy src/ --ignore-missing-imports
+        pixi run typecheck
       continue-on-error: true
 
   # Job 2: Unit and Integration Tests
