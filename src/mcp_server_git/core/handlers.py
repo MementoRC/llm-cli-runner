@@ -4,12 +4,12 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
 
-# Safe git import that handles ClaudeCode redirector conflicts
-from ..utils.git_import import git, Repo
 from mcp.types import TextContent
 
+# Safe git import that handles ClaudeCode redirector conflicts
+from ..utils.git_import import Repo, git
 from .tools import GitToolRouter, ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -34,55 +34,55 @@ class CallToolHandler:
 
         self.router.set_handlers(git_handlers, github_handlers, security_handlers)
 
-    def _get_git_handlers(self) -> Dict[str, Any]:
+    def _get_git_handlers(self) -> dict[str, Any]:
         """Get Git operation handlers (modular or original)"""
         try:
             from ..git.operations import (
-                git_status,
-                git_diff_unstaged,
-                git_diff_staged,
-                git_diff,
-                git_commit,
-                git_add,
-                git_reset,
-                git_log,
-                git_create_branch,
-                git_checkout,
-                git_show,
-                git_init,
-                git_push,
-                git_pull,
-                git_diff_branches,
-                git_rebase,
-                git_merge,
-                git_cherry_pick,
                 git_abort,
+                git_add,
+                git_checkout,
+                git_cherry_pick,
+                git_commit,
                 git_continue,
+                git_create_branch,
+                git_diff,
+                git_diff_branches,
+                git_diff_staged,
+                git_diff_unstaged,
+                git_init,
+                git_log,
+                git_merge,
+                git_pull,
+                git_push,
+                git_rebase,
+                git_reset,
+                git_show,
+                git_status,
             )
 
             logger.debug("Using modular Git operations")
         except ImportError:
             from ..server import (
-                git_status,
-                git_diff_unstaged,
-                git_diff_staged,
-                git_diff,
-                git_commit,
-                git_add,
-                git_reset,
-                git_log,
-                git_create_branch,
-                git_checkout,
-                git_show,
-                git_init,
-                git_push,
-                git_pull,
-                git_diff_branches,
-                git_rebase,
-                git_merge,
-                git_cherry_pick,
                 git_abort,
+                git_add,
+                git_checkout,
+                git_cherry_pick,
+                git_commit,
                 git_continue,
+                git_create_branch,
+                git_diff,
+                git_diff_branches,
+                git_diff_staged,
+                git_diff_unstaged,
+                git_init,
+                git_log,
+                git_merge,
+                git_pull,
+                git_push,
+                git_rebase,
+                git_reset,
+                git_show,
+                git_status,
             )
 
             logger.debug("Using original Git operations")
@@ -160,7 +160,7 @@ class CallToolHandler:
             ),
         }
 
-    def _get_github_handlers(self) -> Dict[str, Any]:
+    def _get_github_handlers(self) -> dict[str, Any]:
         """Get GitHub API handlers (modular or original)"""
         # GitHub API import with dynamic fallback
         github_functions = {}
@@ -168,71 +168,80 @@ class CallToolHandler:
         # Try modular API first
         try:
             from ..github.api import (
-                github_get_pr_checks,
-                github_get_failing_jobs,
-                github_get_workflow_run,
-                github_get_pr_details,
-                github_list_pull_requests,
-                github_get_pr_status,
-                github_get_pr_files,
                 github_create_issue,
-                github_list_issues,
-                github_update_issue,
                 github_edit_pr_description,
+                github_get_failing_jobs,
+                github_get_pr_checks,
+                github_get_pr_details,
+                github_get_pr_files,
+                github_get_pr_status,
+                github_get_workflow_run,
+                github_list_issues,
+                github_list_pull_requests,
+                github_update_issue,
             )
-            github_functions.update({
-                'github_get_pr_checks': github_get_pr_checks,
-                'github_get_failing_jobs': github_get_failing_jobs,
-                'github_get_workflow_run': github_get_workflow_run,
-                'github_get_pr_details': github_get_pr_details,
-                'github_list_pull_requests': github_list_pull_requests,
-                'github_get_pr_status': github_get_pr_status,
-                'github_get_pr_files': github_get_pr_files,
-                'github_create_issue': github_create_issue,
-                'github_list_issues': github_list_issues,
-                'github_update_issue': github_update_issue,
-                'github_edit_pr_description': github_edit_pr_description,
-            })
+
+            github_functions.update(
+                {
+                    "github_get_pr_checks": github_get_pr_checks,
+                    "github_get_failing_jobs": github_get_failing_jobs,
+                    "github_get_workflow_run": github_get_workflow_run,
+                    "github_get_pr_details": github_get_pr_details,
+                    "github_list_pull_requests": github_list_pull_requests,
+                    "github_get_pr_status": github_get_pr_status,
+                    "github_get_pr_files": github_get_pr_files,
+                    "github_create_issue": github_create_issue,
+                    "github_list_issues": github_list_issues,
+                    "github_update_issue": github_update_issue,
+                    "github_edit_pr_description": github_edit_pr_description,
+                }
+            )
             logger.debug("Using modular GitHub API")
         except ImportError:
             try:
                 from ..server import (
-                    github_get_pr_checks,
                     github_get_failing_jobs,
-                    github_get_workflow_run,
+                    github_get_pr_checks,
                     github_get_pr_details,
-                    github_list_pull_requests,
-                    github_get_pr_status,
                     github_get_pr_files,
+                    github_get_pr_status,
+                    github_get_workflow_run,
+                    github_list_pull_requests,
                 )
+
                 # Import available server functions
-                github_functions.update({
-                    'github_get_pr_checks': github_get_pr_checks,
-                    'github_get_failing_jobs': github_get_failing_jobs,
-                    'github_get_workflow_run': github_get_workflow_run,
-                    'github_get_pr_details': github_get_pr_details,
-                    'github_list_pull_requests': github_list_pull_requests,
-                    'github_get_pr_status': github_get_pr_status,
-                    'github_get_pr_files': github_get_pr_files,
-                })
-                
-                # Try additional server functions separately  
+                github_functions.update(
+                    {
+                        "github_get_pr_checks": github_get_pr_checks,
+                        "github_get_failing_jobs": github_get_failing_jobs,
+                        "github_get_workflow_run": github_get_workflow_run,
+                        "github_get_pr_details": github_get_pr_details,
+                        "github_list_pull_requests": github_list_pull_requests,
+                        "github_get_pr_status": github_get_pr_status,
+                        "github_get_pr_files": github_get_pr_files,
+                    }
+                )
+
+                # Try additional server functions separately
                 try:
                     from ..server import (  # type: ignore[attr-defined,no-redef]
                         github_create_issue,
+                        github_edit_pr_description,
                         github_list_issues,
                         github_update_issue,
-                        github_edit_pr_description,
                     )
-                    github_functions.update({
-                        'github_create_issue': github_create_issue,
-                        'github_list_issues': github_list_issues,
-                        'github_update_issue': github_update_issue,
-                        'github_edit_pr_description': github_edit_pr_description,
-                    })
+
+                    github_functions.update(
+                        {
+                            "github_create_issue": github_create_issue,
+                            "github_list_issues": github_list_issues,
+                            "github_update_issue": github_update_issue,
+                            "github_edit_pr_description": github_edit_pr_description,
+                        }
+                    )
                 except ImportError:
                     pass  # Will use fallback for missing functions
-                
+
                 logger.debug("Using server GitHub API")
             except ImportError:
                 logger.debug("No GitHub API available, using fallbacks")
@@ -241,26 +250,48 @@ class CallToolHandler:
         async def fallback_github_function(*args, **kwargs):
             return "❌ GitHub API not available"
 
-        # Extract functions or use fallback (with Any type to avoid signature conflicts)
-        github_get_pr_checks: Any = github_functions.get('github_get_pr_checks', fallback_github_function)  # type: ignore[no-redef]
-        github_get_failing_jobs: Any = github_functions.get('github_get_failing_jobs', fallback_github_function)  # type: ignore[no-redef]
-        github_get_workflow_run: Any = github_functions.get('github_get_workflow_run', fallback_github_function)  # type: ignore[no-redef]
-        github_get_pr_details: Any = github_functions.get('github_get_pr_details', fallback_github_function)  # type: ignore[no-redef]
-        github_list_pull_requests: Any = github_functions.get('github_list_pull_requests', fallback_github_function)  # type: ignore[no-redef]
-        github_get_pr_status: Any = github_functions.get('github_get_pr_status', fallback_github_function)  # type: ignore[no-redef]
-        github_get_pr_files: Any = github_functions.get('github_get_pr_files', fallback_github_function)  # type: ignore[no-redef]
-        github_create_issue: Any = github_functions.get('github_create_issue', fallback_github_function)  # type: ignore[no-redef]
-        github_list_issues: Any = github_functions.get('github_list_issues', fallback_github_function)  # type: ignore[no-redef]
-        github_update_issue: Any = github_functions.get('github_update_issue', fallback_github_function)  # type: ignore[no-redef]
-        github_edit_pr_description: Any = github_functions.get('github_edit_pr_description', fallback_github_function)  # type: ignore[no-redef]
+        # Extract functions or use fallback (using handler_ prefix to avoid name conflicts)
+        handler_get_pr_checks: Any = github_functions.get(
+            "github_get_pr_checks", fallback_github_function
+        )
+        handler_get_failing_jobs: Any = github_functions.get(
+            "github_get_failing_jobs", fallback_github_function
+        )
+        handler_get_workflow_run: Any = github_functions.get(
+            "github_get_workflow_run", fallback_github_function
+        )
+        handler_get_pr_details: Any = github_functions.get(
+            "github_get_pr_details", fallback_github_function
+        )
+        handler_list_pull_requests: Any = github_functions.get(
+            "github_list_pull_requests", fallback_github_function
+        )
+        handler_get_pr_status: Any = github_functions.get(
+            "github_get_pr_status", fallback_github_function
+        )
+        handler_get_pr_files: Any = github_functions.get(
+            "github_get_pr_files", fallback_github_function
+        )
+        handler_create_issue: Any = github_functions.get(
+            "github_create_issue", fallback_github_function
+        )
+        handler_list_issues: Any = github_functions.get(
+            "github_list_issues", fallback_github_function
+        )
+        handler_update_issue: Any = github_functions.get(
+            "github_update_issue", fallback_github_function
+        )
+        handler_edit_pr_description: Any = github_functions.get(
+            "github_edit_pr_description", fallback_github_function
+        )
 
         return {
             "github_get_pr_checks": self._create_github_handler(
-                github_get_pr_checks,
+                handler_get_pr_checks,
                 ["repo_owner", "repo_name", "pr_number", "status", "conclusion"],
             ),
             "github_get_failing_jobs": self._create_github_handler(
-                github_get_failing_jobs,
+                handler_get_failing_jobs,
                 [
                     "repo_owner",
                     "repo_name",
@@ -270,11 +301,11 @@ class CallToolHandler:
                 ],
             ),
             "github_get_workflow_run": self._create_github_handler(
-                github_get_workflow_run,
+                handler_get_workflow_run,
                 ["repo_owner", "repo_name", "run_id", "include_logs"],
             ),
             "github_get_pr_details": self._create_github_handler(
-                github_get_pr_details,
+                handler_get_pr_details,
                 [
                     "repo_owner",
                     "repo_name",
@@ -284,7 +315,7 @@ class CallToolHandler:
                 ],
             ),
             "github_list_pull_requests": self._create_github_handler(
-                github_list_pull_requests,
+                handler_list_pull_requests,
                 [
                     "repo_owner",
                     "repo_name",
@@ -298,10 +329,10 @@ class CallToolHandler:
                 ],
             ),
             "github_get_pr_status": self._create_github_handler(
-                github_get_pr_status, ["repo_owner", "repo_name", "pr_number"]
+                handler_get_pr_status, ["repo_owner", "repo_name", "pr_number"]
             ),
             "github_get_pr_files": self._create_github_handler(
-                github_get_pr_files,
+                handler_get_pr_files,
                 [
                     "repo_owner",
                     "repo_name",
@@ -312,7 +343,7 @@ class CallToolHandler:
                 ],
             ),
             "github_create_issue": self._create_github_handler(
-                github_create_issue,
+                handler_create_issue,
                 [
                     "repo_owner",
                     "repo_name",
@@ -324,7 +355,7 @@ class CallToolHandler:
                 ],
             ),
             "github_list_issues": self._create_github_handler(
-                github_list_issues,
+                handler_list_issues,
                 [
                     "repo_owner",
                     "repo_name",
@@ -342,7 +373,7 @@ class CallToolHandler:
                 ],
             ),
             "github_update_issue": self._create_github_handler(
-                github_update_issue,
+                handler_update_issue,
                 [
                     "repo_owner",
                     "repo_name",
@@ -356,7 +387,7 @@ class CallToolHandler:
                 ],
             ),
             "github_edit_pr_description": self._create_github_handler(
-                github_edit_pr_description,
+                handler_edit_pr_description,
                 [
                     "repo_owner",
                     "repo_name",
@@ -366,11 +397,11 @@ class CallToolHandler:
             ),
         }
 
-    def _get_security_handlers(self) -> Dict[str, Any]:
+    def _get_security_handlers(self) -> dict[str, Any]:
         """Get security handlers (modular or original)"""
         from ..git.security import (
-            validate_git_security_config,
             enforce_secure_git_config,
+            validate_git_security_config,
         )
 
         logger.debug("Using modular security functions")
@@ -385,7 +416,7 @@ class CallToolHandler:
         }
 
     def _create_git_handler(
-        self, func, requires_repo: bool = True, extra_args: Optional[List[str]] = None
+        self, func, requires_repo: bool = True, extra_args: list[str] | None = None
     ):
         """Create a wrapper for Git operation functions"""
 
@@ -395,7 +426,7 @@ class CallToolHandler:
                 repo: Repo = git.Repo(repo_path)
 
                 # Build arguments
-                args: List[Any] = [repo]
+                args: list[Any] = [repo]
                 if extra_args:
                     for arg in extra_args:
                         if arg in kwargs:
@@ -438,7 +469,7 @@ class CallToolHandler:
 
         return handler
 
-    def _create_github_handler(self, func, arg_names: List[str]):
+    def _create_github_handler(self, func, arg_names: list[str]):
         """Create a wrapper for GitHub API functions"""
 
         async def handler(**kwargs):
@@ -484,14 +515,14 @@ class CallToolHandler:
 
         return handler
 
-    def _create_security_handler(self, func, extra_args: Optional[List[str]] = None):
+    def _create_security_handler(self, func, extra_args: list[str] | None = None):
         """Create a wrapper for security functions"""
 
         def handler(**kwargs):
             repo_path = Path(kwargs["repo_path"])
             repo: Repo = git.Repo(repo_path)
 
-            args: List[Any] = [repo]
+            args: list[Any] = [repo]
             if extra_args:
                 for arg in extra_args:
                     if arg == "strict_mode":
@@ -526,7 +557,7 @@ class CallToolHandler:
 
         return handler
 
-    async def call_tool(self, name: str, arguments: dict) -> List[TextContent]:
+    async def call_tool(self, name: str, arguments: dict) -> list[TextContent]:
         """Main tool call entry point with improved logging and routing"""
         request_id = os.urandom(4).hex()
         logger.info(f"🔧 [{request_id}] Tool call: {name}")

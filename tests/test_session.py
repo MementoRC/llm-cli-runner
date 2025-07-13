@@ -412,7 +412,7 @@ class TestSessionIntegration:
         # Simulate error in session
         with patch.object(session._circuit, "allow_request", return_value=True):
             with patch("asyncio.sleep", side_effect=Exception("Simulated error")):
-                with pytest.raises(Exception):
+                with pytest.raises(Exception, match="Simulated error"):
                     await session.handle_command("git_status")
 
         # Session should still exist and be manageable
