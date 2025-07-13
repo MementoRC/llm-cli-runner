@@ -171,6 +171,20 @@ pyright = "*"
 tomli-w = "*"
 toml = "*"
 
+# Core runtime dependencies (needed for type checking and testing)
+python = ">=3.10"
+aiohttp = ">=3.8.0"
+click = ">=8.1.7"
+cryptography = ">=41.0.0"
+httpx = ">=0.24.0"
+llama-cpp-python = ">=0.2.0"
+mcp = ">=1.10.0"
+psutil = ">=5.9.0"
+pydantic = ">=2.0.0"
+python-dotenv = ">=1.0.0"
+structlog = ">=24.0.0"
+tomli = ">=2.0.1"
+
 [tool.pixi.feature.dev-specialized.dependencies]
 # Development tools not needed for CI
 memory_profiler = "*"
