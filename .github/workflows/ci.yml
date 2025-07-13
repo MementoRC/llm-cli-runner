@@ -30,33 +30,32 @@ jobs:
         # Fetch full history for proper git operations testing
         fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install pixi
+      uses: prefix-dev/setup-pixi@v0.8.1
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        pixi-version: latest
 
     - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pip..."
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
+        echo "🔧 Setting up CI environment with pixi..."
+        pixi install
         echo "✅ CI environment ready"
 
     - name: Run ruff linting (critical violations)
       run: |
         echo "🔍 Running critical linting checks..."
-        ruff check src/ tests/ --select=F,E9
+        pixi run lint
 
     - name: Run ruff format check
       run: |
         echo "🔍 Running format checks..."
-        ruff format --check src/ tests/
+        pixi run ruff format --check src/ tests/
       continue-on-error: true
 
     - name: Run type checking with mypy
       run: |
         echo "🔍 Running type checking..."
-        mypy src/ --ignore-missing-imports
+        pixi run mypy src/ --ignore-missing-imports
       continue-on-error: true
 
   # Job 2: Unit and Integration Tests
