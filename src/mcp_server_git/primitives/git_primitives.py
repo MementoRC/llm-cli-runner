@@ -18,11 +18,11 @@ Critical for TDD Compliance:
     must satisfy the test requirements to prevent LLM compliance issues.
 """
 
-import subprocess
 import re
-from pathlib import Path
-from typing import List, Optional, Any
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 
 # Exception classes for error handling
@@ -32,10 +32,10 @@ class GitCommandError(Exception):
     def __init__(
         self,
         message: str,
-        command: Optional[List[str]] = None,
-        repo_path: Optional[str] = None,
-        return_code: Optional[int] = None,
-        stderr: Optional[str] = None,
+        command: list[str] | None = None,
+        repo_path: str | None = None,
+        return_code: int | None = None,
+        stderr: str | None = None,
     ):
         super().__init__(message)
         self.command = command
@@ -50,8 +50,8 @@ class GitRepositoryError(Exception):
     def __init__(
         self,
         message: str,
-        repo_path: Optional[str] = None,
-        suggested_action: Optional[str] = None,
+        repo_path: str | None = None,
+        suggested_action: str | None = None,
     ):
         super().__init__(message)
         self.repo_path = repo_path
@@ -64,9 +64,9 @@ class GitValidationError(Exception):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
-        validation_rule: Optional[str] = None,
+        field: str | None = None,
+        value: Any | None = None,
+        validation_rule: str | None = None,
     ):
         super().__init__(message)
         self.field = field
@@ -81,7 +81,7 @@ class GitCommandResult:
 
     success: bool
     output: str
-    error: Optional[str] = None
+    error: str | None = None
     return_code: int = 0
 
 
@@ -89,12 +89,12 @@ class GitCommandResult:
 class GitStatusParsed:
     """Parsed git status output."""
 
-    modified_files: List[str]
-    added_files: List[str]
-    deleted_files: List[str]
-    untracked_files: List[str]
-    renamed_files: List[str]
-    copied_files: List[str]
+    modified_files: list[str]
+    added_files: list[str]
+    deleted_files: list[str]
+    untracked_files: list[str]
+    renamed_files: list[str]
+    copied_files: list[str]
 
 
 @dataclass
@@ -113,9 +113,9 @@ class GitRepositoryStatus:
     """Complete repository status information."""
 
     is_clean: bool
-    modified_files: List[str]
-    untracked_files: List[str]
-    staged_files: List[str]
+    modified_files: list[str]
+    untracked_files: list[str]
+    staged_files: list[str]
 
 
 @dataclass
@@ -132,13 +132,13 @@ class GitFormattedError:
 
     message: str
     context: str
-    command: List[str]
-    suggestion: Optional[str] = None
+    command: list[str]
+    suggestion: str | None = None
 
 
 # Core primitive operations
 def execute_git_command(
-    repo_path: str, command: List[str], timeout: int = 30
+    repo_path: str, command: list[str], timeout: int = 30
 ) -> GitCommandResult:
     """
     Execute a git command in the specified repository.
@@ -193,13 +193,13 @@ def execute_git_command(
             error=f"timeout: Command timed out after {timeout} seconds",
             return_code=-1,
         )
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         # Repository path doesn't exist
         raise GitRepositoryError(
             f"Repository path does not exist: {repo_path}",
             repo_path=repo_path,
             suggested_action="Verify the repository path is correct",
-        )
+        ) from e
     except Exception as e:
         return GitCommandResult(
             success=False,
@@ -302,7 +302,7 @@ def get_repository_status(repo_path: str) -> GitRepositoryStatus:
     )
 
 
-def get_staged_files(repo_path: str) -> List[str]:
+def get_staged_files(repo_path: str) -> list[str]:
     """
     Get list of staged files in the repository.
 
@@ -323,7 +323,7 @@ def get_staged_files(repo_path: str) -> List[str]:
     return parsed.added_files
 
 
-def get_unstaged_files(repo_path: str) -> List[str]:
+def get_unstaged_files(repo_path: str) -> list[str]:
     """
     Get list of unstaged modified files in the repository.
 
@@ -344,7 +344,7 @@ def get_unstaged_files(repo_path: str) -> List[str]:
     return parsed.modified_files + parsed.deleted_files
 
 
-def get_untracked_files(repo_path: str) -> List[str]:
+def get_untracked_files(repo_path: str) -> list[str]:
     """
     Get list of untracked files in the repository.
 
@@ -365,7 +365,7 @@ def get_untracked_files(repo_path: str) -> List[str]:
     return parsed.untracked_files
 
 
-def get_current_branch(repo_path: str) -> Optional[str]:
+def get_current_branch(repo_path: str) -> str | None:
     """
     Get the current branch name.
 
@@ -471,7 +471,7 @@ def parse_git_status_output(status_output: str) -> GitStatusParsed:
     )
 
 
-def parse_git_log_output(log_output: str) -> List[GitCommitParsed]:
+def parse_git_log_output(log_output: str) -> list[GitCommitParsed]:
     """
     Parse git log output into commit information.
 
@@ -523,7 +523,7 @@ def parse_git_log_output(log_output: str) -> List[GitCommitParsed]:
 
 
 def format_git_error(
-    raw_error: str, command: List[str], repo_path: str
+    raw_error: str, command: list[str], repo_path: str
 ) -> GitFormattedError:
     """
     Format a raw git error into a human-readable error with context.

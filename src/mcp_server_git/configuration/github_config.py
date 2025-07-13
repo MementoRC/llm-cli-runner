@@ -39,9 +39,9 @@ See also:
     - git_config: Git-specific configuration
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, field_validator, Field, HttpUrl
 import re
+
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class GitHubConfig(BaseModel):
@@ -110,10 +110,10 @@ class GitHubConfig(BaseModel):
     )
 
     # Authentication
-    api_token: Optional[str] = Field(
+    api_token: str | None = Field(
         default=None, description="GitHub API token for authentication"
     )
-    token_scopes: List[str] = Field(
+    token_scopes: list[str] = Field(
         default_factory=lambda: ["repo", "read:org"],
         description="Required GitHub token scopes",
     )
@@ -145,10 +145,10 @@ class GitHubConfig(BaseModel):
     )
 
     # Webhook Configuration
-    webhook_secret: Optional[str] = Field(
+    webhook_secret: str | None = Field(
         default=None, description="Secret for validating webhook payloads"
     )
-    allowed_webhook_events: List[str] = Field(
+    allowed_webhook_events: list[str] = Field(
         default_factory=lambda: [
             "push",
             "pull_request",
@@ -176,7 +176,7 @@ class GitHubConfig(BaseModel):
     require_issue_in_pr: bool = Field(
         default=False, description="Require issue reference in PR description"
     )
-    allowed_pr_labels: List[str] = Field(
+    allowed_pr_labels: list[str] = Field(
         default_factory=list, description="Allowed labels for PRs (empty = all allowed)"
     )
     auto_close_stale_prs: bool = Field(
@@ -203,7 +203,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("api_token")
     @classmethod
-    def validate_api_token(cls, v: Optional[str]) -> Optional[str]:
+    def validate_api_token(cls, v: str | None) -> str | None:
         """Validate GitHub API token format.
 
         Args:
@@ -254,7 +254,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("allowed_webhook_events")
     @classmethod
-    def validate_webhook_events(cls, v: List[str]) -> List[str]:
+    def validate_webhook_events(cls, v: list[str]) -> list[str]:
         """Validate webhook event types.
 
         Args:
@@ -323,7 +323,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("token_scopes")
     @classmethod
-    def validate_token_scopes(cls, v: List[str]) -> List[str]:
+    def validate_token_scopes(cls, v: list[str]) -> list[str]:
         """Validate GitHub token scopes.
 
         Args:
@@ -385,7 +385,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("webhook_secret")
     @classmethod
-    def validate_webhook_secret(cls, v: Optional[str]) -> Optional[str]:
+    def validate_webhook_secret(cls, v: str | None) -> str | None:
         """Validate webhook secret strength.
 
         Args:
@@ -408,6 +408,7 @@ class GitHubConfig(BaseModel):
                 warnings.warn(
                     "Webhook secret appears weak. Use a strong, random secret.",
                     UserWarning,
+                    stacklevel=2,
                 )
 
         return v

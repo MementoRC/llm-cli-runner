@@ -3,9 +3,8 @@ Notification interceptor for handling cancelled notifications before they reach
 the MCP framework's built-in validation, which doesn't support notifications/cancelled.
 """
 
-import logging
 import json
-from typing import Dict, Optional
+import logging
 
 from ..models.enhanced_validation import process_notification_safely
 
@@ -23,7 +22,7 @@ class NotificationInterceptor:
         self.intercepted_count = 0
         self.cancelled_count = 0
 
-    async def preprocess_message(self, raw_message: str) -> Optional[str]:
+    async def preprocess_message(self, raw_message: str) -> str | None:
         """
         Preprocess incoming messages to handle unsupported notification types.
 
@@ -101,7 +100,7 @@ class NotificationInterceptor:
             # On error, pass through to avoid breaking the protocol
             return raw_message
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get interception statistics."""
         return {
             "total_intercepted": self.intercepted_count,
@@ -182,7 +181,7 @@ class InterceptingReadStream:
             try:
                 message = await self.original_stream.__anext__()
                 # Process the message if it's a string/bytes
-                if isinstance(message, (str, bytes)):
+                if isinstance(message, str | bytes):
                     if isinstance(message, bytes):
                         raw_message = message.decode("utf-8").strip()
                     else:

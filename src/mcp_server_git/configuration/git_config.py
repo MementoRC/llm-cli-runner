@@ -37,8 +37,7 @@ See also:
     - github_config: GitHub integration configuration
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, field_validator, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class GitConfig(BaseModel):
@@ -134,10 +133,10 @@ class GitConfig(BaseModel):
     enable_commit_signing: bool = Field(
         default=False, description="Require all commits to be signed"
     )
-    commit_message_pattern: Optional[str] = Field(
+    commit_message_pattern: str | None = Field(
         default=None, description="Regex pattern for validating commit messages"
     )
-    allowed_authors: List[str] = Field(
+    allowed_authors: list[str] = Field(
         default_factory=list,
         description="List of allowed commit authors (empty = all allowed)",
     )
@@ -146,7 +145,7 @@ class GitConfig(BaseModel):
     )
 
     # Branch Protection
-    protected_branches: List[str] = Field(
+    protected_branches: list[str] = Field(
         default_factory=lambda: ["main", "master"],
         description="List of protected branch patterns (supports wildcards)",
     )
@@ -179,7 +178,7 @@ class GitConfig(BaseModel):
 
     @field_validator("commit_message_pattern")
     @classmethod
-    def validate_commit_pattern(cls, v: Optional[str]) -> Optional[str]:
+    def validate_commit_pattern(cls, v: str | None) -> str | None:
         """Validate that commit message pattern is a valid regex.
 
         Args:
@@ -197,12 +196,12 @@ class GitConfig(BaseModel):
             try:
                 re.compile(v)
             except re.error as e:
-                raise ValueError(f"Invalid regex pattern: {e}")
+                raise ValueError(f"Invalid regex pattern: {e}") from e
         return v
 
     @field_validator("protected_branches")
     @classmethod
-    def validate_protected_branches(cls, v: List[str]) -> List[str]:
+    def validate_protected_branches(cls, v: list[str]) -> list[str]:
         """Validate protected branch patterns.
 
         Args:
@@ -221,6 +220,7 @@ class GitConfig(BaseModel):
             warnings.warn(
                 "No protected branches configured. Consider protecting 'main' or 'master'.",
                 UserWarning,
+                stacklevel=2,
             )
 
         # Validate patterns
@@ -241,7 +241,7 @@ class GitConfig(BaseModel):
 
     @field_validator("allowed_authors")
     @classmethod
-    def validate_allowed_authors(cls, v: List[str]) -> List[str]:
+    def validate_allowed_authors(cls, v: list[str]) -> list[str]:
         """Validate allowed authors list.
 
         Args:
@@ -300,6 +300,7 @@ class GitConfig(BaseModel):
                 "Commit signing is enabled but force push is allowed. "
                 "This may compromise signature integrity.",
                 UserWarning,
+                stacklevel=2,
             )
 
         # If requiring pull requests, ensure min_approvals makes sense
@@ -310,6 +311,7 @@ class GitConfig(BaseModel):
                 "Pull requests are required but no approvals are needed. "
                 "Consider setting min_approvals > 0.",
                 UserWarning,
+                stacklevel=2,
             )
 
         return self

@@ -22,65 +22,65 @@ Usage:
 """
 
 # Debugging Protocol Exports
+# Convenience type aliases for common protocol combinations
+# Union types now use | syntax
+
 from .debugging_protocol import (
     ComponentState,
-    ValidationResult,
-    DebugInfo,
     DebuggableComponent,
-    StateInspector,
     DebuggingContext,
+    DebugInfo,
+    StateInspector,
+    ValidationResult,
+)
+
+# Metrics Protocol Exports
+from .metrics_protocol import (
+    AsyncMetricsSystem,
+    MetricCollector,
+    MetricsAggregator,
+    MetricsSystem,
+    MetricType,
+    MetricUnit,
+    MetricValue,
+    PerformanceTimer,
+    ResourceMonitor,
+    SuccessFailureTracker,
+    TimingResult,
+)
+
+# Notification Protocol Exports
+from .notification_protocol import (
+    AsyncNotificationSystem,
+    ErrorReporter,
+    EventPublisher,
+    EventSubscriber,
+    MessageBroadcaster,
+    NotificationChannel,
+    NotificationEvent,
+    NotificationFilter,
+    NotificationLevel,
+    NotificationSystem,
+    StatusReporter,
 )
 
 # Repository Protocol Exports
 from .repository_protocol import (
-    RepositoryValidator,
+    AsyncRepositoryOperations,
     BranchManager,
     CommitManager,
     DiffProvider,
     RemoteManager,
     RepositoryOperations,
-    AsyncRepositoryOperations,
+    RepositoryValidator,
 )
-
-# Notification Protocol Exports
-from .notification_protocol import (
-    NotificationLevel,
-    NotificationChannel,
-    NotificationEvent,
-    EventSubscriber,
-    EventPublisher,
-    StatusReporter,
-    ErrorReporter,
-    MessageBroadcaster,
-    NotificationSystem,
-    AsyncNotificationSystem,
-    NotificationFilter,
-)
-
-# Metrics Protocol Exports
-from .metrics_protocol import (
-    MetricType,
-    MetricUnit,
-    MetricValue,
-    TimingResult,
-    MetricCollector,
-    PerformanceTimer,
-    SuccessFailureTracker,
-    ResourceMonitor,
-    MetricsAggregator,
-    MetricsSystem,
-    AsyncMetricsSystem,
-)
-
-# Convenience type aliases for common protocol combinations
-from typing import Union
 
 # Common protocol combinations for dependency injection
-DebuggableRepositoryComponent = Union[DebuggableComponent, RepositoryOperations]
-MonitoredComponent = Union[DebuggableComponent, MetricsSystem, NotificationSystem]
-FullServiceComponent = Union[
-    DebuggableComponent, RepositoryOperations, NotificationSystem, MetricsSystem
-]
+DebuggableRepositoryComponent = DebuggableComponent | RepositoryOperations
+MonitoredComponent = DebuggableComponent | MetricsSystem | NotificationSystem
+FullServiceComponent = (
+    DebuggableComponent | RepositoryOperations | NotificationSystem | MetricsSystem
+)
 
 # Export all protocol classes
 __all__ = [

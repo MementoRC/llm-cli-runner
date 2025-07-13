@@ -1,5 +1,5 @@
-from typing import Any, Dict, Literal, Optional, Union
 import logging
+from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 
@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 class CancelledParams(BaseModel):
     """Parameters for a cancelled notification."""
 
-    requestId: Union[str, int]
-    reason: Optional[str] = None
+    requestId: str | int
+    reason: str | None = None
 
 
 class CancelledNotification(BaseModel):
@@ -25,13 +25,13 @@ class CancelledNotification(BaseModel):
 
 
 # Union type for all client notifications
-ClientNotification = Union[
-    CancelledNotification,
-    # Add other notification types here as they are implemented
-]
+ClientNotification = (
+    CancelledNotification
+    # Add other notification types here as they are implemented using |
+)
 
 
-def parse_client_notification(data: Dict[str, Any]) -> ClientNotification:
+def parse_client_notification(data: dict[str, Any]) -> ClientNotification:
     """
     Parse a client notification from raw data based on its type field.
 

@@ -20,7 +20,7 @@ Critical for TDD Compliance:
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiohttp
 
@@ -48,12 +48,12 @@ class GitHubRateLimitError(GitHubPrimitiveError):
 class GitHubAPIError(GitHubPrimitiveError):
     """Exception raised for GitHub API errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-def get_github_token() -> Optional[str]:
+def get_github_token() -> str | None:
     """
     Get GitHub token from environment variables.
 
@@ -108,7 +108,7 @@ def validate_github_token(token: str) -> bool:
     return any(re.match(pattern, token.strip()) for pattern in patterns)
 
 
-def build_github_headers(token: str) -> Dict[str, str]:
+def build_github_headers(token: str) -> dict[str, str]:
     """
     Build standard GitHub API request headers.
 
@@ -159,11 +159,11 @@ def build_github_url(endpoint: str, base_url: str = "https://api.github.com") ->
 async def make_github_request(
     method: str,
     endpoint: str,
-    token: Optional[str] = None,
-    params: Optional[Dict[str, Any]] = None,
-    json_data: Optional[Dict[str, Any]] = None,
+    token: str | None = None,
+    params: dict[str, Any] | None = None,
+    json_data: dict[str, Any] | None = None,
     timeout: int = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Make authenticated GitHub API request.
 
@@ -240,10 +240,10 @@ async def make_github_request(
                     return {"text": response_text}
 
         except aiohttp.ClientError as e:
-            raise GitHubAPIError(f"Network error during GitHub API request: {e}")
+            raise GitHubAPIError(f"Network error during GitHub API request: {e}") from e
 
 
-async def get_authenticated_user() -> Dict[str, Any]:
+async def get_authenticated_user() -> dict[str, Any]:
     """
     Get information about the authenticated GitHub user.
 
@@ -284,7 +284,7 @@ async def check_repository_access(repo_owner: str, repo_name: str) -> bool:
         return False
 
 
-async def get_repository_info(repo_owner: str, repo_name: str) -> Dict[str, Any]:
+async def get_repository_info(repo_owner: str, repo_name: str) -> dict[str, Any]:
     """
     Get repository information.
 
@@ -308,7 +308,7 @@ async def get_repository_info(repo_owner: str, repo_name: str) -> Dict[str, Any]
 
 async def get_pull_request_info(
     repo_owner: str, repo_name: str, pr_number: int
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get pull request information.
 
@@ -335,7 +335,7 @@ async def get_pull_request_info(
 
 async def get_commit_info(
     repo_owner: str, repo_name: str, commit_sha: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get commit information.
 
@@ -361,8 +361,8 @@ async def get_commit_info(
 
 
 async def list_repository_contents(
-    repo_owner: str, repo_name: str, path: str = "", ref: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    repo_owner: str, repo_name: str, path: str = "", ref: str | None = None
+) -> list[dict[str, Any]]:
     """
     List repository contents at a specific path.
 
@@ -398,8 +398,8 @@ async def list_repository_contents(
 
 
 async def get_file_content(
-    repo_owner: str, repo_name: str, file_path: str, ref: Optional[str] = None
-) -> Dict[str, Any]:
+    repo_owner: str, repo_name: str, file_path: str, ref: str | None = None
+) -> dict[str, Any]:
     """
     Get file content from repository.
 
@@ -435,7 +435,7 @@ async def search_repositories(
     order: str = "desc",
     per_page: int = 30,
     page: int = 1,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Search GitHub repositories.
 
@@ -468,7 +468,7 @@ async def search_repositories(
     return await make_github_request("GET", "/search/repositories", params=params)
 
 
-def parse_github_url(url: str) -> Optional[Dict[str, str]]:
+def parse_github_url(url: str) -> dict[str, str] | None:
     """
     Parse GitHub repository URL to extract owner and repository name.
 
