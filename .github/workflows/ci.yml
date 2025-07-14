@@ -36,8 +36,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          echo "📦 Installing pixi dependencies..."
-          pixi install --verbose
+          echo "📦 Installing pixi dependencies for quality environment..."
+          pixi install -e quality --verbose
           echo "✅ Dependencies installed successfully"
 
       - name: Debug environment
@@ -51,7 +51,7 @@ jobs:
       - name: Install project in editable mode
         run: |
           echo "📦 Installing project in editable mode..."
-          pixi run install-editable || {
+          pixi run -e quality install-editable || {
             echo "⚠️ Primary installation failed, trying fallback..."
             export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
             echo "✅ Using fallback PYTHONPATH setup"
@@ -61,22 +61,22 @@ jobs:
       - name: Run format check
         run: |
           echo "🎨 Running format check..."
-          pixi run format-check
+          pixi run -e quality format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
           echo "🔍 Running critical linting..."
-          pixi run lint
+          pixi run -e quality lint
 
       - name: Run type checking
         run: |
           echo "🏷️ Running type checking..."
-          pixi run typecheck
+          pixi run -e quality typecheck
 
       - name: Run unit tests with coverage
         run: |
           echo "🧪 Running tests with coverage..."
-          pixi run test-cov
+          pixi run -e quality test-cov
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
