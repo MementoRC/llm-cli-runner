@@ -25,19 +25,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "📦 Installing pixi dependencies..."
-        pixi install --verbose
+        echo "📦 Installing pixi dependencies for quality environment..."
+        pixi install -e quality --verbose
         echo "✅ Dependencies installed successfully"
 
     - name: Run quality checks - Lint (ZERO-TOLERANCE)
       run: |
         echo "🚨 ZERO-TOLERANCE: Checking for F,E9 violations..."
-        pixi run lint
+        pixi run -e quality lint
         echo "✅ No F,E9 violations found"
 
     - name: Run tests
       run: |
-        pixi run test
+        pixi run -e quality test
 
     - name: Check repository hygiene
       run: |
