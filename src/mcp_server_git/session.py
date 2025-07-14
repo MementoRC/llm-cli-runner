@@ -90,7 +90,7 @@ class Session:
         self._circuit: CircuitBreaker = get_circuit_breaker(f"session-{session_id}")
         self._idle_timeout = idle_timeout
         self._heartbeat_timeout = heartbeat_timeout
-        self._cleanup_task: asyncio.Union[Task, None] = None
+        self._cleanup_task: Union[asyncio.Task, None] = None
         self._server_session: Union[ServerSession, None] = None
         self._closed_event = asyncio.Event()
         # Define a set of valid commands for demonstration/testing purposes
@@ -344,7 +344,7 @@ class HeartbeatManager:
         self._missed_threshold = missed_threshold
         self._last_heartbeats: dict[str, float] = {}
         self._lock = asyncio.Lock()
-        self._task: asyncio.Union[Task, None] = None
+        self._task: Union[asyncio.Task, None] = None
         self._running = False
         self._logger = logging.getLogger(__name__)
 
