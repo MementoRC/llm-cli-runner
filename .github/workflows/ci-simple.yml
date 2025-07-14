@@ -37,7 +37,7 @@ jobs:
 
     - name: Run tests
       run: |
-        pixi run pytest tests/unit/test_basic.py tests/unit/test_config_minimal.py tests/unit/test_server_handlers.py -v --tb=short
+        pixi run test
 
     - name: Check repository hygiene
       run: |
