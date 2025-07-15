@@ -57,9 +57,9 @@ jobs:
       - name: Verify installation
         run: |
           echo "🔍 Verifying package installation..."
-          pixi run -e quality python -c "import mcp_server_cheap_llm; print('✅ Package import successful')"
-          pixi run -e quality python -c "import click; print('✅ Click dependency available')"
-          echo "✅ Installation verification completed"
+          pixi run -e quality python -c "import mcp_server_cheap_llm; print(\"Package import successful\")"
+          pixi run -e quality python -c "import click; print(\"Click dependency available\")"
+          echo "Installation verification completed"
 
       - name: Run format check
         run: |
