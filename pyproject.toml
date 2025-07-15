@@ -7,7 +7,7 @@ name = "mcp-server-cheap-llm"
 version = "0.1.0"
 description = "A Model Context Protocol server providing access to cheap LLM alternatives (Gemini CLI, Codex, LLaMA)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{ name = "Anthropic, PBC." }]
 maintainers = [{ name = "Claude Code Team", email = "noreply@anthropic.com" }]
 keywords = ["mcp", "llm", "gemini", "codex", "llama", "ai", "cheap"]
@@ -17,8 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -55,7 +53,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
@@ -77,7 +75,7 @@ platforms = ["linux-64"]  # Start with linux-64 only for CI compatibility
 
 [tool.pixi.dependencies]
 # Core runtime dependencies
-python = ">=3.10"
+python = ">=3.12"
 pip = "*"
 aiohttp = ">=3.8.0"
 click = ">=8.1.7"

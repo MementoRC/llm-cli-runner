@@ -12,7 +12,7 @@ A Model Context Protocol server providing access to cost-effective Large Languag
 
 ## 📋 Requirements
 
-- Python ≥ 3.10
+- Python ≥ 3.12
 - [Pixi](https://pixi.sh/) for environment management
 - Optional: API keys for Gemini/Codex providers
 
