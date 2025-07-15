@@ -122,7 +122,7 @@ jobs:
       - name: Test package functionality
         run: |
           echo "🧪 Testing package functionality..."
-          pixi run -e dev python -c "import mcp_server_cheap_llm; print('Package imported successfully')"
+          pixi run -e dev python -c "import mcp_server_cheap_llm; print(\"Package imported successfully\")"
           echo "🏃 Testing MCP server execution..."
           pixi run -e dev python -m mcp_server_cheap_llm --help
 
