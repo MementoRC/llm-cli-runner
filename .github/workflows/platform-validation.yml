@@ -6,11 +6,13 @@ on:
     paths:
       - 'pyproject.toml'
       - 'pixi.lock'
+      - '.github/workflows/platform-validation.yml'
     branches: [ main, development ]
   pull_request:
     paths:
       - 'pyproject.toml'
       - 'pixi.lock'
+      - '.github/workflows/platform-validation.yml'
     branches: [ main, development ]
 
   # Allow manual trigger for testing
@@ -47,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue testing other platforms if one fails
       matrix:
-        platform: [linux-64]  # Only test supported platform
+        platform: [linux-64, osx-64, osx-arm64, win-64]  # Cross-platform validation
         environment: [quality, quality-extended, ci]
 
     steps:
