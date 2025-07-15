@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop, development]
+  pull_request:
+    branches: [main, master, develop, development]
+
+env:
+  PYTHONNOUSERSITE: 1
+  PIXI_VERSION: v0.50.0  # Latest stable version
+  SETUP_PIXI_VERSION: v0.8.11  # Latest setup-pixi action version
+
+jobs:
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.10
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          cache: true
+          manifest-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pixi install -e dev
+
+      - name: Install project in editable mode
+        run: |
+          pixi run -e dev pip install -e .
+
+      - name: Run format check
+        run: |
+          echo "=== DEBUGGING FORMAT CHECK ==="
+          echo "Python version: $(python --version)"
+          echo "Ruff version: $(pixi run -e dev ruff --version)"
+          echo "Current directory: $(pwd)"
+          echo "Files in tests/integration/:"
+          ls -la tests/integration/
+          echo "=== Running format check ==="
+          pixi run -e dev format-check || {
+            echo "=== FORMAT CHECK FAILED - SHOWING DIFF ==="
+            pixi run -e dev ruff format --diff src/ tests/
+            echo "=== END DIFF ==="
+            exit 1
+          }
+
+      - name: Run linting (ZERO-TOLERANCE)
+        run: |
+          pixi run -e dev lint
+          if [ $? -ne 0 ]; then
+            echo "::error::Critical lint violations detected - ZERO TOLERANCE POLICY"
+            exit 1
+          fi
+
+      - name: Run type checking
+        run: pixi run -e dev typecheck
+
+      - name: Run unit tests with coverage
+        run: |
+          pixi run -e dev test-cov
+          if [ $? -ne 0 ]; then
+            echo "::error::Unit tests failed - ZERO TOLERANCE POLICY"
+            exit 1
+          fi
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  build-test:
+    name: Build and Package Test
+    runs-on: ubuntu-latest
+    needs: quality-gates
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.10
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          cache: true
+          manifest-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pixi install -e dev
+
+      - name: Install project in editable mode
+        run: |
+          pixi run -e dev pip install -e .
+
+      - name: Build package
+        run: |
+          pixi run -e dev pip install build
+          pixi run -e dev python -m build
+
+      - name: Test package installation
+        run: |
+          pip install dist/*.whl
+          python -c "import mcp_server_cheap_llm; print(mcp_server_cheap_llm.__version__)"
