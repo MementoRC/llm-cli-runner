@@ -21,8 +21,6 @@ Usage:
     ...         pass
 """
 
-from typing import Union
-
 # Debugging Protocol Exports
 # Convenience type aliases for common protocol combinations
 # Union types now Union[use, syntax]

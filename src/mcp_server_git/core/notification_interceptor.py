@@ -5,7 +5,6 @@ the MCP framework's built-in validation, which doesn't support notifications/can
 
 import json
 import logging
-from typing import Union
 
 from ..models.enhanced_validation import process_notification_safely
 

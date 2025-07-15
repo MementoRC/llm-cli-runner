@@ -41,7 +41,7 @@ class RepositoryValidator(Protocol):
     """Protocol for repository path validation and verification."""
 
     @abstractmethod
-    def validate_repository_path(self, path: Union[str, Path]) -> bool:
+    def validate_repository_path(self, path: str | Path) -> bool:
         """
         Validate if a path points to a valid Git repository.
 
@@ -58,7 +58,7 @@ class RepositoryValidator(Protocol):
         ...
 
     @abstractmethod
-    def get_repository_info(self, path: Union[str, Path]) -> dict[str, Any]:
+    def get_repository_info(self, path: str | Path) -> dict[str, Any]:
         """
         Get repository information and metadata.
 
@@ -77,8 +77,8 @@ class RepositoryValidator(Protocol):
 
     @abstractmethod
     def check_repository_health(
-        self, path: Union[str, Path]
-    ) -> dict[str, Union[bool, str, list[str]]]:
+        self, path: str | Path
+    ) -> dict[str, bool | str | list[str]]:
         """
         Check the health and integrity of a Git repository.
 
@@ -127,7 +127,7 @@ class BranchManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         branch_name: str,
-        base_branch: Union[str, None] = None,
+        base_branch: str | None = None,
     ) -> GitOperationResult:
         """
         Create a new branch.
@@ -192,7 +192,7 @@ class BranchManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         source_branch: str,
-        target_branch: Union[str, None] = None,
+        target_branch: str | None = None,
     ) -> GitOperationResult:
         """
         Merge one branch into another.
@@ -216,7 +216,7 @@ class CommitManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         max_count: int = 10,
-        branch: Union[str, None] = None,
+        branch: str | None = None,
     ) -> GitLogResult:
         """
         Get commit history for the repository.
@@ -242,9 +242,9 @@ class CommitManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         message: str,
-        files: Union[list[str], None] = None,
-        author_name: Union[str, None] = None,
-        author_email: Union[str, None] = None,
+        files: list[str] | None = None,
+        author_name: str | None = None,
+        author_email: str | None = None,
     ) -> GitOperationResult:
         """
         Create a new commit.
@@ -269,7 +269,7 @@ class CommitManager(Protocol):
 
     @abstractmethod
     def get_commit_info(
-        self, repo_path: GitRepositoryPath, commit_hash: Union[str, GitCommitHash]
+        self, repo_path: GitRepositoryPath, commit_hash: str | GitCommitHash
     ) -> GitCommitInfo:
         """
         Get detailed information about a specific commit.
@@ -352,7 +352,7 @@ class DiffProvider(Protocol):
 
     @abstractmethod
     def get_commit_diff(
-        self, repo_path: GitRepositoryPath, commit_hash: Union[str, GitCommitHash]
+        self, repo_path: GitRepositoryPath, commit_hash: str | GitCommitHash
     ) -> GitDiffResult:
         """
         Get diff for a specific commit.
@@ -438,7 +438,7 @@ class RemoteManager(Protocol):
         self,
         repo_path: GitRepositoryPath,
         remote_name: str = "origin",
-        branch_name: Union[str, None] = None,
+        branch_name: str | None = None,
         force: bool = False,
     ) -> GitOperationResult:
         """
@@ -487,7 +487,7 @@ class RepositoryOperations(Protocol):
 
     @abstractmethod
     def initialize_repository(
-        self, path: Union[str, Path], bare: bool = False
+        self, path: str | Path, bare: bool = False
     ) -> GitOperationResult:
         """
         Initialize a new Git repository.
@@ -509,7 +509,7 @@ class RepositoryOperations(Protocol):
 
     @abstractmethod
     def clone_repository(
-        self, url: str, destination: Union[str, Path], branch: Union[str, None] = None
+        self, url: str, destination: str | Path, branch: str | None = None
     ) -> GitOperationResult:
         """
         Clone a remote repository.
@@ -546,8 +546,8 @@ class AsyncRepositoryOperations(Protocol):
     async def clone_repository_async(
         self,
         url: str,
-        destination: Union[str, Path],
-        progress_callback: Union[Callable, None] = None,
+        destination: str | Path,
+        progress_callback: Callable | None = None,
     ) -> GitOperationResult:
         """
         Async clone with progress reporting.
