@@ -1,17 +1,18 @@
 """Test configuration and shared fixtures for MCP Server Cheap LLM."""
 
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock
-from typing import Dict, Any
+from typing import Any
+from unittest.mock import AsyncMock, Mock
 
-from mcp_server_cheap_llm.utils.config import ConfigManager
+import pytest
+
 from mcp_server_cheap_llm.server.handlers import CheapLLMServer
+from mcp_server_cheap_llm.utils.config import ConfigManager
 
 
 @pytest.fixture
-def mock_config_dict() -> Dict[str, Any]:
+def mock_config_dict() -> dict[str, Any]:
     """Mock configuration dictionary."""
     return {
         "providers": {
@@ -40,7 +41,7 @@ def mock_config_dict() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def temp_config_file(mock_config_dict: Dict[str, Any]) -> Path:
+def temp_config_file(mock_config_dict: dict[str, Any]) -> Path:
     """Create temporary config file."""
     import toml
 
@@ -50,7 +51,7 @@ def temp_config_file(mock_config_dict: Dict[str, Any]) -> Path:
 
 
 @pytest.fixture
-def mock_config_manager(mock_config_dict: Dict[str, Any]) -> ConfigManager:
+def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
     """Mock ConfigManager instance."""
     manager = Mock(spec=ConfigManager)
     manager.get_config.return_value = mock_config_dict

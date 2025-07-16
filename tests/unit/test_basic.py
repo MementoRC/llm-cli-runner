@@ -22,7 +22,7 @@ def test_import_main_module():
 
 def test_import_core_models():
     """Test that we can import core models."""
-    from mcp_server_cheap_llm.core.models import ProviderType, ProviderStatus
+    from mcp_server_cheap_llm.core.models import ProviderStatus, ProviderType
 
     assert ProviderType.GEMINI == "gemini"
     assert ProviderStatus.AVAILABLE == "available"

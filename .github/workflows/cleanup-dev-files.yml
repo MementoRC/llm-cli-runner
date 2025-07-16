@@ -1,0 +1,50 @@
+name: Cleanup Development Files on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - development
+      - main
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Remove development files
+        run: |
+          # Remove development-specific files and directories
+          rm -rf .taskmaster/
+          rm -rf .claude/
+          rm -f .mcp.json
+
+          # Check if files were removed
+          if git status --porcelain | grep -E "(\.taskmaster|\.claude|\.mcp\.json)"; then
+            echo "Development files detected and will be removed"
+            git add -A
+            git commit -m "chore: remove development files after merge from ${{ github.event.pull_request.head.ref }}
+
+            Automated cleanup of:
+            - .taskmaster/ (TaskMaster AI configuration)
+            - .claude/ (Claude Code settings)
+            - .mcp.json (MCP server configuration)
+
+            These files are preserved in feature branches but removed from stable branches."
+
+            git push origin ${{ github.event.pull_request.base.ref }}
+          else
+            echo "No development files to remove"
+          fi

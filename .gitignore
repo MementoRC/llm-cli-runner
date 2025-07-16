@@ -24,10 +24,6 @@ node_modules/
 # OS specific
 .DS_Store
 
-# Task files
-tasks.json
-tasks/
-
 # Python specific ignores
 # Byte-code files
 __pycache__/
@@ -58,3 +54,33 @@ htmlcov/
 # These files are crucial for reproducible builds and are expected to be committed.
 # .pixi/
 # pixi.lock
+
+# Security and audit reports
+bandit-report.json
+safety-report.json
+pip-audit-report.json
+
+# TaskMaster and MCP files (tracked in feature branches, removed on merge to development)
+.taskmaster/
+.mcp.json
+
+# Environment files
+.env.*
+!.env.example
+
+# MyPy cache
+.mypy_cache/
+
+# Local LLaMA models
+models/
+*.gguf
+*.bin
+
+# Task files (now tracked in feature branches)
+# tasks.json
+# tasks/
+
+# Temporary development files
+.taskmaster_save/
+.aider/
+.claude_backup/

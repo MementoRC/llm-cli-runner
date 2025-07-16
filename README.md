@@ -12,7 +12,7 @@ A Model Context Protocol server providing access to cost-effective Large Languag
 
 ## 📋 Requirements
 
-- Python ≥ 3.10
+- Python ≥ 3.12
 - [Pixi](https://pixi.sh/) for environment management
 - Optional: API keys for Gemini/Codex providers
 
@@ -60,7 +60,7 @@ pixi run test-cov
 
 # Run specific test categories
 pixi run test-unit        # Unit tests
-pixi run test-integration # Integration tests  
+pixi run test-integration # Integration tests
 pixi run test-e2e        # End-to-end tests
 pixi run test-property   # Property-based tests
 ```
@@ -131,7 +131,7 @@ api_key = "${GEMINI_API_KEY}"
 
 [[providers]]
 name = "llama"
-provider_type = "llama" 
+provider_type = "llama"
 enabled = true
 model_name = "llama-2-7b-chat"
 ```
@@ -154,7 +154,7 @@ src/mcp_server_cheap_llm/
 ### Project Structure
 
 - **100% Test Coverage**: Every component has comprehensive tests
-- **Atomic Design**: Clear hierarchy from simple to complex components  
+- **Atomic Design**: Clear hierarchy from simple to complex components
 - **Type Safety**: Complete type hints throughout
 - **Security First**: Enterprise-grade security scanning
 - **Documentation**: Comprehensive docstrings with examples

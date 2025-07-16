@@ -1,13 +1,14 @@
 """Unit tests for server handlers - TDD approach."""
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from mcp.types import (
-    Tool,
+from mcp.types import (  # type: ignore[import-not-found]
     CallToolRequest,
     CallToolRequestParams,
     CallToolResult,
     TextContent,
+    Tool,
 )
 
 from mcp_server_cheap_llm.server.handlers import CheapLLMServer

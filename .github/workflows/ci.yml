@@ -8,57 +8,78 @@ on:
 
 env:
   PYTHONNOUSERSITE: 1
+  PIXI_VERSION: v0.49.0  # Latest stable version
 
 jobs:
   quality-gates:
-    name: Quality Gates
+    name: Quality Gates (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12"]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
-          python-version: ${{ matrix.python-version }}
+          pixi-version: ${{ env.PIXI_VERSION }}
+          cache: false
+          manifest-path: pyproject.toml
 
-      - name: Install pixi
+      - name: Clean environment
         run: |
-          curl -fsSL https://pixi.sh/install.sh | bash
-          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+          echo "🧹 Cleaning up any existing environment..."
+          rm -rf .pixi/envs || true
 
-      - name: Install pixi dependencies
-        run: pixi install -e dev
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing pixi dependencies for quality environment..."
+          pixi install -e quality --verbose
+          echo "✅ Dependencies installed successfully"
+
+      - name: Debug environment
+        run: |
+          echo "🔍 Environment debugging..."
+          pixi info
+          pixi list
+          python --version
+          pip --version || echo "pip not found"
 
       - name: Install project in editable mode
         run: |
-          pixi run -e dev pip install -e .
+          echo "📦 Installing project in editable mode..."
+          pixi run -e quality install-editable
+          echo "✅ Project installation completed"
+
+      - name: Verify installation
+        run: |
+          echo "🔍 Verifying package installation..."
+          pixi run -e quality python -c "import mcp_server_cheap_llm; print(\"Package import successful\")"
+          pixi run -e quality python -c "import click; print(\"Click dependency available\")"
+          echo "Installation verification completed"
 
       - name: Run format check
-        run: pixi run -e dev format-check
+        run: |
+          echo "🎨 Running format check..."
+          pixi run -e quality format-check
 
       - name: Run linting (ZERO-TOLERANCE)
         run: |
-          pixi run -e dev lint
-          if [ $? -ne 0 ]; then
-            echo "::error::Critical lint violations detected - ZERO TOLERANCE POLICY"
-            exit 1
-          fi
+          echo "🔍 Running critical linting..."
+          pixi run -e quality lint
 
       - name: Run type checking
-        run: pixi run -e dev typecheck
+        run: |
+          echo "🏷️ Running type checking..."
+          pixi run -e quality typecheck
 
       - name: Run unit tests with coverage
         run: |
-          pixi run -e dev test-cov
-          if [ $? -ne 0 ]; then
-            echo "::error::Unit tests failed - ZERO TOLERANCE POLICY"
-            exit 1
-          fi
+          echo "🧪 Running tests with coverage..."
+          pixi run -e quality test-cov
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
@@ -76,29 +97,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.11
         with:
-          python-version: "3.12"
+          pixi-version: ${{ env.PIXI_VERSION }}
+          cache: false
+          manifest-path: pyproject.toml
 
-      - name: Install pixi
+      - name: Clean environment
         run: |
-          curl -fsSL https://pixi.sh/install.sh | bash
-          echo "$HOME/.pixi/bin" >> $GITHUB_PATH
+          echo "🧹 Cleaning up any existing environment..."
+          rm -rf .pixi/envs || true
 
-      - name: Install pixi dependencies
-        run: pixi install -e dev
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing pixi dependencies for dev environment..."
+          pixi install -e dev --verbose
 
       - name: Install project in editable mode
         run: |
-          pixi run -e dev pip install -e .
+          echo "📦 Installing project in editable mode..."
+          pixi run -e dev install-editable
 
-      - name: Build package
+      - name: Test package functionality
         run: |
-          pixi run -e dev pip install build
-          pixi run -e dev python -m build
+          echo "🧪 Testing package functionality..."
+          pixi run -e dev python -c "import mcp_server_cheap_llm; print(\"Package imported successfully\")"
+          echo "🏃 Testing MCP server execution..."
+          pixi run -e dev python -m mcp_server_cheap_llm --help
 
-      - name: Test package installation
-        run: |
-          pip install dist/*.whl
-          python -c "import mcp_server_cheap_llm; print(mcp_server_cheap_llm.__version__)"
+      - name: Cleanup dev files
+        if: >
+          github.ref == 'refs/heads/development' &&
+          github.event_name == 'push'
+        uses: MementoRC/ci-framework@v1.0.0
+        with:
+          additional_patterns: '.env.local,.cache'
