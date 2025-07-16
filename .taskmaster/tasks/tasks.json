@@ -144,7 +144,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -163,7 +163,7 @@
               1
             ],
             "details": "RED: Write failing tests for PerformanceLogger and AuditLogger classes with timing decorators, security event detection, and audit trail generation in tests/unit/test_logging_metrics.py. GREEN: Implement performance and audit logging classes with timing decorators and security event tracking in utils/logging.py. REFACTOR: Add metric aggregation, audit trail completeness, and security event classification. QUALITY: Run pixi run test && pixi run ruff check --select=F,E9 && eval \"$(pixi shell-hook -e dev)\" && pre-commit run --all-files && bandit -r src/. COMMIT: 'feat: performance and audit logging infrastructure'. PUSH: Push to remote. VERIFY: Check CI passes with security and performance tests.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test timing precision, audit trail completeness, security event detection accuracy, and performance metric statistical validity"
           },
           {
@@ -172,7 +172,7 @@
             "description": "Create comprehensive custom exception hierarchy for provider-specific errors and network failures",
             "dependencies": [],
             "details": "RED: Write failing tests for custom exception hierarchy with CheapLLMError base class, provider-specific errors, and error code consistency in tests/unit/test_errors.py. Test exception inheritance, error data serialization, and provider error mapping. GREEN: Implement custom exception classes in utils/errors.py with proper error codes and structured error data. REFACTOR: Add error code uniqueness, provider error translation, and error context preservation. QUALITY: Run pixi run test && pixi run ruff check --select=F,E9 && eval \"$(pixi shell-hook -e dev)\" && pre-commit run --all-files. COMMIT: 'feat: custom exception hierarchy for provider errors'. PUSH: Push to remote. VERIFY: Check CI passes with error handling tests.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test exception hierarchy correctness, error code uniqueness, structured error data validation, and provider error mapping accuracy"
           },
           {
@@ -416,7 +416,7 @@
     ],
     "metadata": {
       "created": "2025-07-09T02:39:38.758Z",
-      "updated": "2025-07-16T13:30:39.810Z",
+      "updated": "2025-07-16T21:58:35.297Z",
       "description": "Tasks for master context"
     }
   }
