@@ -97,7 +97,8 @@
       "mcp__uckn-knowledge__predict_issues",
       "mcp__uckn-knowledge__recommend_setup",
       "mcp__uckn-knowledge__search_patterns",
-      "mcp__uckn-knowledge__validate_solution"
+      "mcp__uckn-knowledge__validate_solution",
+      "mcp__git__git_rebase"
     ],
     "deny": [
       "Bash(/usr/bin/:*)"
