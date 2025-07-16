@@ -154,7 +154,7 @@ class InterceptingReadStream:
             logger.error(f"Error in stream interception: {e}")
             # On error, return original line to avoid breaking protocol
             # If line is not defined, return empty line
-            if 'line' not in locals():
+            if "line" not in locals():
                 return b"\n"
             return line
 
