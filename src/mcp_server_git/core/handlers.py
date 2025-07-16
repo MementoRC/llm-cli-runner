@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from mcp.types import TextContent
 
@@ -225,10 +225,10 @@ class CallToolHandler:
                 # Try additional server functions separately
                 try:
                     from ..server import (  # type: ignore[attr-defined,no-redef]
-                        github_create_issue,
-                        github_edit_pr_description,
-                        github_list_issues,
-                        github_update_issue,
+                        github_create_issue,  # type: ignore[attr-defined]
+                        github_edit_pr_description,  # type: ignore[attr-defined]
+                        github_list_issues,  # type: ignore[attr-defined]
+                        github_update_issue,  # type: ignore[attr-defined]
                     )
 
                     github_functions.update(
@@ -416,7 +416,7 @@ class CallToolHandler:
         }
 
     def _create_git_handler(
-        self, func, requires_repo: bool = True, extra_args: Union[list[str], None] = None
+        self, func, requires_repo: bool = True, extra_args: list[str] | None = None
     ):
         """Create a wrapper for Git operation functions"""
 
@@ -515,7 +515,7 @@ class CallToolHandler:
 
         return handler
 
-    def _create_security_handler(self, func, extra_args: Union[list[str], None] = None):
+    def _create_security_handler(self, func, extra_args: list[str] | None = None):
         """Create a wrapper for security functions"""
 
         def handler(**kwargs):

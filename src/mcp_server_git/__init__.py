@@ -1,4 +1,3 @@
-from typing import Union
 import logging
 import os
 import sys
@@ -7,10 +6,20 @@ from pathlib import Path
 
 import click
 
-from .server import main as serve
-from .session import Session, SessionManager
+__all__ = ["main"]
 
-__all__ = ["Session", "SessionManager", "main"]
+
+# Lazy imports to prevent GitPython cascade during test collection
+def __getattr__(name):
+    if name == "Session":
+        from .session import Session
+
+        return Session
+    elif name == "SessionManager":
+        from .session import SessionManager
+
+        return SessionManager
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 @click.command()
@@ -27,7 +36,7 @@ __all__ = ["Session", "SessionManager", "main"]
     help="Run in test mode for CI (stays alive without immediate stdio)",
 )
 def main(
-    repository: Union[Path, None], verbose: bool, enable_file_logging: bool, test_mode: bool
+    repository: Path | None, verbose: bool, enable_file_logging: bool, test_mode: bool
 ) -> None:
     """MCP Git Server - Git functionality for MCP"""
     import asyncio
@@ -87,6 +96,9 @@ def main(
         # Log the setup
         print(f"📝 Debug logging enabled: {log_file}", file=sys.stderr)
         logger.info(f"📝 File logging enabled: {log_file}")
+
+    # Lazy import to avoid triggering GitPython imports during test collection
+    from .server import main as serve
 
     asyncio.run(serve(repository, test_mode=test_mode))
 
