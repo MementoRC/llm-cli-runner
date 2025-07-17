@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-os.environ["TESTING"] = "true"  # Ensure testing mode before import
+os.environ["CLAUDECODE"] = "0"  # Bypass ClaudeCode git redirector
 
 from mcp_server_git.server import GitTools, git_checkout, git_status
 from mcp_server_git.utils.git_import import git
@@ -14,6 +14,7 @@ from mcp_server_git.utils.git_import import git
 @pytest.fixture
 def test_repository(tmp_path: Path):
     repo_path = tmp_path / "temp_test_repo"
+    repo_path.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     test_repo = git.Repo.init(repo_path, initial_branch="master")
 
     Path(repo_path / "test.txt").write_text("test")

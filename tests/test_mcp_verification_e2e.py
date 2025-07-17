@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 # Use safe git import for testing
-os.environ["TESTING"] = "true"  # Ensure testing mode before import
+os.environ["CLAUDECODE"] = "0"  # Bypass ClaudeCode git redirector
 
 # Import safe git utilities
 from mcp_server_git.utils.git_import import Repo

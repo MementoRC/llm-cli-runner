@@ -41,8 +41,7 @@ def safe_git_import() -> Any:
         if "Failed to initialize" in str(e) and "git version" in str(e):
             # This happens in ClaudeCode environment where git commands are redirected
             # Check if we should bypass ClaudeCode git redirector
-            if (os.environ.get("CLAUDECODE", "1").lower() in ("0", "false", "no") or
-                os.environ.get("TESTING", "").lower() in ("true", "1", "yes")):
+            if os.environ.get("CLAUDECODE", "1").lower() in ("0", "false", "no"):
                 return create_git_mock()  # Return mock to bypass redirector
             else:
                 raise ImportError(

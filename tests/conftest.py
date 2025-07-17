@@ -31,7 +31,7 @@ def test_environment():
 
     # Set test-specific environment variables
     os.environ["LOG_LEVEL"] = "DEBUG"
-    os.environ["TESTING"] = "true"
+    os.environ["CLAUDECODE"] = "0"
 
     # Remove ClaudeCode's modified PATH to avoid git/gh redirectors
     if "PATH" in os.environ:
