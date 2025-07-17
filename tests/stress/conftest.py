@@ -282,10 +282,10 @@ def error_scenarios():
 async def metrics_collector():
     """Provide access to the global metrics collector."""
     # Reset metrics before test
-    global_metrics_collector.reset()
+    await global_metrics_collector.reset()
     yield global_metrics_collector
     # Optionally reset after test as well
-    global_metrics_collector.reset()
+    await global_metrics_collector.reset()
 
 
 @pytest.fixture
