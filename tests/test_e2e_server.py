@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 End-to-end test for MCP Git Server
-Tests the server as if called by `uv run` with real MCP client interaction
+Tests the server as if called by `pixi run` with real MCP client interaction
 """
 
 import asyncio
@@ -73,18 +73,20 @@ class MCPTestClient:
 
 
 @pytest.fixture
-@pytest.mark.e2e
-@pytest.mark.ci_skip
 async def mcp_server():
     """Start MCP server as subprocess and return test client"""
+    cwd = Path(__file__).parent.parent
+    
     # Set up environment with a test GitHub token if available
     env = os.environ.copy()
     env["GITHUB_TOKEN"] = env.get("GITHUB_TOKEN", "test_token_placeholder")
+    # Add src directory to PYTHONPATH
+    env["PYTHONPATH"] = str(cwd / "src")
+    # Set TESTING=true to bypass ClaudeCode git redirector
+    env["TESTING"] = "true"
 
     # Start server process
-    server_cmd = ["uv", "run", "python", "-m", "mcp_server_git"]
-
-    cwd = Path(__file__).parent.parent
+    server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
     process = await asyncio.create_subprocess_exec(
         *server_cmd,
         stdin=asyncio.subprocess.PIPE,
@@ -99,6 +101,14 @@ async def mcp_server():
 
     # Initialize the session
     try:
+        # Give server time to start up
+        await asyncio.sleep(1.0)
+        
+        # Check if server is still alive
+        if process.returncode is not None:
+            stderr_output = await process.stderr.read()
+            raise Exception(f"Server failed to start: {stderr_output.decode()}")
+            
         init_response = await asyncio.wait_for(client.initialize(), timeout=10.0)
         assert "result" in init_response, f"Initialization failed: {init_response}"
 
@@ -112,8 +122,6 @@ async def mcp_server():
 
 
 @pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.ci_skip
 async def test_server_startup_and_initialization(mcp_server):
     """Test that server starts up and initializes properly"""
     client = mcp_server
