@@ -5,7 +5,6 @@ This module provides a safe way to import GitPython with fallback to mock
 objects when git commands are not available or fail to initialize.
 """
 
-import os
 from typing import Any
 from unittest.mock import MagicMock
 
