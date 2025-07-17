@@ -170,11 +170,11 @@ install-editable = "pip install -e ."
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
-test = { cmd = "pytest tests/ -v", env = { TESTING = "true" } }
+test = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { TESTING = "true" } }
 test-cov = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=term-missing --cov-report=xml", env = { TESTING = "true" } }
 test-unit = { cmd = "pytest tests/unit/ -v", env = { TESTING = "true" } }
 test-integration = { cmd = "pytest tests/integration/ -v", env = { TESTING = "true" } }
-test-e2e = { cmd = "pytest tests/e2e/ -v", env = { TESTING = "true" } }
+test-e2e = { cmd = "pytest tests/test_e2e_server.py -v", env = { TESTING = "true" } }
 test-property = { cmd = "pytest tests/ -m property -v", env = { TESTING = "true" } }
 
 # Quality Gates (CRITICAL - MUST PASS)
@@ -205,7 +205,7 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci", TESTING = "true" } }
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 --ignore=tests/test_e2e_server.py", env = { ENVIRONMENT = "ci", TESTING = "true" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
 
