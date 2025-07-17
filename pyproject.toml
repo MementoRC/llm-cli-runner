@@ -220,16 +220,6 @@ serve-simple = "python -m mcp_server_git.server_simple"
 mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src" } }
 mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG" } }
 
-# ===== GIT OPERATIONS (BYPASS REDIRECTOR) =====
-# CI Fix tasks that need direct git access
-git-status = { cmd = "git status", env = { CLAUDECODE = "0" } }
-git-add = { cmd = "git add", env = { CLAUDECODE = "0" } }
-git-commit = { cmd = "git commit", env = { CLAUDECODE = "0" } }
-git-push = { cmd = "git push", env = { CLAUDECODE = "0" } }
-git-log = { cmd = "git log --oneline -5", env = { CLAUDECODE = "0" } }
-
-# Combined CI fix workflow
-ci-commit-and-push = { cmd = "git add . && git commit -m 'fix: CI fixes' && git push", env = { CLAUDECODE = "0" } }
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks
