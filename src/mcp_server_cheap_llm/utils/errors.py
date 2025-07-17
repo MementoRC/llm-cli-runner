@@ -1,196 +1,224 @@
-"""Custom exceptions for MCP Server Cheap LLM.
+"""Error serialization utilities for MCP protocol compliance.
 
-This module defines custom exception classes following atomic design principles.
-Provides clear error hierarchies and actionable error messages (100-200 lines).
-
-Key exceptions:
-    CheapLLMError: Base exception class
-    ConfigurationError: Configuration-related errors
-    ProviderError: Provider-specific errors
-    ValidationError: Input validation errors
-
-Example:
-    >>> raise ProviderError("Gemini API key invalid", provider="gemini")
-    >>> raise ConfigurationError("Missing required field: model_name")
+This module provides ErrorSerializer class for converting custom exceptions
+to MCP protocol format and deserializing them back to exception objects.
 """
 
+import json
+import uuid
+from datetime import datetime
 from typing import Any
 
+from mcp_server_cheap_llm.core.errors import (
+    CheapLLMError,
+    ConfigurationError,
+    ProviderError,
+    RateLimitError,
+    SecurityError,
+    ValidationError,
+)
 
-class CheapLLMError(Exception):
-    """Base exception class for MCP Server Cheap LLM.
 
-    All custom exceptions inherit from this base class to provide
-    consistent error handling and debugging information.
+class ErrorSerializer:
+    """Serializes and deserializes errors for MCP protocol compliance.
 
-    Attributes:
-        message: Human-readable error message
-        error_code: Optional error code for programmatic handling
-        context: Additional context information
+    This class handles conversion between custom exception objects and
+    MCP protocol JSON format, preserving error context and metadata.
 
-    Example:
-        >>> try:
-        ...     raise CheapLLMError("Something went wrong", error_code="E001")
-        ... except CheapLLMError as e:
-        ...     print(f"Error {e.error_code}: {e.message}")
+    MCP Protocol Format:
+    {
+        "error": {
+            "code": "error_code",
+            "message": "error_message",
+            "data": {
+                "error_type": "ExceptionClassName",
+                "context": {...},
+                "cause": "...",
+                "timestamp": "..."
+            }
+        }
+    }
     """
 
-    def __init__(
-        self,
-        message: str,
-        error_code: str | None = None,
-        context: dict[str, Any] | None = None,
-    ):
-        """Initialize the exception.
+    # Error type to class mapping for deserialization
+    ERROR_CLASS_MAP: dict[str, type[CheapLLMError]] = {
+        "CheapLLMError": CheapLLMError,
+        "ConfigurationError": ConfigurationError,
+        "ProviderError": ProviderError,
+        "ValidationError": ValidationError,
+        "RateLimitError": RateLimitError,
+        "SecurityError": SecurityError,
+    }
+
+    # Default error code prefixes by error type
+    DEFAULT_ERROR_CODES: dict[str, str] = {
+        "CheapLLMError": "GEN",
+        "ConfigurationError": "CFG",
+        "ProviderError": "PRV",
+        "ValidationError": "VAL",
+        "RateLimitError": "RLT",
+        "SecurityError": "SEC",
+    }
+
+    def serialize(self, error: CheapLLMError) -> dict[str, Any]:
+        """Serialize an exception to MCP protocol format.
 
         Args:
-            message: Human-readable error description
-            error_code: Optional error code for categorization
-            context: Additional context for debugging
-        """
-        super().__init__(message)
-        self.message = message
-        self.error_code = error_code
-        self.context = context or {}
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert exception to dictionary for logging.
+            error: The exception to serialize
 
         Returns:
-            Dictionary representation of the exception
+            Dictionary in MCP protocol format
         """
+        error_code = self._get_error_code(error)
+        error_message = str(error)
+        error_data = self._extract_error_data(error)
+
         return {
-            "error_type": self.__class__.__name__,
-            "message": self.message,
-            "error_code": self.error_code,
-            "context": self.context,
+            "error": {"code": error_code, "message": error_message, "data": error_data}
         }
 
-
-class ConfigurationError(CheapLLMError):
-    """Raised when configuration is invalid or missing.
-
-    This exception indicates problems with configuration files,
-    environment variables, or provider settings.
-
-    Example:
-        >>> raise ConfigurationError(
-        ...     "Invalid provider configuration",
-        ...     error_code="CFG001",
-        ...     context={"provider": "gemini", "field": "api_key"}
-        ... )
-    """
-
-    pass
-
-
-class ProviderError(CheapLLMError):
-    """Raised when provider operations fail.
-
-    This exception covers API errors, authentication failures,
-    rate limiting, and other provider-specific issues.
-
-    Attributes:
-        provider: Name of the provider that failed
-
-    Example:
-        >>> raise ProviderError(
-        ...     "API rate limit exceeded",
-        ...     error_code="PRV001",
-        ...     context={"provider": "gemini", "retry_after": 60}
-        ... )
-    """
-
-    def __init__(
-        self,
-        message: str,
-        provider: str,
-        error_code: str | None = None,
-        context: dict[str, Any] | None = None,
-    ):
-        """Initialize provider error.
+    def deserialize(self, mcp_error: dict[str, Any]) -> CheapLLMError:
+        """Deserialize MCP protocol error back to exception object.
 
         Args:
-            message: Error description
-            provider: Name of the failing provider
-            error_code: Optional error code
-            context: Additional context information
+            mcp_error: Dictionary in MCP protocol format
+
+        Returns:
+            Exception object reconstructed from MCP format
         """
-        context = context or {}
-        context["provider"] = provider
-        super().__init__(message, error_code, context)
-        self.provider = provider
+        error_info = mcp_error.get("error", {})
+        error_code = error_info.get("code")
+        error_message = error_info.get("message", "Unknown error")
+        error_data = error_info.get("data", {})
 
+        # Extract error type and context
+        error_type = error_data.get("error_type", "CheapLLMError")
+        context = error_data.get("context", {})
 
-class ValidationError(CheapLLMError):
-    """Raised when input validation fails.
+        # Get the appropriate exception class
+        error_class = self.ERROR_CLASS_MAP.get(error_type, CheapLLMError)
 
-    This exception indicates problems with user input,
-    request parameters, or data format validation.
+        # Create exception instance based on type
+        if error_type == "ProviderError":
+            provider = error_data.get("provider", "unknown")
+            return ProviderError(
+                error_message, provider=provider, error_code=error_code, context=context
+            )
+        elif error_type == "RateLimitError":
+            provider = error_data.get("provider", "unknown")
+            retry_after = error_data.get("retry_after", 0)
+            return RateLimitError(
+                error_message,
+                provider=provider,
+                retry_after=retry_after,
+                error_code=error_code,
+                context=context,
+            )
+        else:
+            return error_class(error_message, error_code=error_code, context=context)
 
-    Example:
-        >>> raise ValidationError(
-        ...     "Prompt too long",
-        ...     error_code="VAL001",
-        ...     context={"max_length": 10000, "actual_length": 15000}
-        ... )
-    """
-
-    pass
-
-
-class RateLimitError(ProviderError):
-    """Raised when provider rate limits are exceeded.
-
-    This specialized provider error includes rate limit
-    specific information for retry logic.
-
-    Attributes:
-        retry_after: Seconds to wait before retrying
-
-    Example:
-        >>> raise RateLimitError(
-        ...     "Rate limit exceeded",
-        ...     provider="gemini",
-        ...     retry_after=60
-        ... )
-    """
-
-    def __init__(
-        self,
-        message: str,
-        provider: str,
-        retry_after: int,
-        error_code: str | None = None,
-        context: dict[str, Any] | None = None,
-    ):
-        """Initialize rate limit error.
+    def _get_error_code(self, error: CheapLLMError) -> str:
+        """Extract or generate error code for the exception.
 
         Args:
-            message: Error description
-            provider: Name of the provider
-            retry_after: Seconds to wait before retrying
-            error_code: Optional error code
-            context: Additional context information
+            error: The exception to get error code for
+
+        Returns:
+            Error code string
         """
-        context = context or {}
-        context["retry_after"] = retry_after
-        super().__init__(message, provider, error_code, context)
-        self.retry_after = retry_after
+        # If error has explicit error_code, use it
+        if hasattr(error, "error_code") and error.error_code:
+            return error.error_code
 
+        # Generate default error code based on error type
+        error_type = error.__class__.__name__
+        prefix = self.DEFAULT_ERROR_CODES.get(error_type, "GEN")
+        unique_id = str(uuid.uuid4())[:8].upper()
 
-class SecurityError(CheapLLMError):
-    """Raised when security violations are detected.
+        return f"{prefix}{unique_id}"
 
-    This exception indicates potential security issues
-    such as command injection attempts or unsafe operations.
+    def _extract_error_data(self, error: CheapLLMError) -> dict[str, Any]:
+        """Extract comprehensive error data for serialization.
 
-    Example:
-        >>> raise SecurityError(
-        ...     "Unsafe command detected",
-        ...     error_code="SEC001",
-        ...     context={"command": "rm -rf /", "source": "user_input"}
-        ... )
-    """
+        Args:
+            error: The exception to extract data from
 
-    pass
+        Returns:
+            Dictionary containing error metadata
+        """
+        error_data: dict[str, Any] = {
+            "error_type": error.__class__.__name__,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # Add context if available
+        if hasattr(error, "context") and error.context:
+            error_data["context"] = self._serialize_context(error.context)
+        else:
+            error_data["context"] = {}
+
+        # Add provider-specific data
+        if isinstance(error, ProviderError):
+            error_data["provider"] = error.provider
+
+        if isinstance(error, RateLimitError):
+            error_data["retry_after"] = error.retry_after
+
+        # Add error chaining information
+        if error.__cause__:
+            error_data["cause"] = (
+                f"{error.__cause__.__class__.__name__}: {str(error.__cause__)}"
+            )
+
+        return error_data
+
+    def _serialize_context(self, context: dict[str, Any]) -> dict[str, Any]:
+        """Serialize context data, handling special types.
+
+        Args:
+            context: Raw context dictionary
+
+        Returns:
+            JSON-serializable context dictionary
+        """
+        serialized = {}
+
+        for key, value in context.items():
+            try:
+                # Handle datetime objects
+                if isinstance(value, datetime):
+                    serialized[key] = value.isoformat()
+                # Handle other basic types
+                elif isinstance(value, str | int | float | bool | list | dict):
+                    serialized[key] = value
+                else:
+                    # Convert other types to string
+                    serialized[key] = str(value)
+            except Exception:
+                # If serialization fails, convert to string
+                serialized[key] = str(value)
+
+        return serialized
+
+    def to_json(self, error: CheapLLMError) -> str:
+        """Serialize exception to JSON string.
+
+        Args:
+            error: The exception to serialize
+
+        Returns:
+            JSON string in MCP protocol format
+        """
+        return json.dumps(self.serialize(error), indent=2)
+
+    def from_json(self, json_str: str) -> CheapLLMError:
+        """Deserialize exception from JSON string.
+
+        Args:
+            json_str: JSON string in MCP protocol format
+
+        Returns:
+            Exception object reconstructed from JSON
+        """
+        mcp_error = json.loads(json_str)
+        return self.deserialize(mcp_error)
