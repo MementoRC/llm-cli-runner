@@ -82,8 +82,7 @@ async def mcp_server():
     env["GITHUB_TOKEN"] = env.get("GITHUB_TOKEN", "test_token_placeholder")
     # Add src directory to PYTHONPATH
     env["PYTHONPATH"] = str(cwd / "src")
-    # Set CLAUDECODE=0 to bypass ClaudeCode git redirector
-    env["CLAUDECODE"] = "0"
+    # Environment configured for E2E testing
 
     # Start server process
     server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]

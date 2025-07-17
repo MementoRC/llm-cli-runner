@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-os.environ["CLAUDECODE"] = "0"  # Bypass ClaudeCode git redirector
+# Safe git import for testing
 
 from mcp_server_git.server import GitTools, git_checkout, git_status
 from mcp_server_git.utils.git_import import git

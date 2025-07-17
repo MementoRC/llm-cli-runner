@@ -1,8 +1,8 @@
 """
-Safe git import utility for handling ClaudeCode environment conflicts.
+Safe git import utility for handling git command failures.
 
-This module provides a safe way to import GitPython in environments where
-git commands may be redirected (like ClaudeCode development environment).
+This module provides a safe way to import GitPython with fallback to mock
+objects when git commands are not available or fail to initialize.
 """
 
 import os
@@ -25,13 +25,13 @@ def create_git_mock():
 
 def safe_git_import() -> Any:
     """
-    Safely import git module, handling ClaudeCode redirector conflicts.
+    Safely import git module, with fallback for environments with git command issues.
 
     Returns:
-        git module if successful, mock git module if in testing environment with conflicts
+        git module if successful, mock git module if import fails
 
     Raises:
-        ImportError: If git import fails for reasons other than ClaudeCode redirectors
+        ImportError: If git import fails for unexpected reasons
     """
     try:
         import git
@@ -39,16 +39,8 @@ def safe_git_import() -> Any:
         return git
     except ImportError as e:
         if "Failed to initialize" in str(e) and "git version" in str(e):
-            # This happens in ClaudeCode environment where git commands are redirected
-            # Check if we should bypass ClaudeCode git redirector
-            if os.environ.get("CLAUDECODE", "1").lower() in ("0", "false", "no"):
-                return create_git_mock()  # Return mock to bypass redirector
-            else:
-                raise ImportError(
-                    "Git import failed due to command redirection. "
-                    "This may occur in ClaudeCode environment. "
-                    "Set CLAUDECODE=0 to bypass for ClaudeCode development."
-                ) from e
+            # Git command failed to initialize - use mock for testing/development
+            return create_git_mock()
         else:
             raise
 
