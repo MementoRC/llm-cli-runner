@@ -196,7 +196,7 @@ async def test_48_hour_stability_simulation(
     logger.info(f"Memory slope: {memory_slope:.6f} MB/sample")
 
     # Get final metrics from collector
-    final_metrics = metrics_collector.get_stats()
+    final_metrics = await metrics_collector.get_metrics()
     logger.info(f"Final system metrics: {final_metrics}")
 
     # Assertions for test success
