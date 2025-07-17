@@ -13,8 +13,8 @@ env:
   # Force color output for better readability
   FORCE_COLOR: "1"
   PYTHONUNBUFFERED: "1"
-  # Bypass ClaudeCode git redirector in CI environment
-  CLAUDECODE: "0"
+  # CI environment settings
+  # Note: No CLAUDECODE flag needed - CI doesn't have git redirector
 
 jobs:
   # Job 1: Code Quality and Static Analysis
@@ -118,8 +118,6 @@ jobs:
       run: |
         echo "🧪 Running tests with coverage..."
         pixi run -e ci ci-test
-      env:
-        CLAUDECODE: "0"
 
     - name: Upload test results
       uses: actions/upload-artifact@v4

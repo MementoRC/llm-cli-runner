@@ -170,12 +170,12 @@ install-editable = "pip install -e ."
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
-test = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { TESTING = "true" } }
-test-cov = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=term-missing --cov-report=xml", env = { TESTING = "true" } }
-test-unit = { cmd = "pytest tests/unit/ -v", env = { TESTING = "true" } }
-test-integration = { cmd = "pytest tests/integration/ -v", env = { TESTING = "true" } }
-test-e2e = { cmd = "pytest tests/test_e2e_server.py -v", env = { TESTING = "true" } }
-test-property = { cmd = "pytest tests/ -m property -v", env = { TESTING = "true" } }
+test = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-cov = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=term-missing --cov-report=xml", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-unit = { cmd = "pytest tests/unit/ -v", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-integration = { cmd = "pytest tests/integration/ -v", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-e2e = { cmd = "pytest tests/test_e2e_server.py -v", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-property = { cmd = "pytest tests/ -m property -v", env = { TESTING = "true", CLAUDECODE = "0" } }
 
 # Quality Gates (CRITICAL - MUST PASS)
 lint = "ruff check src/ tests/ --select=F,E9"
@@ -205,7 +205,7 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 --ignore=tests/test_e2e_server.py", env = { ENVIRONMENT = "ci", TESTING = "true" } }
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 --ignore=tests/test_e2e_server.py", env = { ENVIRONMENT = "ci", TESTING = "true", CLAUDECODE = "0" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
 
@@ -217,11 +217,11 @@ clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist bui
 # Server execution
 serve = "python -m mcp_server_git"
 serve-simple = "python -m mcp_server_git.server_simple"
-mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src" } }
-mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG" } }
+mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src", CLAUDECODE = "0" } }
+mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG", CLAUDECODE = "0" } }
 
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks
-benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { TESTING = "true" } }
-test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { TESTING = "true" } }
+benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { TESTING = "true", CLAUDECODE = "0" } }
+test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { TESTING = "true", CLAUDECODE = "0" } }
