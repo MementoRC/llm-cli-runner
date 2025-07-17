@@ -269,8 +269,8 @@ class CommitManager(Protocol):
 
     @abstractmethod
     def get_commit_info(
-        self, repo_path: GitRepositoryPath, commit_hash: Union[str, GitCommitHash]
-    ) -> GitCommitInfo:
+        self, repo_path: "GitRepositoryPath", commit_hash: Union[str, "GitCommitHash"]
+    ) -> "GitCommitInfo":
         """
         Get detailed information about a specific commit.
 
@@ -352,8 +352,8 @@ class DiffProvider(Protocol):
 
     @abstractmethod
     def get_commit_diff(
-        self, repo_path: GitRepositoryPath, commit_hash: Union[str, GitCommitHash]
-    ) -> GitDiffResult:
+        self, repo_path: "GitRepositoryPath", commit_hash: Union[str, "GitCommitHash"]
+    ) -> "GitDiffResult":
         """
         Get diff for a specific commit.
 
