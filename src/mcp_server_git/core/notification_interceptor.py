@@ -183,7 +183,7 @@ class InterceptingReadStream:
             # If original stream is an async iterator, delegate to it
             try:
                 message = await self.original_stream.__anext__()
-                # Process the message if it's a string/bytes
+                # Process the message if it's a string/bytes (UP038 fixed)
                 if isinstance(message, str | bytes):
                     if isinstance(message, bytes):
                         raw_message = message.decode("utf-8").strip()
