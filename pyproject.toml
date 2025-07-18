@@ -204,10 +204,14 @@ install-pre-commit = "pre-commit install --install-hooks"
 check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
-# CI-specific variants
-ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 --ignore=tests/test_e2e_server.py", env = { ENVIRONMENT = "ci", CLAUDECODE = "0" } }
+# CI-specific variants with environment simulation
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=90 --ignore=tests/test_e2e_server.py", env = { ENVIRONMENT = "ci", PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
+
+# Stress testing with CI environment simulation
+test-stress-ci = { cmd = "pytest tests/stress/ -v --tb=short", env = { PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
+test-stress-local = { cmd = "pytest tests/stress/ -v --tb=short", env = { CLAUDECODE = "0" } }
 
 # Build & Deploy
 build = "python -m build"
@@ -225,3 +229,11 @@ mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging",
 # Keep existing specialized tasks
 benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { CLAUDECODE = "0" } }
 test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { CLAUDECODE = "0" } }
+
+# Environment-specific test variants
+test-ci-simulation = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py --tb=short", env = { PYTEST_CI = "true", CI = "true", GITHUB_ACTIONS = "true", CLAUDECODE = "0" } }
+test-local-full = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { CLAUDECODE = "0" } }
+
+# Quick test variants
+test-quick = { cmd = "pytest tests/unit/ tests/integration/ -v", env = { CLAUDECODE = "0" } }
+test-quick-ci = { cmd = "pytest tests/unit/ tests/integration/ -v", env = { PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
