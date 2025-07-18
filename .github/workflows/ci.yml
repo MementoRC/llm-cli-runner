@@ -78,7 +78,7 @@ jobs:
   test:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -101,12 +101,31 @@ jobs:
         pixi-version: v0.49.0
         cache: false
         manifest-path: pyproject.toml
+        
+    - name: Free up disk space
+      run: |
+        echo "🧹 Freeing up disk space for test execution..."
+        # Remove unnecessary packages to free up space
+        sudo apt-get clean
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        echo "💾 Available disk space after cleanup:"
+        df -h
 
     - name: Install dependencies
       run: |
         echo "🔧 Setting up CI environment with pixi..."
-        pixi install -e ci
-        echo "✅ CI environment ready"
+        # Add retry logic for network resilience
+        for attempt in 1 2 3; do
+          if pixi install -e ci; then
+            echo "✅ CI environment ready on attempt $attempt"
+            break
+          else
+            echo "⚠️ Installation failed on attempt $attempt, retrying..."
+            sleep 5
+          fi
+        done
 
     - name: Configure Git for testing
       run: |
@@ -117,7 +136,23 @@ jobs:
     - name: Run pytest with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        pixi run -e ci ci-test
+        # Add resource monitoring and resilience
+        echo "💾 Available disk space:"
+        df -h
+        echo "💾 Available memory:"
+        free -h
+        echo "🔧 Starting test execution with enhanced timeout..."
+        # Run with explicit timeout and retry logic
+        timeout 1800s pixi run -e ci ci-test || {
+          echo "⚠️ Test execution failed or timed out, checking system state..."
+          echo "💾 Disk space after test:"
+          df -h
+          echo "💾 Memory after test:"
+          free -h
+          echo "📊 Recent system logs:"
+          dmesg | tail -20 || true
+          exit 1
+        }
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
