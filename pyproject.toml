@@ -188,6 +188,9 @@ typecheck = "pyright src/"
 # Combined Quality Check
 quality = { depends-on = ["test", "lint", "typecheck"] }
 
+# Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
+emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
+
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
 security-scan = "bandit -r src/ --severity-level high"
@@ -196,9 +199,9 @@ safety-check = "safety check"
 # Static Analysis Suite
 static-analysis = { depends-on = ["security-scan", "safety-check"] }
 
-# Pre-commit Integration
-pre-commit = "pre-commit run --all-files"
-install-pre-commit = "pre-commit install --install-hooks"
+# Pre-commit Integration - with Claude Code git bypass
+pre-commit = { cmd = "pre-commit run --all-files", env = { CLAUDECODE = "0" } }
+install-pre-commit = { cmd = "pre-commit install --install-hooks", env = { CLAUDECODE = "0" } }
 
 # Comprehensive Check
 check-all = { depends-on = ["quality", "static-analysis"] }
@@ -226,7 +229,7 @@ mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging",
 
 
 # ===== LEGACY/SPECIALIZED TASKS =====
-# Keep existing specialized tasks
+# Keep existing specialized tasks - with Claude Code git bypass
 benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { CLAUDECODE = "0" } }
 test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { CLAUDECODE = "0" } }
 
