@@ -1,0 +1,58 @@
+name: CI Simple
+
+on:
+  push:
+    branches: [main, master, develop, development]
+  pull_request:
+    branches: [main, master, develop, development]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup pixi
+      uses: prefix-dev/setup-pixi@v0.8.11
+      with:
+        pixi-version: v0.49.0
+        cache: false
+        manifest-path: pyproject.toml
+
+    - name: Install dependencies
+      run: |
+        echo "📦 Installing pixi dependencies for quality environment..."
+        pixi install -e quality --verbose
+        echo "✅ Dependencies installed successfully"
+
+    - name: Run quality checks - Lint (ZERO-TOLERANCE)
+      run: |
+        echo "🚨 ZERO-TOLERANCE: Checking for F,E9 violations..."
+        pixi run -e quality lint
+        echo "✅ No F,E9 violations found"
+
+    - name: Run tests
+      run: |
+        pixi run -e quality test
+
+    - name: Check repository hygiene
+      run: |
+        echo "🔍 Checking repository hygiene..."
+
+        # Check for __pycache__ in git
+        if git ls-files | grep -q "__pycache__"; then
+          echo "❌ ERROR: __pycache__ directories tracked in git!"
+          exit 1
+        fi
+
+        # Check for .pyc files in git
+        if git ls-files | grep -q "\.pyc$"; then
+          echo "❌ ERROR: .pyc files tracked in git!"
+          exit 1
+        fi
+
+        echo "✅ Repository hygiene check passed"
