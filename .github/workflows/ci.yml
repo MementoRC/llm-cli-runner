@@ -195,7 +195,11 @@ jobs:
       run: |
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        # Install core runtime dependencies manually since we're not using pixi
+        pip install click>=8.1.7 aiohttp>=3.8.0 gitpython>=3.1.43 mcp>=1.0.0 psutil>=5.9.0 pydantic>=2.0.0 python-dotenv>=1.0.0
+        # Install the package in editable mode
+        pip install -e .
+        # Install dev/test dependencies
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
@@ -491,7 +495,10 @@ jobs:
       run: |
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        # Install core runtime dependencies manually since we're not using pixi
+        pip install click>=8.1.7 aiohttp>=3.8.0 gitpython>=3.1.43 mcp>=1.0.0 psutil>=5.9.0 pydantic>=2.0.0 python-dotenv>=1.0.0
+        # Install the package in editable mode
+        pip install -e .
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
@@ -559,7 +566,10 @@ jobs:
       run: |
         echo "🔧 Setting up Python environment with pip..."
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        # Install core runtime dependencies manually since we're not using pixi
+        pip install click>=8.1.7 aiohttp>=3.8.0 gitpython>=3.1.43 mcp>=1.0.0 psutil>=5.9.0 pydantic>=2.0.0 python-dotenv>=1.0.0
+        # Install the package in editable mode
+        pip install -e .
         pip install ruff mypy pytest pytest-cov pytest-asyncio pytest-timeout pytest-aiohttp pytest-mock pytest-benchmark pytest-json-report pytest-metadata pytest-faker hypothesis
         pip install pytest pytest-cov pytest-timeout pytest-mock ruff coverage pyright
         echo "PIXI_READY=false" >> $GITHUB_ENV
