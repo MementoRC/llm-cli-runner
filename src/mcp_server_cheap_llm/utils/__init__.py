@@ -18,6 +18,7 @@ from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.errors import (
     CheapLLMError,
     ConfigurationError,
+    ErrorSerializer,
     ProviderError,
     RateLimitError,
     SecurityError,
@@ -33,6 +34,7 @@ __all__ = [
     "RateLimitError",
     "SecurityError",
     "ValidationError",
+    "ErrorSerializer",
     "get_logger",
     "setup_logging",
 ]

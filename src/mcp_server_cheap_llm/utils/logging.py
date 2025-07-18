@@ -783,3 +783,335 @@ class SecurityLogger:
 
         # Log the alert
         self._structured_logger.critical("Error rate threshold exceeded", **alert_data)
+
+
+class PerformanceLogger:
+    """Performance monitoring logger with timing decorators and metrics aggregation.
+
+    This logger provides timing decorators for function performance monitoring,
+    metric aggregation, and statistical analysis. Integrates with structured logging
+    infrastructure and correlation ID tracking.
+
+    Attributes:
+        name: Logger name
+        metrics: List of timing metrics
+
+    Example:
+        >>> perf_logger = PerformanceLogger("performance")
+        >>> @perf_logger.time_function
+        ... def my_function():
+        ...     time.sleep(0.1)
+        ...     return "result"
+        >>> result = my_function()
+        >>> stats = perf_logger.get_aggregated_stats()
+    """
+
+    def __init__(self, name: str):
+        """Initialize PerformanceLogger with name.
+
+        Args:
+            name: Logger name (typically module name)
+        """
+        self.name = name
+        self._metrics: list[dict[str, Any]] = []
+        self._metrics_lock = threading.Lock()
+        self._structured_logger = StructuredLogger(f"performance.{name}")
+
+    def time_function(self, func):
+        """Decorator to time function execution and log metrics.
+
+        Args:
+            func: Function to time
+
+        Returns:
+            Decorated function with timing functionality
+        """
+
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            correlation_id = _correlation_id_context.get()
+            success = True
+            error_msg = None
+            result = None
+
+            try:
+                result = func(*args, **kwargs)
+                return result
+            except Exception as e:
+                success = False
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                raise
+            finally:
+                end_time = time.time()
+                duration_ms = (end_time - start_time) * 1000
+
+                # Create timing metric
+                metric = {
+                    "timestamp": start_time,
+                    "function_name": func.__name__,
+                    "duration_ms": duration_ms,
+                    "success": success,
+                    "logger": self.name,
+                }
+
+                if correlation_id:
+                    metric["correlation_id"] = correlation_id
+
+                if error_msg:
+                    metric["error"] = error_msg
+
+                # Store metric
+                with self._metrics_lock:
+                    self._metrics.append(metric)
+
+                # Log the performance metric
+                self._structured_logger.info("Function performance metric", **metric)
+
+        return wrapper
+
+    def get_timing_metrics(self) -> list[dict[str, Any]]:
+        """Get all timing metrics.
+
+        Returns:
+            List of timing metrics
+        """
+        with self._metrics_lock:
+            return self._metrics.copy()
+
+    def get_aggregated_stats(self) -> dict[str, dict[str, Any]]:
+        """Get aggregated performance statistics by function.
+
+        Returns:
+            Dictionary of function statistics
+        """
+        with self._metrics_lock:
+            stats = {}
+
+            # Group metrics by function name
+            function_metrics = {}
+            for metric in self._metrics:
+                func_name = metric["function_name"]
+                if func_name not in function_metrics:
+                    function_metrics[func_name] = []
+                function_metrics[func_name].append(metric)
+
+            # Calculate statistics for each function
+            for func_name, metrics in function_metrics.items():
+                durations = [m["duration_ms"] for m in metrics]
+                successes = [m["success"] for m in metrics]
+
+                # Basic statistics
+                call_count = len(metrics)
+                avg_duration = sum(durations) / call_count if call_count > 0 else 0
+                min_duration = min(durations) if durations else 0
+                max_duration = max(durations) if durations else 0
+                success_rate = sum(successes) / call_count if call_count > 0 else 0
+
+                # Standard deviation
+                if call_count > 1:
+                    variance = sum((d - avg_duration) ** 2 for d in durations) / (
+                        call_count - 1
+                    )
+                    std_deviation = variance**0.5
+                else:
+                    std_deviation = 0
+
+                stats[func_name] = {
+                    "call_count": call_count,
+                    "avg_duration_ms": avg_duration,
+                    "min_duration_ms": min_duration,
+                    "max_duration_ms": max_duration,
+                    "std_deviation_ms": std_deviation,
+                    "success_rate": success_rate,
+                }
+
+            return stats
+
+
+class AuditLogger:
+    """Audit trail logger with security event detection and classification.
+
+    This logger provides comprehensive audit trail generation, security event
+    detection, and event classification. Integrates with structured logging
+    infrastructure and correlation ID tracking.
+
+    Attributes:
+        name: Logger name
+        audit_trail: List of audit events
+
+    Example:
+        >>> audit_logger = AuditLogger("audit")
+        >>> audit_logger.log_audit_event(
+        ...     event_type="user_action",
+        ...     description="User logged in",
+        ...     user_id="user123"
+        ... )
+        >>> trail = audit_logger.get_audit_trail()
+    """
+
+    # Security event types that should be classified as security events
+    SECURITY_EVENT_TYPES = {
+        "security_violation",
+        "unauthorized_access",
+        "privilege_escalation",
+        "failed_login",
+        "data_breach",
+        "suspicious_activity",
+        "authentication_failure",
+        "authorization_failure",
+    }
+
+    def __init__(self, name: str):
+        """Initialize AuditLogger with name.
+
+        Args:
+            name: Logger name (typically module name)
+        """
+        self.name = name
+        self._audit_trail: list[dict[str, Any]] = []
+        self._audit_lock = threading.Lock()
+        self._structured_logger = StructuredLogger(f"audit.{name}")
+
+    def log_audit_event(self, event_type: str, description: str = "", **kwargs) -> None:
+        """Log an audit event with automatic security classification.
+
+        Args:
+            event_type: Type of audit event
+            description: Human-readable description
+            **kwargs: Additional context fields
+        """
+        # Create audit event
+        event = {
+            "timestamp": time.time(),
+            "event_type": event_type,
+            "description": description,
+            "logger": self.name,
+        }
+
+        # Add correlation ID if available
+        correlation_id = _correlation_id_context.get()
+        if correlation_id:
+            event["correlation_id"] = correlation_id
+
+        # Add additional context
+        for key, value in kwargs.items():
+            event[key] = value
+
+        # Classify as security event
+        event["is_security_event"] = self._is_security_event(event_type, kwargs)
+
+        # Add default severity if not provided
+        if "severity" not in event:
+            event["severity"] = self._classify_severity(event_type, kwargs)
+
+        # Store in audit trail
+        with self._audit_lock:
+            self._audit_trail.append(event)
+
+        # Log the audit event
+        self._structured_logger.info("Audit event logged", **event)
+
+    def get_audit_trail(self) -> list[dict[str, Any]]:
+        """Get complete audit trail.
+
+        Returns:
+            List of audit events in chronological order
+        """
+        with self._audit_lock:
+            return sorted(self._audit_trail, key=lambda x: x["timestamp"])
+
+    def get_security_events(self, severity: str | None = None) -> list[dict[str, Any]]:
+        """Get security events, optionally filtered by severity.
+
+        Args:
+            severity: Optional severity filter ("low", "medium", "high")
+
+        Returns:
+            List of security events
+        """
+        with self._audit_lock:
+            security_events = [
+                event
+                for event in self._audit_trail
+                if event.get("is_security_event", False)
+            ]
+
+            if severity:
+                security_events = [
+                    event
+                    for event in security_events
+                    if event.get("severity") == severity
+                ]
+
+            return sorted(security_events, key=lambda x: x["timestamp"])
+
+    def _is_security_event(self, event_type: str, context: dict[str, Any]) -> bool:
+        """Determine if event is security-related.
+
+        Args:
+            event_type: Type of event
+            context: Additional context
+
+        Returns:
+            True if security event, False otherwise
+        """
+        # Check if event type is explicitly security-related
+        if event_type in self.SECURITY_EVENT_TYPES:
+            return True
+
+        # Check for security-related context
+        security_keywords = ["security", "auth", "unauthorized", "violation", "breach"]
+
+        # Check event type for security keywords
+        if any(keyword in event_type.lower() for keyword in security_keywords):
+            return True
+
+        # Check description for security keywords
+        description = context.get("description", "")
+        if any(keyword in description.lower() for keyword in security_keywords):
+            return True
+
+        # Check for explicit severity indication
+        severity = context.get("severity", "").lower()
+        if severity in ["high", "critical"]:
+            return True
+
+        return False
+
+    def _classify_severity(self, event_type: str, context: dict[str, Any]) -> str:
+        """Classify event severity based on type and context.
+
+        Args:
+            event_type: Type of event
+            context: Additional context
+
+        Returns:
+            Severity level: "low", "medium", or "high"
+        """
+        # Check if severity is explicitly provided
+        if "severity" in context:
+            return context["severity"]
+
+        # High severity events
+        high_severity_events = {
+            "security_violation",
+            "unauthorized_access",
+            "privilege_escalation",
+            "data_breach",
+        }
+
+        if event_type in high_severity_events:
+            return "high"
+
+        # Medium severity events
+        medium_severity_events = {
+            "failed_login",
+            "authentication_failure",
+            "authorization_failure",
+        }
+
+        if event_type in medium_severity_events:
+            return "medium"
+
+        # Default to low severity
+        return "low"
