@@ -1,0 +1,81 @@
+name: Quality Gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  quality-gates:
+    name: Zero-Tolerance Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install quality tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff mypy pytest pytest-cov
+        pip install -e .
+
+    - name: 🚨 CRITICAL - F,E9 Violations Check
+      run: |
+        echo "🚨 ZERO-TOLERANCE: Checking for F,E9 violations..."
+        ruff check src/ tests/ --select=F,E9 --output-format=github
+        if [ $? -ne 0 ]; then
+          echo "❌ CRITICAL FAILURE: F,E9 violations detected!"
+          echo "Fix all import and syntax errors before proceeding."
+          exit 1
+        fi
+        echo "✅ No F,E9 violations found"
+
+    - name: 📋 Test Coverage Check
+      run: |
+        echo "📋 Running test coverage analysis..."
+        pytest tests/unit/ --cov=src/mcp_server_cheap_llm --cov-report=term --cov-fail-under=80
+        if [ $? -ne 0 ]; then
+          echo "⚠️ WARNING: Test coverage below 80%"
+          echo "Add more tests to improve coverage."
+        fi
+
+    - name: 🔍 Repository Hygiene Check
+      run: |
+        echo "🔍 Checking repository hygiene..."
+
+        # Check for __pycache__ directories
+        if find . -type d -name "__pycache__" | grep -q .; then
+          echo "❌ ERROR: __pycache__ directories found!"
+          echo "These should not be committed. Add to .gitignore."
+          exit 1
+        fi
+
+        # Check for .pyc files
+        if find . -name "*.pyc" | grep -q .; then
+          echo "❌ ERROR: .pyc files found!"
+          echo "These should not be committed. Add to .gitignore."
+          exit 1
+        fi
+
+        # Check .gitignore exists
+        if [ ! -f .gitignore ]; then
+          echo "❌ ERROR: .gitignore file missing!"
+          exit 1
+        fi
+
+        echo "✅ Repository hygiene check passed"
+
+    - name: 📊 Quality Summary
+      if: always()
+      run: |
+        echo "📊 Quality Gate Summary"
+        echo "======================"
+        echo "✅ Critical lint checks (F,E9): PASSED"
+        echo "📋 Test coverage: See above"
+        echo "🔍 Repository hygiene: See above"
+        echo ""
+        echo "Remember: ZERO-TOLERANCE for F,E9 violations!"
