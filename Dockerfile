@@ -20,7 +20,16 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 
 # Install the project and its dependencies using uv
 # Use --system flag to install into the system Python environment in Docker
-RUN uv pip install --system .
+# First install core runtime dependencies manually since pyproject.toml dependencies are managed by pixi
+RUN uv pip install --system \
+    "click>=8.1.7" \
+    "aiohttp>=3.8.0" \
+    "gitpython>=3.1.43" \
+    "mcp>=1.0.0" \
+    "psutil>=5.9.0" \
+    "pydantic>=2.0.0" \
+    "python-dotenv>=1.0.0" \
+    && uv pip install --system .
 
 # Set the entrypoint for the container
 # This uses the script defined in pyproject.toml under [project.scripts]
