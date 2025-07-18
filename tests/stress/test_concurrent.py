@@ -647,6 +647,7 @@ async def test_mixed_load_scenarios(stress_session_manager, stress_test_config):
 
     # Mixed load assertions - more lenient for CI
     import os
+
     is_ci = (
         os.getenv("CI", "false").lower() == "true"
         or os.getenv("GITHUB_ACTIONS", "false").lower() == "true"

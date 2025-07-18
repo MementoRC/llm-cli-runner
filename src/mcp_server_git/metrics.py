@@ -1,7 +1,7 @@
 import asyncio
 import time
 from collections import defaultdict
-from typing import Any, Union
+from typing import Any
 
 
 class MetricsCollector:
@@ -42,7 +42,7 @@ class MetricsCollector:
                 )
 
     async def record_operation(
-        self, operation_type: str, success: bool, duration_ms: Union[float, None] = None
+        self, operation_type: str, success: bool, duration_ms: float | None = None
     ):
         async with self._lock:
             self._metrics["operations"][operation_type] += 1

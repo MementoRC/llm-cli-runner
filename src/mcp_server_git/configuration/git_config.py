@@ -37,7 +37,6 @@ See also:
     - github_config: GitHub integration configuration
 """
 
-from typing import Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -134,7 +133,7 @@ class GitConfig(BaseModel):
     enable_commit_signing: bool = Field(
         default=False, description="Require all commits to be signed"
     )
-    commit_message_pattern: Union[str, None] = Field(
+    commit_message_pattern: str | None = Field(
         default=None, description="Regex pattern for validating commit messages"
     )
     allowed_authors: list[str] = Field(
@@ -179,7 +178,7 @@ class GitConfig(BaseModel):
 
     @field_validator("commit_message_pattern")
     @classmethod
-    def validate_commit_pattern(cls, v: Union[str, None]) -> Union[str, None]:
+    def validate_commit_pattern(cls, v: str | None) -> str | None:
         """Validate that commit message pattern is a valid regex.
 
         Args:

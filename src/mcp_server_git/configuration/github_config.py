@@ -41,7 +41,6 @@ See also:
 
 import re
 
-from typing import Union
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
@@ -111,7 +110,7 @@ class GitHubConfig(BaseModel):
     )
 
     # Authentication
-    api_token: Union[str, None] = Field(
+    api_token: str | None = Field(
         default=None, description="GitHub API token for authentication"
     )
     token_scopes: list[str] = Field(
@@ -146,7 +145,7 @@ class GitHubConfig(BaseModel):
     )
 
     # Webhook Configuration
-    webhook_secret: Union[str, None] = Field(
+    webhook_secret: str | None = Field(
         default=None, description="Secret for validating webhook payloads"
     )
     allowed_webhook_events: list[str] = Field(
@@ -204,7 +203,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("api_token")
     @classmethod
-    def validate_api_token(cls, v: Union[str, None]) -> Union[str, None]:
+    def validate_api_token(cls, v: str | None) -> str | None:
         """Validate GitHub API token format.
 
         Args:
@@ -386,7 +385,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("webhook_secret")
     @classmethod
-    def validate_webhook_secret(cls, v: Union[str, None]) -> Union[str, None]:
+    def validate_webhook_secret(cls, v: str | None) -> str | None:
         """Validate webhook secret strength.
 
         Args:

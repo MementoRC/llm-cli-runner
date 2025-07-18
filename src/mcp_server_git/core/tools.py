@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 from mcp.types import TextContent, Tool
 from pydantic import BaseModel
@@ -90,7 +90,7 @@ class ToolRegistry:
         self.tools[tool_def.name] = tool_def
         logger.debug(f"Registered tool: {tool_def.name} ({tool_def.category})")
 
-    def get_tool(self, name: str) -> Union[ToolDefinition, None]:
+    def get_tool(self, name: str) -> ToolDefinition | None:
         """Get tool definition by name"""
         return self.tools.get(name)
 

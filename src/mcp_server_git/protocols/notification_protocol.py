@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 
 class NotificationLevel(Enum):
@@ -156,7 +156,7 @@ class StatusReporter(Protocol):
 
     @abstractmethod
     def report_status(
-        self, status: str, component_id: str, metadata: Union[dict[str, Any], None] = None
+        self, status: str, component_id: str, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Report status update for a component.
@@ -182,7 +182,7 @@ class StatusReporter(Protocol):
         progress: float,
         component_id: str,
         operation: str,
-        details: Union[str, None] = None,
+        details: str | None = None,
     ) -> None:
         """
         Report progress update for a long-running operation.
@@ -205,7 +205,7 @@ class StatusReporter(Protocol):
         component_id: str,
         operation: str,
         success: bool,
-        result_data: Union[dict[str, Any], None] = None,
+        result_data: dict[str, Any] | None = None,
     ) -> None:
         """
         Report completion of an operation.
@@ -234,8 +234,8 @@ class ErrorReporter(Protocol):
         self,
         error: Exception,
         component_id: str,
-        operation: Union[str, None] = None,
-        context: Union[dict[str, Any], None] = None,
+        operation: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> str:
         """
         Report an error that occurred in a component.
@@ -262,7 +262,7 @@ class ErrorReporter(Protocol):
 
     @abstractmethod
     def report_warning(
-        self, message: str, component_id: str, context: Union[dict[str, Any], None] = None
+        self, message: str, component_id: str, context: dict[str, Any] | None = None
     ) -> str:
         """
         Report a warning condition.
@@ -279,7 +279,7 @@ class ErrorReporter(Protocol):
 
     @abstractmethod
     def get_error_history(
-        self, component_id: Union[str, None] = None, limit: int = 10
+        self, component_id: str | None = None, limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Get recent error history.
@@ -317,7 +317,7 @@ class MessageBroadcaster(Protocol):
         message: str,
         channels: list[NotificationChannel],
         level: NotificationLevel = NotificationLevel.INFO,
-        metadata: Union[dict[str, Any], None] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> list[str]:
         """
         Broadcast a message to multiple channels.
@@ -347,7 +347,7 @@ class MessageBroadcaster(Protocol):
         message: str,
         recipients: list[str],
         channel: NotificationChannel,
-        metadata: Union[dict[str, Any], None] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> list[str]:
         """
         Send message to specific recipients.
@@ -418,7 +418,7 @@ class NotificationSystem(Protocol):
         ...
 
     @abstractmethod
-    def get_notification_stats(self) -> dict[str, Union[int, float]]:
+    def get_notification_stats(self) -> dict[str, int | float]:
         """
         Get statistics about notification system usage.
 
@@ -434,7 +434,7 @@ class NotificationSystem(Protocol):
         ...
 
     @abstractmethod
-    def health_check_notifications(self) -> dict[str, Union[bool, str]]:
+    def health_check_notifications(self) -> dict[str, bool | str]:
         """
         Perform health check on notification system.
 
@@ -461,7 +461,7 @@ class AsyncNotificationSystem(Protocol):
 
     @abstractmethod
     async def notification_stream(
-        self, filters: Union[dict[str, Any], None] = None
+        self, filters: dict[str, Any] | None = None
     ) -> AsyncIterator[NotificationEvent]:
         """
         Stream notifications matching filters.

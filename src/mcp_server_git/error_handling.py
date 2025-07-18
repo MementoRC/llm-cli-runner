@@ -6,7 +6,7 @@ import logging
 import time
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, TypeVar, cast, Union
+from typing import Any, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,9 @@ class ErrorContext:
         error: Exception,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         operation: str = "",
-        session_id: Union[str, None] = None,
+        session_id: str | None = None,
         recoverable: bool = True,
-        metadata: Union[dict[str, Any], None] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.error = error
         self.severity = severity

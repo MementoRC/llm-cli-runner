@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 
 class MetricType(Enum):
@@ -42,7 +42,7 @@ class MetricValue:
     """Data structure for metric values."""
 
     name: str
-    value: Union[int, float]
+    value: int | float
     metric_type: MetricType
     unit: MetricUnit
     timestamp: datetime
@@ -70,8 +70,8 @@ class MetricCollector(Protocol):
     def record_counter(
         self,
         name: str,
-        value: Union[int, float] = 1,
-        tags: Union[dict[str, str], None] = None,
+        value: int | float = 1,
+        tags: dict[str, str] | None = None,
     ) -> None:
         """
         Record a counter metric (monotonically increasing).
@@ -90,7 +90,7 @@ class MetricCollector(Protocol):
 
     @abstractmethod
     def record_gauge(
-        self, name: str, value: Union[int, float], tags: Union[dict[str, str], None] = None
+        self, name: str, value: int | float, tags: dict[str, str] | None = None
     ) -> None:
         """
         Record a gauge metric (current value).
@@ -109,7 +109,7 @@ class MetricCollector(Protocol):
 
     @abstractmethod
     def record_histogram(
-        self, name: str, value: Union[int, float], tags: Union[dict[str, str], None] = None
+        self, name: str, value: int | float, tags: dict[str, str] | None = None
     ) -> None:
         """
         Record a histogram metric (value distribution).
@@ -132,7 +132,7 @@ class MetricCollector(Protocol):
         name: str,
         duration: float,
         unit: MetricUnit = MetricUnit.MILLISECONDS,
-        tags: Union[dict[str, str], None] = None,
+        tags: dict[str, str] | None = None,
     ) -> None:
         """
         Record a timing metric.
@@ -151,7 +151,7 @@ class MetricCollector(Protocol):
         ...
 
     @abstractmethod
-    def increment(self, name: str, tags: Union[dict[str, str], None] = None) -> None:
+    def increment(self, name: str, tags: dict[str, str] | None = None) -> None:
         """
         Increment a counter by 1.
 
@@ -167,7 +167,7 @@ class MetricCollector(Protocol):
         ...
 
     @abstractmethod
-    def decrement(self, name: str, tags: Union[dict[str, str], None] = None) -> None:
+    def decrement(self, name: str, tags: dict[str, str] | None = None) -> None:
         """
         Decrement a gauge by 1.
 
@@ -183,7 +183,7 @@ class PerformanceTimer(Protocol):
 
     @abstractmethod
     def start_timer(
-        self, operation_name: str, metadata: Union[dict[str, Any], None] = None
+        self, operation_name: str, metadata: dict[str, Any] | None = None
     ) -> str:
         """
         Start timing an operation.
@@ -229,7 +229,7 @@ class PerformanceTimer(Protocol):
         self,
         operation_name: str,
         operation: Callable[[], Any],
-        metadata: Union[dict[str, Any], None] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TimingResult:
         """
         Time a callable operation.
@@ -276,7 +276,7 @@ class SuccessFailureTracker(Protocol):
 
     @abstractmethod
     def record_success(
-        self, operation: str, metadata: Union[dict[str, Any], None] = None
+        self, operation: str, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Record a successful operation.
@@ -293,7 +293,7 @@ class SuccessFailureTracker(Protocol):
 
     @abstractmethod
     def record_failure(
-        self, operation: str, error_type: str, metadata: Union[dict[str, Any], None] = None
+        self, operation: str, error_type: str, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Record a failed operation.
@@ -311,7 +311,7 @@ class SuccessFailureTracker(Protocol):
 
     @abstractmethod
     def get_success_rate(
-        self, operation: str, time_window: Union[timedelta, None] = None
+        self, operation: str, time_window: timedelta | None = None
     ) -> float:
         """
         Get success rate for an operation.
@@ -332,7 +332,7 @@ class SuccessFailureTracker(Protocol):
 
     @abstractmethod
     def get_failure_breakdown(
-        self, operation: str, time_window: Union[timedelta, None] = None
+        self, operation: str, time_window: timedelta | None = None
     ) -> dict[str, int]:
         """
         Get breakdown of failure types for an operation.
@@ -424,7 +424,7 @@ class MetricsAggregator(Protocol):
 
     @abstractmethod
     def get_metric_summary(
-        self, metric_name: str, time_window: Union[timedelta, None] = None
+        self, metric_name: str, time_window: timedelta | None = None
     ) -> dict[str, float]:
         """
         Get summary statistics for a metric.
@@ -521,7 +521,7 @@ class MetricsSystem(Protocol):
         ...
 
     @abstractmethod
-    def get_system_health(self) -> dict[str, Union[bool, float, int]]:
+    def get_system_health(self) -> dict[str, bool | float | int]:
         """
         Get overall system health metrics.
 
@@ -573,7 +573,7 @@ class AsyncMetricsSystem(Protocol):
 
     @abstractmethod
     async def metrics_stream(
-        self, filters: Union[dict[str, Any], None] = None
+        self, filters: dict[str, Any] | None = None
     ) -> Iterator[MetricValue]:
         """
         Stream metrics as they are collected.

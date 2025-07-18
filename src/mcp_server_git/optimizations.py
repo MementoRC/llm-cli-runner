@@ -13,7 +13,6 @@ from functools import (
 from typing import (
     Any,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
@@ -57,7 +56,7 @@ class CPUProfiler:
             self.stats_output = s.getvalue()
             logger.info(f"CPU Profile [{self.profile_name}]:\n{self.stats_output}")
 
-    def get_stats(self) -> Union[str, None]:
+    def get_stats(self) -> str | None:
         return self.stats_output
 
 
@@ -229,7 +228,7 @@ class LRUCachedFunction(Protocol):
 
 
 # This will hold the reference to the actual cached function
-_cached_parse_function: Union[LRUCachedFunction, None] = None
+_cached_parse_function: LRUCachedFunction | None = None
 _cache_maxsize: int = 1024
 _cache_enabled: bool = True
 
@@ -370,8 +369,8 @@ class PerformanceTimer:
 
     def __init__(self, name: str):
         self.name = name
-        self.start_time: Union[float, None] = None
-        self.end_time: Union[float, None] = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
 
     def __enter__(self):
         import time

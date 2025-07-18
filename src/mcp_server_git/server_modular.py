@@ -2,7 +2,6 @@
 Modular MCP Git Server - New structure that imports from existing server.py
 This allows us to refactor incrementally while keeping the original working
 """
-from typing import Union
 
 import logging
 import time
@@ -139,7 +138,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-async def serve_modular(repository: Union[Path, None] = None):
+async def serve_modular(repository: Path | None = None):
     """Serve the MCP Git Server with modular structure"""
 
     start_time = time.time()

@@ -20,7 +20,7 @@ Critical for TDD Compliance:
 
 import logging
 import os
-from typing import Any, Union
+from typing import Any
 
 import aiohttp
 
@@ -48,12 +48,12 @@ class GitHubRateLimitError(GitHubPrimitiveError):
 class GitHubAPIError(GitHubPrimitiveError):
     """Exception raised for GitHub API errors."""
 
-    def __init__(self, message: str, status_code: Union[int, None] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-def get_github_token() -> Union[str, None]:
+def get_github_token() -> str | None:
     """
     Get GitHub token from environment variables.
 
@@ -159,9 +159,9 @@ def build_github_url(endpoint: str, base_url: str = "https://api.github.com") ->
 async def make_github_request(
     method: str,
     endpoint: str,
-    token: Union[str, None] = None,
-    params: Union[dict[str, Any], None] = None,
-    json_data: Union[dict[str, Any], None] = None,
+    token: str | None = None,
+    params: dict[str, Any] | None = None,
+    json_data: dict[str, Any] | None = None,
     timeout: int = 30,
 ) -> dict[str, Any]:
     """
@@ -361,7 +361,7 @@ async def get_commit_info(
 
 
 async def list_repository_contents(
-    repo_owner: str, repo_name: str, path: str = "", ref: Union[str, None] = None
+    repo_owner: str, repo_name: str, path: str = "", ref: str | None = None
 ) -> list[dict[str, Any]]:
     """
     List repository contents at a specific path.
@@ -398,7 +398,7 @@ async def list_repository_contents(
 
 
 async def get_file_content(
-    repo_owner: str, repo_name: str, file_path: str, ref: Union[str, None] = None
+    repo_owner: str, repo_name: str, file_path: str, ref: str | None = None
 ) -> dict[str, Any]:
     """
     Get file content from repository.
@@ -468,7 +468,7 @@ async def search_repositories(
     return await make_github_request("GET", "/search/repositories", params=params)
 
 
-def parse_github_url(url: str) -> Union[dict[str, str], None]:
+def parse_github_url(url: str) -> dict[str, str] | None:
     """
     Parse GitHub repository URL to extract owner and repository name.
 

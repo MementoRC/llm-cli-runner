@@ -47,7 +47,7 @@ See also:
 """
 
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -120,7 +120,7 @@ class GitServerConfig(BaseModel):
     )
 
     # GitHub integration
-    github_token: Union[GitHubToken, None] = Field(
+    github_token: GitHubToken | None = Field(
         default=None, description="GitHub API token for authentication"
     )
     github_api_timeout: int = Field(
@@ -170,7 +170,7 @@ class GitServerConfig(BaseModel):
 
     @field_validator("github_token")
     @classmethod
-    def validate_github_token(cls, v: Union[str, None]) -> Union[str, None]:
+    def validate_github_token(cls, v: str | None) -> str | None:
         """Validate GitHub token format.
 
         GitHub tokens must start with specific prefixes:

@@ -7,7 +7,7 @@ for enabling comprehensive debugging and state inspection capabilities.
 
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 
 class ComponentState(Protocol):
@@ -83,13 +83,13 @@ class DebugInfo(Protocol):
 
     @property
     @abstractmethod
-    def stack_trace(self) -> Union[list[str], None]:
+    def stack_trace(self) -> list[str] | None:
         """Stack trace information if available."""
         ...
 
     @property
     @abstractmethod
-    def performance_metrics(self) -> dict[str, Union[int, float]]:
+    def performance_metrics(self) -> dict[str, int | float]:
         """Performance metrics for the component."""
         ...
 
@@ -155,7 +155,7 @@ class DebuggableComponent(Protocol):
         ...
 
     @abstractmethod
-    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """
         Inspect specific parts of the component state.
 
@@ -204,7 +204,7 @@ class DebuggableComponent(Protocol):
         ...
 
     @abstractmethod
-    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, bool | str | int | float]:
         """
         Perform a health check on the component.
 

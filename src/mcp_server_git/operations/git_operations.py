@@ -21,7 +21,7 @@ Critical for TDD Compliance:
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from ..primitives.git_primitives import (
     GitCommandError,
@@ -42,13 +42,13 @@ class CommitRequest:
     """Request parameters for commit operations."""
 
     message: str
-    files: Union[list[str], None] = None
-    author: Union[str, None] = None
-    email: Union[str, None] = None
+    files: list[str] | None = None
+    author: str | None = None
+    email: str | None = None
     allow_empty: bool = False
     sign_off: bool = False
     gpg_sign: bool = False
-    gpg_key_id: Union[str, None] = None
+    gpg_key_id: str | None = None
 
 
 @dataclass
@@ -56,10 +56,10 @@ class CommitResult:
     """Result of a commit operation."""
 
     success: bool
-    commit_hash: Union[str, None] = None
+    commit_hash: str | None = None
     message: str = ""
-    files_committed: Union[list[str], None] = None
-    error: Union[str, None] = None
+    files_committed: list[str] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -67,7 +67,7 @@ class BranchRequest:
     """Request parameters for branch operations."""
 
     name: str
-    base_branch: Union[str, None] = None
+    base_branch: str | None = None
     checkout: bool = True
     force: bool = False
 
@@ -77,10 +77,10 @@ class BranchResult:
     """Result of a branch operation."""
 
     success: bool
-    branch_name: Union[str, None] = None
+    branch_name: str | None = None
     message: str = ""
-    previous_branch: Union[str, None] = None
-    error: Union[str, None] = None
+    previous_branch: str | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -88,8 +88,8 @@ class MergeRequest:
     """Request parameters for merge operations."""
 
     source_branch: str
-    target_branch: Union[str, None] = None
-    message: Union[str, None] = None
+    target_branch: str | None = None
+    message: str | None = None
     no_fast_forward: bool = False
     squash: bool = False
 
@@ -99,14 +99,14 @@ class MergeResult:
     """Result of a merge operation."""
 
     success: bool
-    merge_commit_hash: Union[str, None] = None
+    merge_commit_hash: str | None = None
     message: str = ""
-    conflicts: Union[list[str], None] = None
-    error: Union[str, None] = None
+    conflicts: list[str] | None = None
+    error: str | None = None
 
 
 def commit_changes_with_validation(
-    repo_path: Union[str, Path], commit_request: CommitRequest
+    repo_path: str | Path, commit_request: CommitRequest
 ) -> CommitResult:
     """
     Commit changes to a Git repository with comprehensive validation.
@@ -216,7 +216,7 @@ def commit_changes_with_validation(
 
 
 def create_branch_with_checkout(
-    repo_path: Union[str, Path], branch_request: BranchRequest
+    repo_path: str | Path, branch_request: BranchRequest
 ) -> BranchResult:
     """
     Create a new Git branch with optional checkout.
@@ -344,7 +344,7 @@ def create_branch_with_checkout(
 
 
 def merge_branches_with_conflict_detection(
-    repo_path: Union[str, Path], merge_request: MergeRequest
+    repo_path: str | Path, merge_request: MergeRequest
 ) -> MergeResult:
     """
     Merge Git branches with comprehensive conflict detection and handling.
@@ -499,9 +499,9 @@ def merge_branches_with_conflict_detection(
 
 
 def push_with_validation(
-    repo_path: Union[str, Path],
+    repo_path: str | Path,
     remote: str = "origin",
-    branch: Union[str, None] = None,
+    branch: str | None = None,
     force: bool = False,
     set_upstream: bool = False,
 ) -> dict[str, Any]:

@@ -1,5 +1,4 @@
 """Git operations for MCP Git Server"""
-from typing import Union
 
 import logging
 import os
@@ -16,7 +15,7 @@ def _apply_diff_size_limiting(
     diff_output: str,
     operation_name: str,
     stat_only: bool = False,
-    max_lines: Union[int, None] = None,
+    max_lines: int | None = None,
 ) -> str:
     """Apply size limiting to diff outputs with consistent formatting"""
     if not diff_output.strip():
@@ -64,7 +63,7 @@ def git_status(repo: Repo, porcelain: bool = False) -> str:
 
 
 def git_diff_unstaged(
-    repo: Repo, stat_only: bool = False, max_lines: Union[int, None] = None
+    repo: Repo, stat_only: bool = False, max_lines: int | None = None
 ) -> str:
     """Get unstaged changes diff with size limiting options"""
     try:
@@ -88,7 +87,7 @@ def git_diff_unstaged(
 
 
 def git_diff_staged(
-    repo: Repo, stat_only: bool = False, max_lines: Union[int, None] = None
+    repo: Repo, stat_only: bool = False, max_lines: int | None = None
 ) -> str:
     """Get staged changes diff with size limiting options"""
     try:
@@ -112,7 +111,7 @@ def git_diff_staged(
 
 
 def git_diff(
-    repo: Repo, target: str, stat_only: bool = False, max_lines: Union[int, None] = None
+    repo: Repo, target: str, stat_only: bool = False, max_lines: int | None = None
 ) -> str:
     """Get diff against target ref with size limiting options"""
     try:
@@ -139,7 +138,7 @@ def git_commit(
     repo: Repo,
     message: str,
     gpg_sign: bool = False,
-    gpg_key_id: Union[str, None] = None,
+    gpg_key_id: str | None = None,
 ) -> str:
     """Commit staged changes with optional GPG signing and automatic security enforcement"""
     try:
@@ -253,9 +252,9 @@ def git_add(repo: Repo, files: list[str]) -> str:
 
 def git_reset(
     repo: Repo,
-    mode: Union[str, None] = None,
-    target: Union[str, None] = None,
-    files: Union[list[str], None] = None,
+    mode: str | None = None,
+    target: str | None = None,
+    files: list[str] | None = None,
 ) -> str:
     """Reset repository with advanced options (--soft, --mixed, --hard)"""
     try:
@@ -358,7 +357,7 @@ def git_log(
     max_count: int = 10,
     oneline: bool = False,
     graph: bool = False,
-    format_str: Union[str, None] = None,  # Renamed from 'format'
+    format_str: str | None = None,  # Renamed from 'format'
 ) -> str:
     """Get commit history with formatting options"""
     try:
@@ -390,7 +389,7 @@ def git_log(
 
 
 def git_create_branch(
-    repo: Repo, branch_name: str, base_branch: Union[str, None] = None
+    repo: Repo, branch_name: str, base_branch: str | None = None
 ) -> str:
     """Create new branch from base"""
     try:
@@ -451,7 +450,7 @@ def git_checkout(repo: Repo, branch_name: str) -> str:
 
 
 def git_show(
-    repo: Repo, revision: str, stat_only: bool = False, max_lines: Union[int, None] = None
+    repo: Repo, revision: str, stat_only: bool = False, max_lines: int | None = None
 ) -> str:
     """Show commit details with diff and size limiting options"""
     try:
@@ -507,7 +506,7 @@ def git_init(repo_path: str) -> str:
 def git_push(
     repo: Repo,
     remote: str = "origin",
-    branch: Union[str, None] = None,
+    branch: str | None = None,
     set_upstream: bool = False,
     force: bool = False,
 ) -> str:
@@ -587,7 +586,7 @@ def git_push(
         return f"❌ Push error: {str(e)}"
 
 
-def git_pull(repo: Repo, remote: str = "origin", branch: Union[str, None] = None) -> str:
+def git_pull(repo: Repo, remote: str = "origin", branch: str | None = None) -> str:
     """Pull changes from remote repository"""
     try:
         # Get current branch if not specified
@@ -621,7 +620,7 @@ def git_diff_branches(
     base_branch: str,
     compare_branch: str,
     stat_only: bool = False,
-    max_lines: Union[int, None] = None,
+    max_lines: int | None = None,
 ) -> str:
     """Show differences between two branches with size limiting options"""
     try:
@@ -719,7 +718,7 @@ def git_merge(
     repo: Repo,
     source_branch: str,
     strategy: str = "merge",
-    message: Union[str, None] = None,
+    message: str | None = None,
 ) -> str:
     """Merge source branch with strategy options"""
     try:
@@ -903,7 +902,7 @@ def git_remote_get_url(repo: Repo, name: str) -> str:
 def git_fetch(
     repo: Repo,
     remote: str = "origin",
-    branch: Union[str, None] = None,
+    branch: str | None = None,
     prune: bool = False,
 ) -> str:
     """Fetch changes from remote repository"""
@@ -944,7 +943,7 @@ def git_stash_list(repo: Repo) -> str:
 
 
 def git_stash_push(
-    repo: Repo, message: Union[str, None] = None, include_untracked: bool = False
+    repo: Repo, message: str | None = None, include_untracked: bool = False
 ) -> str:
     """Create a new stash"""
     try:
@@ -962,7 +961,7 @@ def git_stash_push(
         return f"❌ Stash push error: {str(e)}"
 
 
-def git_stash_pop(repo: Repo, stash_id: Union[str, None] = None) -> str:
+def git_stash_pop(repo: Repo, stash_id: str | None = None) -> str:
     """Apply and remove a stash"""
     try:
         if stash_id:
@@ -977,7 +976,7 @@ def git_stash_pop(repo: Repo, stash_id: Union[str, None] = None) -> str:
         return f"❌ Stash pop error: {str(e)}"
 
 
-def git_stash_drop(repo: Repo, stash_id: Union[str, None] = None) -> str:
+def git_stash_drop(repo: Repo, stash_id: str | None = None) -> str:
     """Remove a stash without applying it"""
     try:
         if stash_id:
@@ -1008,8 +1007,8 @@ def git_tag_list(repo: Repo) -> str:
 def git_tag_create(
     repo: Repo,
     tag_name: str,
-    message: Union[str, None] = None,
-    commit: Union[str, None] = None,
+    message: str | None = None,
+    commit: str | None = None,
 ) -> str:
     """Create a new tag"""
     try:
@@ -1043,8 +1042,8 @@ def git_tag_delete(repo: Repo, tag_name: str) -> str:
 def git_blame(
     repo: Repo,
     file_path: str,
-    line_start: Union[int, None] = None,
-    line_end: Union[int, None] = None,
+    line_start: int | None = None,
+    line_end: int | None = None,
 ) -> str:
     """Show blame information for a file"""
     try:

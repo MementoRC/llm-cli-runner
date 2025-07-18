@@ -8,7 +8,7 @@ import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 from .notifications import CancelledNotification
 from .validation import ValidationResult, safe_parse_notification
@@ -62,7 +62,7 @@ class NotificationInfo:
 
     method: str
     has_params: bool
-    request_id: Union[str, int, None] = None
+    request_id: str | int | None = None
     raw_size: int = 0
 
 
@@ -143,7 +143,7 @@ class RobustNotificationHandler:
         self,
         data: dict[str, Any],
         info: NotificationInfo,
-        original_error: Union[Exception, None],
+        original_error: Exception | None,
     ) -> ValidationResult:
         """Handle cases where notification parsing fails."""
 

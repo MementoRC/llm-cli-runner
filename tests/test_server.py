@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 # Safe git import for testing
-
 from mcp_server_git.server import GitTools, git_checkout, git_status
 from mcp_server_git.utils.git_import import git
 

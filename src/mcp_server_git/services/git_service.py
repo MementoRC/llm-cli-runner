@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Union
+from typing import Any
 
 from ..operations.git_operations import (
     BranchRequest,
@@ -61,7 +61,7 @@ class GitServiceConfig:
     default_remote: str = "origin"
     auto_push_after_commit: bool = False
     gpg_signing_enabled: bool = False
-    gpg_key_id: Union[str, None] = None
+    gpg_key_id: str | None = None
 
 
 @dataclass
@@ -71,8 +71,8 @@ class GitOperationResult:
     success: bool
     operation_type: str
     repository_path: str
-    result_data: Union[dict[str, Any], None] = None
-    error_message: Union[str, None] = None
+    result_data: dict[str, Any] | None = None
+    error_message: str | None = None
     duration_seconds: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -85,10 +85,10 @@ class GitServiceState:
     started_at: datetime
     operation_count: int = 0
     error_count: int = 0
-    last_operation: Union[GitOperationResult, None] = None
+    last_operation: GitOperationResult | None = None
     active_operations: int = 0
     configuration: GitServiceConfig = field(default_factory=GitServiceConfig)
-    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
+    performance_metrics: dict[str, int | float] = field(default_factory=dict)
 
 
 class GitService(DebuggableComponent):
@@ -125,7 +125,7 @@ class GitService(DebuggableComponent):
         True
     """
 
-    def __init__(self, config: Union[GitServiceConfig, None] = None):
+    def __init__(self, config: GitServiceConfig | None = None):
         """
         Initialize GitService with configuration.
 
@@ -210,12 +210,12 @@ class GitService(DebuggableComponent):
 
     async def commit_changes(
         self,
-        repository_path: Union[str, Path],
+        repository_path: str | Path,
         message: str,
-        files: Union[list[str], None] = None,
-        author: Union[str, None] = None,
-        email: Union[str, None] = None,
-        auto_push: Union[bool, None] = None,
+        files: list[str] | None = None,
+        author: str | None = None,
+        email: str | None = None,
+        auto_push: bool | None = None,
     ) -> GitOperationResult:
         """
         Commit changes to a Git repository.
@@ -312,9 +312,9 @@ class GitService(DebuggableComponent):
 
     async def create_branch(
         self,
-        repository_path: Union[str, Path],
+        repository_path: str | Path,
         branch_name: str,
-        base_branch: Union[str, None] = None,
+        base_branch: str | None = None,
         checkout: bool = True,
         force: bool = False,
     ) -> GitOperationResult:
@@ -392,10 +392,10 @@ class GitService(DebuggableComponent):
 
     async def merge_branches(
         self,
-        repository_path: Union[str, Path],
+        repository_path: str | Path,
         source_branch: str,
-        target_branch: Union[str, None] = None,
-        message: Union[str, None] = None,
+        target_branch: str | None = None,
+        message: str | None = None,
         no_fast_forward: bool = False,
         squash: bool = False,
     ) -> GitOperationResult:
@@ -472,7 +472,7 @@ class GitService(DebuggableComponent):
             await self._release_operation_slot()
 
     async def get_repository_status(
-        self, repository_path: Union[str, Path]
+        self, repository_path: str | Path
     ) -> GitOperationResult:
         """
         Get comprehensive repository status.
@@ -625,16 +625,16 @@ class GitService(DebuggableComponent):
                 }
 
             @property
-            def stack_trace(self) -> Union[list[str], None]:
+            def stack_trace(self) -> list[str] | None:
                 return None  # No stack trace for normal operation
 
             @property
-            def performance_metrics(self) -> dict[str, Union[int, float]]:
+            def performance_metrics(self) -> dict[str, int | float]:
                 return self._state.performance_metrics.copy()
 
         return GitServiceDebugInfo(debug_level, self._state, self._is_started)
 
-    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect specific parts of the GitService state."""
         state_dict = {
             "service_id": self._state.service_id,
@@ -696,7 +696,7 @@ class GitService(DebuggableComponent):
 
         return json.dumps(state_data, indent=2, default=str)
 
-    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, bool | str | int | float]:
         """Perform a health check on the GitService."""
         uptime = (datetime.now() - self._state.started_at).total_seconds()
         error_rate = self._state.error_count / max(self._state.operation_count, 1) * 100
@@ -826,7 +826,7 @@ class GitService(DebuggableComponent):
         if self._config.gpg_signing_enabled and not self._config.gpg_key_id:
             logger.warning("GPG signing enabled but no GPG key ID provided")
 
-    async def _push_changes(self, repository_path: Union[str, Path]) -> dict[str, Any]:
+    async def _push_changes(self, repository_path: str | Path) -> dict[str, Any]:
         """Internal helper to push changes."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(

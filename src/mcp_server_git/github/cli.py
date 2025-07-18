@@ -1,5 +1,4 @@
 """GitHub CLI operations for MCP Git Server"""
-from typing import Union
 
 import logging
 import os
@@ -42,9 +41,9 @@ def _validate_repo_path(repo_path: str) -> str:
 def gh_create_pr(
     repo_path: str,
     title: str,
-    body: Union[str, None] = None,
-    base: Union[str, None] = None,
-    head: Union[str, None] = None,
+    body: str | None = None,
+    base: str | None = None,
+    head: str | None = None,
     draft: bool = False,
     web: bool = False,
 ) -> str:
@@ -88,15 +87,15 @@ def gh_create_pr(
 def gh_edit_pr(
     repo_path: str,
     pr_number: int,
-    title: Union[str, None] = None,
-    body: Union[str, None] = None,
-    base: Union[str, None] = None,
-    add_assignee: Union[list[str], None] = None,
-    remove_assignee: Union[list[str], None] = None,
-    add_label: Union[list[str], None] = None,
-    remove_label: Union[list[str], None] = None,
-    add_reviewer: Union[list[str], None] = None,
-    remove_reviewer: Union[list[str], None] = None,
+    title: str | None = None,
+    body: str | None = None,
+    base: str | None = None,
+    add_assignee: list[str] | None = None,
+    remove_assignee: list[str] | None = None,
+    add_label: list[str] | None = None,
+    remove_label: list[str] | None = None,
+    add_reviewer: list[str] | None = None,
+    remove_reviewer: list[str] | None = None,
 ) -> str:
     """Edit a pull request using GitHub CLI"""
     # Validate repository
@@ -196,7 +195,7 @@ def gh_merge_pr(
 def gh_close_pr(
     repo_path: str,
     pr_number: int,
-    comment: Union[str, None] = None,
+    comment: str | None = None,
 ) -> str:
     """Close a pull request using GitHub CLI"""
     # Validate repository
@@ -226,7 +225,7 @@ def gh_close_pr(
 def gh_reopen_pr(
     repo_path: str,
     pr_number: int,
-    comment: Union[str, None] = None,
+    comment: str | None = None,
 ) -> str:
     """Reopen a pull request using GitHub CLI"""
     # Validate repository

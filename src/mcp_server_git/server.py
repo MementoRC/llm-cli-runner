@@ -1,4 +1,3 @@
-from typing import Union
 import logging
 import os
 from collections.abc import Sequence
@@ -73,7 +72,7 @@ from .utils.git_import import git
 logger = logging.getLogger(__name__)
 
 
-def load_environment_variables(repository_path: Union[Path, None] = None):
+def load_environment_variables(repository_path: Path | None = None):
     """Load environment variables from .env files with proper precedence.
 
     NEW Order of precedence (HIGHEST to LOWEST):
@@ -401,7 +400,7 @@ class GitCommit(BaseModel):
     repo_path: str
     message: str
     gpg_sign: bool = False
-    gpg_key_id: Union[str, None] = None
+    gpg_key_id: str | None = None
 
 
 class GitAdd(BaseModel):
@@ -418,13 +417,13 @@ class GitLog(BaseModel):
     max_count: int = 10
     oneline: bool = False
     graph: bool = False
-    format: Union[str, None] = None
+    format: str | None = None
 
 
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    base_branch: Union[str, None] = None
+    base_branch: str | None = None
 
 
 class GitCheckout(BaseModel):
@@ -444,7 +443,7 @@ class GitInit(BaseModel):
 class GitPush(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Union[str, None] = None
+    branch: str | None = None
     force: bool = False
     set_upstream: bool = False
 
@@ -452,7 +451,7 @@ class GitPush(BaseModel):
 class GitPull(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Union[str, None] = None
+    branch: str | None = None
 
 
 class GitDiffBranches(BaseModel):
@@ -498,7 +497,7 @@ class GitRemoteGetUrl(BaseModel):
 class GitFetch(BaseModel):
     repo_path: str
     remote: str = "origin"
-    branch: Union[str, None] = None
+    branch: str | None = None
     prune: bool = False
 
 
@@ -511,7 +510,7 @@ class GitMerge(BaseModel):
     repo_path: str
     source_branch: str
     strategy: str = "merge"
-    message: Union[str, None] = None
+    message: str | None = None
 
 
 class GitCherryPick(BaseModel):
@@ -535,8 +534,8 @@ class GitHubGetPRChecks(BaseModel):
     repo_owner: str
     repo_name: str
     pr_number: int
-    status: Union[str, None] = None  # "completed", "in_progress", "queued"
-    conclusion: Union[str, None] = None  # "failure", "success", "cancelled"
+    status: str | None = None  # "completed", "in_progress", "queued"
+    conclusion: str | None = None  # "failure", "success", "cancelled"
 
 
 class GitHubGetFailingJobs(BaseModel):
@@ -566,8 +565,8 @@ class GitHubListPullRequests(BaseModel):
     repo_owner: str
     repo_name: str
     state: str = "open"  # "open", "closed", "all"
-    head: Union[str, None] = None  # Filter by head branch
-    base: Union[str, None] = None  # Filter by base branch
+    head: str | None = None  # Filter by head branch
+    base: str | None = None  # Filter by base branch
     sort: str = "created"  # "created", "updated", "popularity"
     direction: str = "desc"  # "asc", "desc"
     per_page: int = 30  # Max 100
@@ -674,8 +673,8 @@ async def github_get_pr_checks(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    status: Union[str, None] = None,
-    conclusion: Union[str, None] = None,
+    status: str | None = None,
+    conclusion: str | None = None,
 ) -> str:
     """Get check runs for a pull request"""
     try:
@@ -943,8 +942,8 @@ async def github_list_pull_requests(
     repo_owner: str,
     repo_name: str,
     state: str = "open",
-    head: Union[str, None] = None,
-    base: Union[str, None] = None,
+    head: str | None = None,
+    base: str | None = None,
     sort: str = "created",
     direction: str = "desc",
     per_page: int = 30,
@@ -1180,7 +1179,7 @@ async def github_get_pr_files(
         return f"Error getting PR files: {str(e)}"
 
 
-async def serve(repository: Union[Path, None], test_mode: bool = False) -> None:
+async def serve(repository: Path | None, test_mode: bool = False) -> None:
     logger = logging.getLogger(__name__)
 
     # Load environment variables from .env files with proper precedence
@@ -1437,7 +1436,7 @@ async def serve(repository: Union[Path, None], test_mode: bool = False) -> None:
 
     @server.get_prompt()
     async def get_prompt(
-        name: str, arguments: Union[dict[str, str], None]
+        name: str, arguments: dict[str, str] | None
     ) -> GetPromptResult:
         """Generate specific git workflow prompts"""
         args = arguments or {}

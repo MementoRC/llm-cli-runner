@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from mcp.server.session import ServerSession
 
@@ -75,8 +75,8 @@ class Session:
     def __init__(
         self,
         session_id: str,
-        user: Union[str, None] = None,
-        repository: Union[Path, None] = None,
+        user: str | None = None,
+        repository: Path | None = None,
         idle_timeout: float = 900.0,  # 15 minutes default
         heartbeat_timeout: float = 60.0,  # 1 minute default
     ):
@@ -86,12 +86,12 @@ class Session:
         self.state = SessionState.CREATED
         self.metrics = SessionMetrics()
         self._lock = asyncio.Lock()
-        self._error_context: Union[ErrorContext, None] = None
+        self._error_context: ErrorContext | None = None
         self._circuit: CircuitBreaker = get_circuit_breaker(f"session-{session_id}")
         self._idle_timeout = idle_timeout
         self._heartbeat_timeout = heartbeat_timeout
-        self._cleanup_task: Union[asyncio.Task, None] = None
-        self._server_session: Union[ServerSession, None] = None
+        self._cleanup_task: asyncio.Task | None = None
+        self._server_session: ServerSession | None = None
         self._closed_event = asyncio.Event()
         # Define a set of valid commands for demonstration/testing purposes
         # In a real application, these would likely be dynamically loaded or more extensive.
@@ -154,7 +154,7 @@ class Session:
             self.metrics.last_active = time.time()
             logger.info(f"Session {self.session_id} resumed")
 
-    async def close(self, reason: Union[str, None] = None):
+    async def close(self, reason: str | None = None):
         async with self._lock:
             if self.state in (SessionState.CLOSING, SessionState.CLOSED):
                 return
@@ -271,7 +271,7 @@ class Session:
     def get_state(self) -> str:
         return self.state.name
 
-    def get_error_context(self) -> Union[ErrorContext, None]:
+    def get_error_context(self) -> ErrorContext | None:
         return self._error_context
 
     def get_circuit_stats(self) -> dict[str, Any]:
@@ -344,7 +344,7 @@ class HeartbeatManager:
         self._missed_threshold = missed_threshold
         self._last_heartbeats: dict[str, float] = {}
         self._lock = asyncio.Lock()
-        self._task: Union[asyncio.Task, None] = None
+        self._task: asyncio.Task | None = None
         self._running = False
         self._logger = logging.getLogger(__name__)
 
@@ -402,7 +402,7 @@ class HeartbeatManager:
                 await self._session_manager.close_session(session_id)
                 self._last_heartbeats.pop(session_id, None)
 
-    def get_last_heartbeat(self, session_id: str) -> Union[float, None]:
+    def get_last_heartbeat(self, session_id: str) -> float | None:
         return self._last_heartbeats.get(session_id)
 
     def get_all_heartbeats(self) -> dict[str, float]:
@@ -420,13 +420,13 @@ class SessionManager:
         self._lock = asyncio.Lock()
         self._idle_timeout = idle_timeout
         self._heartbeat_timeout = heartbeat_timeout
-        self.heartbeat_manager: Union[HeartbeatManager, None] = None
+        self.heartbeat_manager: HeartbeatManager | None = None
 
     async def create_session(
         self,
         session_id: str,
-        user: Union[str, None] = None,
-        repository: Union[Path, None] = None,
+        user: str | None = None,
+        repository: Path | None = None,
     ) -> Session:
         async with self._lock:
             if session_id in self._sessions:
@@ -446,7 +446,7 @@ class SessionManager:
             logger.info(f"SessionManager: Created and started session {session_id}")
             return session
 
-    async def get_session(self, session_id: str) -> Union[Session, None]:
+    async def get_session(self, session_id: str) -> Session | None:
         async with self._lock:
             return self._sessions.get(session_id)
 

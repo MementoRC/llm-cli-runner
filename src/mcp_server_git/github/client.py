@@ -1,5 +1,4 @@
 """GitHub API client and authentication"""
-from typing import Union
 
 import logging
 import os
@@ -96,7 +95,7 @@ class GitHubClient:
         return await self.session.delete(url, headers=headers, **kwargs)
 
 
-def get_github_client() -> Union[GitHubClient, None]:
+def get_github_client() -> GitHubClient | None:
     """Get GitHub client with token from environment.
 
     Assumes environment variables have already been loaded by the server.

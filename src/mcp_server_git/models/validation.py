@@ -1,5 +1,5 @@
 import logging
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -43,9 +43,9 @@ class ValidationResult:
 
     def __init__(
         self,
-        model: Union[BaseModel, None] = None,
-        error: Union[Exception, None] = None,
-        raw_data: Union[dict[str, Any], None] = None,
+        model: BaseModel | None = None,
+        error: Exception | None = None,
+        raw_data: dict[str, Any] | None = None,
     ):
         self.model = model
         self.error = error

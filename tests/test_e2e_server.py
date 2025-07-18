@@ -76,7 +76,7 @@ class MCPTestClient:
 async def mcp_server():
     """Start MCP server as subprocess and return test client"""
     cwd = Path(__file__).parent.parent
-    
+
     # Set up environment with a test GitHub token if available
     env = os.environ.copy()
     env["GITHUB_TOKEN"] = env.get("GITHUB_TOKEN", "test_token_placeholder")
@@ -102,12 +102,12 @@ async def mcp_server():
     try:
         # Give server time to start up
         await asyncio.sleep(1.0)
-        
+
         # Check if server is still alive
         if process.returncode is not None:
             stderr_output = await process.stderr.read()
             raise Exception(f"Server failed to start: {stderr_output.decode()}")
-            
+
         init_response = await asyncio.wait_for(client.initialize(), timeout=10.0)
         assert "result" in init_response, f"Initialization failed: {init_response}"
 

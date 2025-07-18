@@ -19,7 +19,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -61,8 +61,8 @@ class ServerDebugInfo:
 
     debug_level: str
     debug_data: dict[str, Any]
-    stack_trace: Union[list[str], None] = None
-    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
+    stack_trace: list[str] | None = None
+    performance_metrics: dict[str, int | float] = field(default_factory=dict)
 
 
 class MCPGitServerCore(DebuggableComponent):
@@ -82,14 +82,14 @@ class MCPGitServerCore(DebuggableComponent):
             server_name: Name identifier for the server
         """
         self.server_name = server_name
-        self.server: Union[Server, None] = None
-        self.repository_path: Union[Path, None] = None
+        self.server: Server | None = None
+        self.repository_path: Path | None = None
         self.is_running = False
-        self.start_time: Union[datetime, None] = None
+        self.start_time: datetime | None = None
         self.error_count = 0
-        self.last_error: Union[str, None] = None
+        self.last_error: str | None = None
         self.request_count = 0
-        self.client_capabilities: Union[ClientCapabilities, None] = None
+        self.client_capabilities: ClientCapabilities | None = None
 
         # State tracking
         self._state_history: list[ComponentState] = []
@@ -97,7 +97,7 @@ class MCPGitServerCore(DebuggableComponent):
 
         logger.info(f"Initialized MCPGitServerCore with name: {server_name}")
 
-    def initialize_server(self, repository_path: Union[Path, None] = None) -> Server:
+    def initialize_server(self, repository_path: Path | None = None) -> Server:
         """
         Initialize the MCP server instance.
 
@@ -193,7 +193,7 @@ class MCPGitServerCore(DebuggableComponent):
             self.is_running = False
             self._update_state_history()
 
-    def get_server_instance(self) -> Union[Server, None]:
+    def get_server_instance(self) -> Server | None:
         """
         Get the current server instance.
 
@@ -308,7 +308,7 @@ class MCPGitServerCore(DebuggableComponent):
             performance_metrics=performance_metrics,
         )
 
-    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect specific parts of the component state."""
         state = self.get_component_state().state_data
 
@@ -351,7 +351,7 @@ class MCPGitServerCore(DebuggableComponent):
 
         return json.dumps(export_data, indent=2, default=datetime_handler)
 
-    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, bool | str | int | float]:
         """Perform a health check on the server core."""
         validation = self.validate_component()
         uptime = (

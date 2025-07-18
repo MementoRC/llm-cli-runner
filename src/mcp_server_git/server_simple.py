@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -31,7 +31,7 @@ _tool_handler = None
 _tool_registry = None
 
 
-async def main_simple(repository: Union[Path, None], test_mode: bool = False) -> None:
+async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
     """
     Simplified MCP Git Server main function following aider pattern.
 
@@ -125,7 +125,7 @@ def main_cli() -> None:
     @click.option("--enable-file-logging", is_flag=True, help="Enable file logging")
     @click.option("--test-mode", is_flag=True, help="Run in test mode for CI")
     def cli(
-        repository: Union[Path, None],
+        repository: Path | None,
         verbose: int,
         enable_file_logging: bool,
         test_mode: bool,
