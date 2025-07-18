@@ -126,6 +126,7 @@ class InterceptingReadStream:
 
     async def readline(self) -> bytes:
         """Read and preprocess a line from the stream."""
+        line = b""  # Initialize line to empty bytes
         try:
             # Read from original stream
             line = await self.original_stream.readline()
@@ -153,9 +154,7 @@ class InterceptingReadStream:
         except Exception as e:
             logger.error(f"Error in stream interception: {e}")
             # On error, return original line to avoid breaking protocol
-            # If line is not defined, return empty line
-            if "line" not in locals():
-                return b"\n"
+            # If line read failed, return empty bytes
             return line
 
     # Delegate async context manager methods

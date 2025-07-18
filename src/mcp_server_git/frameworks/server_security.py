@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from ..protocols.debugging_protocol import (
     ComponentState,
@@ -73,7 +73,7 @@ class SecurityIssue:
     severity: SecuritySeverity
     category: SecurityCategory
     message: str
-    suggested_fix: Union[str, None] = None
+    suggested_fix: str | None = None
     context: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -104,8 +104,8 @@ class SecurityDebugInfo:
 
     debug_level: str
     debug_data: dict[str, Any]
-    stack_trace: Union[list[str], None] = None
-    performance_metrics: dict[str, Union[int, float]] = field(default_factory=dict)
+    stack_trace: list[str] | None = None
+    performance_metrics: dict[str, int | float] = field(default_factory=dict)
     validation_timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -114,11 +114,11 @@ class AuthResult:
     """Authentication result with context."""
 
     success: bool
-    user_id: Union[str, None] = None
-    token_type: Union[str, None] = None
+    user_id: str | None = None
+    token_type: str | None = None
     scopes: list[str] = field(default_factory=list)
-    expires_at: Union[datetime, None] = None
-    error_message: Union[str, None] = None
+    expires_at: datetime | None = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -460,7 +460,7 @@ class SecurityFramework(DebuggableComponent):
             },
         )
 
-    def authenticate_github_token(self, token: Union[str, None] = None) -> AuthResult:
+    def authenticate_github_token(self, token: str | None = None) -> AuthResult:
         """Authenticate GitHub token."""
         if token is None:
             token = os.getenv("GITHUB_TOKEN")
@@ -502,6 +502,8 @@ class SecurityFramework(DebuggableComponent):
         """Validate repository access permissions."""
         issues = []
         recommendations = []
+        sanitized_path = None
+        repo_path = None
 
         try:
             # Sanitize and validate path
@@ -574,10 +576,8 @@ class SecurityFramework(DebuggableComponent):
             recommendations=recommendations,
             metadata={
                 "repository_path": repository_path,
-                "sanitized_path": sanitized_path
-                if "sanitized_path" in locals()
-                else None,
-                "path_exists": repo_path.exists() if "repo_path" in locals() else False,
+                "sanitized_path": sanitized_path,
+                "path_exists": repo_path.exists() if repo_path is not None else False,
             },
         )
 
@@ -764,7 +764,7 @@ class SecurityFramework(DebuggableComponent):
             "last_updated": current_time.isoformat(),
         }
 
-    def inspect_state(self, path: Union[str, None] = None) -> dict[str, Any]:
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """
         Inspect specific parts of the security component state.
 
@@ -838,7 +838,7 @@ class SecurityFramework(DebuggableComponent):
 
         return json.dumps(state_data, indent=2, default=json_serializer)
 
-    def health_check(self) -> dict[str, Union[bool, str, int, float]]:
+    def health_check(self) -> dict[str, bool | str | int | float]:
         """
         Perform a health check on the security component.
 
