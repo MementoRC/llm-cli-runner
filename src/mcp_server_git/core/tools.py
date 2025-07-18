@@ -528,7 +528,14 @@ class GitToolRouter:
                 # Git and security tools are sync
                 result = tool_def.handler(**arguments)
 
-            return [TextContent(type="text", text=result)]
+            # Ensure result is a string for TextContent
+            if isinstance(result, str):
+                text_result = result
+            else:
+                # Convert non-string results to string representation
+                text_result = str(result)
+            
+            return [TextContent(type="text", text=text_result)]
 
         except Exception as e:
             logger.error(f"Tool call failed for {name}: {e}", exc_info=True)
