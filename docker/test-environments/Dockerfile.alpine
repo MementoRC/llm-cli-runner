@@ -1,0 +1,26 @@
+# Alpine 3.18 Test Environment
+FROM alpine:3.18
+
+# Install system dependencies
+RUN apk add --no-cache \
+    curl \
+    bash \
+    build-base \
+    git \
+    python3 \
+    python3-dev \
+    py3-pip \
+    linux-headers
+
+# Install pixi
+RUN curl -fsSL https://pixi.sh/install.sh | bash
+ENV PATH="/root/.pixi/bin:$PATH"
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy project files
+COPY . .
+
+# Install dependencies and run tests
+CMD ["sh", "-c", "pixi install -e quality && pixi run -e quality test"]

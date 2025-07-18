@@ -84,20 +84,20 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
 
-  # Cross-platform validation with Python 3.12+ only (using --platform flag)
+  # Docker-based cross-platform testing
   cross-platform-test:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: [quality-gates]
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-        - os: ubuntu-latest
-          platform: linux-64
-        - os: windows-latest
-          platform: win-64
-        - os: macos-latest
-          platform: osx-64
+        environment:
+        - name: "ubuntu"
+          dockerfile: "docker/test-environments/Dockerfile.ubuntu"
+        - name: "alpine"
+          dockerfile: "docker/test-environments/Dockerfile.alpine"
+        # CentOS testing can be enabled if needed (slower)
+        # - name: "centos"
+        #   dockerfile: "docker/test-environments/Dockerfile.centos"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -112,11 +112,13 @@ jobs:
           cache: true
           manifest-path: pyproject.toml
 
-    - name: Install dependencies for cross-platform
-      run: pixi install -e ci-minimal --platform ${{ matrix.platform }}
-
-    - name: Run cross-platform tests
-      run: pixi run -e ci-minimal --platform ${{ matrix.platform }} test
+    - name: Run tests in ${{ matrix.environment.name }}
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          llm-cli-test-${{ matrix.environment.name }} \
+          sh -c "pixi install -e quality && pixi run -e quality test"
 
   security:
     runs-on: ubuntu-latest
