@@ -34,8 +34,11 @@ class MCPTestClient:
             "jsonrpc": "2.0",
             "id": self._next_id(),
             "method": method,
-            "params": params or {},
         }
+        
+        # Only include params if they are provided and not empty
+        if params:
+            request["params"] = params
 
         # Send request
         request_json = json.dumps(request) + "\n"
@@ -63,7 +66,7 @@ class MCPTestClient:
 
     async def list_tools(self) -> dict[str, Any]:
         """List available tools"""
-        return await self.send_request("tools/list", {})
+        return await self.send_request("tools/list")
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool"""
