@@ -1,0 +1,67 @@
+# Pixi environments and cache
+.pixi/
+pixi.lock
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.cache
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime
+.env
+.env.*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Documentation
+docs/_build/
+
+# TaskMaster and Claude state
+.taskmaster/
+.claude/
+
+# Test artifacts
+coverage.xml
+*.coverage
+test-results/
+.hypothesis/
+
+# Temporary files
+tmp/
+temp/
