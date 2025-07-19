@@ -66,7 +66,7 @@ class MCPTestClient:
 
     async def list_tools(self) -> dict[str, Any]:
         """List available tools"""
-        return await self.send_request("tools/list")
+        return await self.send_request("tools/list", {})
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool"""
