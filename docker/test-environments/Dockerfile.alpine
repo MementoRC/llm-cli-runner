@@ -1,7 +1,7 @@
 # Alpine 3.18 Test Environment
 FROM alpine:3.18
 
-# Install system dependencies
+# Install system dependencies including additional libraries for Python packages
 RUN apk add --no-cache \
     curl \
     bash \
@@ -10,7 +10,12 @@ RUN apk add --no-cache \
     python3 \
     python3-dev \
     py3-pip \
-    linux-headers
+    linux-headers \
+    libffi-dev \
+    openssl-dev \
+    musl-dev \
+    gcc \
+    g++
 
 # Install pixi
 RUN curl -fsSL https://pixi.sh/install.sh | bash
@@ -22,5 +27,8 @@ WORKDIR /workspace
 # Copy project files
 COPY . .
 
+# Test pixi installation and install dependencies with better error handling
+RUN pixi --version || (echo "Pixi installation failed" && exit 1)
+
 # Install dependencies and run tests
-CMD ["sh", "-c", "pixi install -e quality && pixi run -e quality test"]
+CMD ["sh", "-c", "set -e && pixi install -e quality && pixi run -e quality test"]
