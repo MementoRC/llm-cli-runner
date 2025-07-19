@@ -24,6 +24,53 @@ classifiers = [
 
 # Dependencies moved to [tool.pixi.dependencies] for conda-forge
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.claude",
+  "/.taskmaster",
+  "/docs",
+  "/scripts",
+  "/docker",
+  "/.github/workflows/*.disabled",
+  "/.pixi",
+  "/pixi.lock",
+  "/.aider*",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/htmlcov",
+  "/.coverage*",
+  "/dist",
+  "/build",
+  "**/__pycache__",
+  "**/*.pyc",
+  "**/*.pyo",
+  "**/*.pyd",
+]
+
+[tool.hatch.build.targets.wheel]
+exclude = [
+  "/.claude",
+  "/.taskmaster",
+  "/docs",
+  "/scripts",
+  "/docker",
+  "/.github",
+  "/.pixi",
+  "/pixi.lock",
+  "/.aider*",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/htmlcov",
+  "/.coverage*",
+  "/dist",
+  "/build",
+  "**/__pycache__",
+  "**/*.pyc",
+  "**/*.pyo",
+  "**/*.pyd",
+  "/tests",
+]
+
 [project.scripts]
 mcp-server-cheap-llm = "mcp_server_cheap_llm:main"
 
