@@ -35,7 +35,7 @@ async def serve_v2(repository: Path | None = None):
     tool_handler = CallToolHandler()
 
     @server.list_tools()
-    async def list_tools():
+    async def list_tools(request: dict | None = None):
         """List all available tools using the tool registry"""
         return tool_handler.registry.list_tools()
 

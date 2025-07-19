@@ -151,7 +151,7 @@ async def serve_modular(repository: Path | None = None):
     server: Server = Server("mcp-git")
 
     @server.list_tools()
-    async def list_tools():
+    async def list_tools(request: dict | None = None):
         """List all available tools"""
         return [
             # Git tools

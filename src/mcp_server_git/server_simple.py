@@ -62,7 +62,7 @@ async def main_simple(repository: Path | None, test_mode: bool = False) -> None:
     server: Server = Server("mcp-git-simple")
 
     @server.list_tools()
-    async def list_tools() -> list[Tool]:
+    async def list_tools(request: dict | None = None) -> list[Tool]:
         """Return available git tools"""
         global _tool_registry
         if _tool_registry is None:

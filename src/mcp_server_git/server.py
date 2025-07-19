@@ -2078,7 +2078,7 @@ Provide specific, actionable recommendations for each area."""
                 raise ValueError(f"Unknown prompt: {name}")
 
     @server.list_tools()
-    async def list_tools() -> list[Tool]:
+    async def list_tools(request: dict | None = None) -> list[Tool]:
         return [
             Tool(
                 name=GitTools.STATUS,
