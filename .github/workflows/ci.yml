@@ -605,10 +605,10 @@ jobs:
         # Run performance-focused tests
         cd "$GITHUB_WORKSPACE"
         echo "🏃 Running performance tests..."
-        # Use CI-optimized pip environment
+        # Use pixi environment for consistent test execution
         if [ "$PIXI_READY" = "true" ]; then
-          echo "Using pip environment"
-          python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
+          echo "Using pixi quality environment for performance tests"
+          pixi run -e quality test -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
         else
           echo "Using pip fallback for performance tests"
           TESTING=true python -m pytest tests/ -k "not slow" -m "not ci_skip" --tb=short -v --timeout=600
