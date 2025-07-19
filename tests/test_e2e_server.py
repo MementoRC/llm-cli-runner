@@ -55,7 +55,8 @@ class MCPTestClient:
 
     async def initialize(self) -> dict[str, Any]:
         """Initialize the MCP session"""
-        return await self.send_request(
+        # Send initialize request
+        init_response = await self.send_request(
             "initialize",
             {
                 "protocolVersion": "2024-11-05",
@@ -63,10 +64,21 @@ class MCPTestClient:
                 "clientInfo": {"name": "test-client", "version": "1.0.0"},
             },
         )
+        
+        # Send initialized notification to complete handshake
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+        }
+        notification_json = json.dumps(notification) + "\n"
+        self.process.stdin.write(notification_json.encode())
+        await self.process.stdin.drain()
+        
+        return init_response
 
     async def list_tools(self) -> dict[str, Any]:
         """List available tools"""
-        return await self.send_request("tools/list", {})
+        return await self.send_request("tools/list")
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool"""
