@@ -50,15 +50,15 @@ jobs:
       run: |
         echo "🔍 Checking repository hygiene..."
 
-        # Check for __pycache__ directories
-        if find . -type d -name "__pycache__" | grep -q .; then
+        # Check for __pycache__ directories (excluding .pixi/)
+        if find . -type d -name "__pycache__" -not -path "./.pixi/*" | grep -q .; then
           echo "❌ ERROR: __pycache__ directories found!"
           echo "These should not be committed. Add to .gitignore."
           exit 1
         fi
 
-        # Check for .pyc files
-        if find . -name "*.pyc" | grep -q .; then
+        # Check for .pyc files (excluding .pixi/)
+        if find . -name "*.pyc" -not -path "./.pixi/*" | grep -q .; then
           echo "❌ ERROR: .pyc files found!"
           echo "These should not be committed. Add to .gitignore."
           exit 1
