@@ -84,3 +84,4 @@ models/
 .taskmaster_save/
 .aider/
 .claude_backup/
+.claude/state/
