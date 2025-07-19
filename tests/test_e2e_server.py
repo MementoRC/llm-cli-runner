@@ -63,7 +63,7 @@ class MCPTestClient:
 
     async def list_tools(self) -> dict[str, Any]:
         """List available tools"""
-        return await self.send_request("tools/list")
+        return await self.send_request("tools/list", {})
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool"""
@@ -84,8 +84,16 @@ async def mcp_server():
     env["PYTHONPATH"] = str(cwd / "src")
     # Environment configured for E2E testing
 
-    # Start server process
-    server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
+    # Start server process - detect environment (pixi vs pip)
+    import shutil
+    
+    if shutil.which("pixi") and not env.get("PYTEST_CI"):
+        # Use pixi in development environment
+        server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
+    else:
+        # Use direct python execution in CI or when pixi unavailable
+        server_cmd = ["python", "-m", "mcp_server_git"]
+    
     process = await asyncio.create_subprocess_exec(
         *server_cmd,
         stdin=asyncio.subprocess.PIPE,
