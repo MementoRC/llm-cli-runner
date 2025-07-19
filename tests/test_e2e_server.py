@@ -36,8 +36,8 @@ class MCPTestClient:
             "method": method,
         }
         
-        # Only include params if they are provided and not empty
-        if params:
+        # Only include params if they are provided
+        if params is not None:
             request["params"] = params
 
         # Send request
