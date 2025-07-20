@@ -120,7 +120,7 @@ jobs:
           -w /workspace \
           -e CONDA_OVERRIDE_GLIBC=2.28 \
           llm-cli-test-${{ matrix.environment.name }} \
-          sh -c "CONDA_OVERRIDE_GLIBC=2.28 pixi install -e quality && pixi run -e quality pytest tests/ --tb=short -x"
+          sh -c "CONDA_OVERRIDE_GLIBC=2.28 pixi install -e quality && pixi run -e quality pytest tests/ --tb=short -x -p no:cov"
 
   security:
     runs-on: ubuntu-latest
