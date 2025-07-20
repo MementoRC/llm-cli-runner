@@ -534,7 +534,7 @@ class GitToolRouter:
             else:
                 # Convert non-string results to string representation
                 text_result = str(result)
-            
+
             return [TextContent(type="text", text=text_result)]
 
         except Exception as e:

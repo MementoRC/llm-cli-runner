@@ -35,7 +35,7 @@ class MCPTestClient:
             "id": self._next_id(),
             "method": method,
         }
-        
+
         # Only include params if they are provided
         if params is not None:
             request["params"] = params
@@ -64,7 +64,7 @@ class MCPTestClient:
                 "clientInfo": {"name": "test-client", "version": "1.0.0"},
             },
         )
-        
+
         # Send initialized notification to complete handshake
         notification = {
             "jsonrpc": "2.0",
@@ -73,7 +73,7 @@ class MCPTestClient:
         notification_json = json.dumps(notification) + "\n"
         self.process.stdin.write(notification_json.encode())
         await self.process.stdin.drain()
-        
+
         return init_response
 
     async def list_tools(self) -> dict[str, Any]:
@@ -101,14 +101,14 @@ async def mcp_server():
 
     # Start server process - detect environment (pixi vs pip)
     import shutil
-    
+
     if shutil.which("pixi") and not env.get("PYTEST_CI"):
         # Use pixi in development environment
         server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
     else:
         # Use direct python execution in CI or when pixi unavailable
         server_cmd = ["python", "-m", "mcp_server_git"]
-    
+
     process = await asyncio.create_subprocess_exec(
         *server_cmd,
         stdin=asyncio.subprocess.PIPE,
