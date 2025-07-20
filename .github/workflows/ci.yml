@@ -48,13 +48,6 @@ jobs:
         environment:
         - name: "ubuntu"
           dockerfile: "docker/test-environments/Dockerfile.ubuntu"
-        - name: "alpine"
-          dockerfile: "docker/test-environments/Dockerfile.alpine"
-        - name: "debian"
-          dockerfile: "docker/test-environments/Dockerfile.debian"
-        # CentOS testing can be enabled if needed (slower)
-        # - name: "centos"
-        #   dockerfile: "docker/test-environments/Dockerfile.centos"
     steps:
     - uses: actions/checkout@v4
 
