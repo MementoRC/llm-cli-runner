@@ -15,11 +15,20 @@ RUN apk add --no-cache \
     openssl-dev \
     musl-dev \
     gcc \
-    g++
+    g++ \
+    gcompat \
+    libc6-compat \
+    libstdc++ \
+    ca-certificates
 
 # Install pixi
 RUN curl -fsSL https://pixi.sh/install.sh | bash
 ENV PATH="/root/.pixi/bin:$PATH"
+
+# Set environment variables for Alpine compatibility
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH="/workspace/src"
+ENV RUSTFLAGS="-C target-feature=-crt-static"
 
 # Set working directory
 WORKDIR /workspace
@@ -29,6 +38,9 @@ COPY . .
 
 # Test pixi installation and install dependencies with better error handling
 RUN pixi --version || (echo "Pixi installation failed" && exit 1)
+
+# Pre-install quality environment to catch issues early
+RUN pixi install -e quality || (echo "Failed to install quality environment" && exit 1)
 
 # Install dependencies and run tests aligned with CI workflow
 CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing quality environment...' && pixi install -e quality && echo 'Running tests...' && pixi run -e quality test"]
