@@ -48,6 +48,10 @@ jobs:
         environment:
         - name: "ubuntu"
           dockerfile: "docker/test-environments/Dockerfile.ubuntu"
+        - name: "alpine"
+          dockerfile: "docker/test-environments/Dockerfile.alpine"
+        - name: "debian"
+          dockerfile: "docker/test-environments/Dockerfile.debian"
     steps:
     - uses: actions/checkout@v4
 
