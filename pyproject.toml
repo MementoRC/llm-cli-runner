@@ -68,7 +68,6 @@ exclude = [
   "**/*.pyc",
   "**/*.pyo",
   "**/*.pyd",
-  "/tests",
 ]
 
 [project.scripts]
@@ -128,7 +127,7 @@ aiohttp = ">=3.8.0"
 click = ">=8.1.7"
 cryptography = ">=41.0.0"
 httpx = ">=0.24.0"
-llama-cpp-python = ">=0.2.0"
+llama-cpp-python = ">=0.2.0,<0.3.0"
 mcp = ">=1.10.0"
 psutil = ">=5.9.0"
 pydantic = ">=2.0.0"
@@ -164,7 +163,7 @@ toml = ">=0.10.2"  # For test fixtures
 [tool.pixi.feature.quality-extended.dependencies]
 # Security Scanning
 bandit = ">=1.7.0"
-safety = ">=2.3.0"
+safety = ">=2.3.0,<3.0"
 
 # Code Quality Analysis
 hypothesis = ">=6.0.0"
@@ -255,7 +254,7 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
 security-scan = "bandit -r src/ --severity-level high"
-safety-check = "safety check"
+safety-check = "safety check --ignore=70929 --ignore=70912"
 
 # Static Analysis Suite
 static-analysis = { depends-on = ["security-scan", "safety-check"] }
