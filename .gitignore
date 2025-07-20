@@ -27,6 +27,8 @@ node_modules/
 # Python specific ignores
 # Byte-code files
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
