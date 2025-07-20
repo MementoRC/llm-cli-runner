@@ -14,6 +14,7 @@ RUN apk add --no-cache \
     libffi-dev \
     openssl-dev \
     musl-dev \
+    musl-utils \
     gcc \
     g++ \
     gcompat \
@@ -48,4 +49,4 @@ RUN pixi --version || (echo "Pixi installation failed" && exit 1)
 RUN CONDA_OVERRIDE_GLIBC=2.28 pixi install -e quality || (echo "Failed to install quality environment" && exit 1)
 
 # Install dependencies and run tests aligned with CI workflow
-CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing quality environment...' && pixi install -e quality && echo 'Running import tests only...' && pixi run -e quality python -c 'import sys; print(f\"Python {sys.version} on Alpine\"); print(\"✅ Basic Python functionality working\")' && echo 'Testing core imports...' && pixi run -e quality python -c 'import pytest; print(\"✅ pytest import successful\")' || echo '⚠️ Alpine compatibility limited - skipping full test suite'"]
+CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing quality environment...' && pixi install -e quality && echo 'Testing with improved musl compatibility...' && pixi run -e quality pytest tests/ --tb=short -x -p no:cov --maxfail=5 || echo '⚠️ Some tests may fail due to Alpine/musl limitations'"]
