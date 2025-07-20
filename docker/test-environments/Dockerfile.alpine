@@ -19,7 +19,10 @@ RUN apk add --no-cache \
     gcompat \
     libc6-compat \
     libstdc++ \
-    ca-certificates
+    libgcc \
+    ca-certificates \
+    sqlite \
+    sqlite-dev
 
 # Install pixi
 RUN curl -fsSL https://pixi.sh/install.sh | bash
