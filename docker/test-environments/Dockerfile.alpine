@@ -27,6 +27,7 @@ ENV PATH="/root/.pixi/bin:$PATH"
 
 # Set environment variables for Alpine compatibility
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONPATH="/workspace/src"
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 ENV CONDA_OVERRIDE_GLIBC=2.17
