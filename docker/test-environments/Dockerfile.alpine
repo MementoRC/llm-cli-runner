@@ -29,6 +29,7 @@ ENV PATH="/root/.pixi/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/workspace/src"
 ENV RUSTFLAGS="-C target-feature=-crt-static"
+ENV CONDA_OVERRIDE_GLIBC=2.17
 
 # Set working directory
 WORKDIR /workspace
@@ -40,7 +41,7 @@ COPY . .
 RUN pixi --version || (echo "Pixi installation failed" && exit 1)
 
 # Pre-install quality environment to catch issues early
-RUN pixi install -e quality || (echo "Failed to install quality environment" && exit 1)
+RUN CONDA_OVERRIDE_GLIBC=2.17 pixi install -e quality || (echo "Failed to install quality environment" && exit 1)
 
 # Install dependencies and run tests aligned with CI workflow
 CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing quality environment...' && pixi install -e quality && echo 'Running tests...' && pixi run -e quality test"]

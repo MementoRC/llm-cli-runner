@@ -117,8 +117,9 @@ jobs:
         docker run --rm \
           -v ${{ github.workspace }}:/workspace \
           -w /workspace \
+          -e CONDA_OVERRIDE_GLIBC=2.17 \
           llm-cli-test-${{ matrix.environment.name }} \
-          sh -c "pixi install -e quality && pixi run -e quality test"
+          sh -c "CONDA_OVERRIDE_GLIBC=2.17 pixi install -e quality && pixi run -e quality test"
 
   security:
     runs-on: ubuntu-latest
