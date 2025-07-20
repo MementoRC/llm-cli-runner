@@ -30,5 +30,5 @@ COPY . .
 # Test pixi installation and install dependencies with better error handling
 RUN pixi --version || (echo "Pixi installation failed" && exit 1)
 
-# Install dependencies and run tests with simplified approach
-CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing minimal environment...' && pixi install -e ci-minimal && echo 'Running basic tests...' && pixi run -e ci-minimal test"]
+# Install dependencies and run tests aligned with CI workflow
+CMD ["sh", "-c", "set -e && echo 'Alpine test starting...' && pixi --version && echo 'Installing quality environment...' && pixi install -e quality && echo 'Running tests...' && pixi run -e quality test"]
