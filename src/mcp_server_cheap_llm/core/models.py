@@ -230,3 +230,155 @@ class ProviderStatusInfo(BaseModel):
                 self.last_request_time.isoformat() if self.last_request_time else None
             ),
         }
+
+
+class UsageStats(BaseModel):
+    """Usage statistics for providers.
+
+    Attributes:
+        provider_name: Name of the provider
+        total_requests: Total number of requests made
+        successful_requests: Number of successful requests
+        failed_requests: Number of failed requests
+        total_tokens_consumed: Total tokens used
+        total_cost_usd: Total cost in USD
+        average_response_time_ms: Average response time
+        last_request_time: Timestamp of last request
+        request_rate_per_minute: Current request rate
+
+    Example:
+        >>> stats = UsageStats(
+        ...     provider_name="gemini",
+        ...     total_requests=100,
+        ...     successful_requests=95,
+        ...     total_tokens_consumed=50000,
+        ...     total_cost_usd=2.50
+        ... )
+    """
+
+    provider_name: str
+    total_requests: int = Field(default=0, ge=0)
+    successful_requests: int = Field(default=0, ge=0)
+    failed_requests: int = Field(default=0, ge=0)
+    total_tokens_consumed: int = Field(default=0, ge=0)
+    total_cost_usd: float = Field(default=0.0, ge=0.0)
+    average_response_time_ms: float = Field(default=0.0, ge=0.0)
+    last_request_time: datetime | None = None
+    request_rate_per_minute: float = Field(default=0.0, ge=0.0)
+
+    @property
+    def success_rate(self) -> float:
+        """Calculate success rate as percentage."""
+        if self.total_requests == 0:
+            return 100.0
+        return (self.successful_requests / self.total_requests) * 100.0
+
+    @property
+    def average_tokens_per_request(self) -> float:
+        """Calculate average tokens per request."""
+        if self.successful_requests == 0:
+            return 0.0
+        return self.total_tokens_consumed / self.successful_requests
+
+    @property
+    def average_cost_per_request(self) -> float:
+        """Calculate average cost per request."""
+        if self.successful_requests == 0:
+            return 0.0
+        return self.total_cost_usd / self.successful_requests
+
+
+class QuotaStatus(BaseModel):
+    """Quota status information for providers.
+
+    Attributes:
+        provider_name: Name of the provider
+        quota_type: Type of quota (requests, tokens, cost)
+        current_usage: Current usage amount
+        quota_limit: Maximum allowed usage
+        quota_remaining: Remaining quota
+        reset_time: When quota resets
+        is_exhausted: Whether quota is exhausted
+        estimated_reset_duration: Estimated time until reset
+
+    Example:
+        >>> quota = QuotaStatus(
+        ...     provider_name="gemini",
+        ...     quota_type="requests_per_day",
+        ...     current_usage=800,
+        ...     quota_limit=1000,
+        ...     reset_time=datetime.now() + timedelta(hours=12)
+        ... )
+    """
+
+    provider_name: str
+    quota_type: str = Field(..., min_length=1)
+    current_usage: float = Field(default=0.0, ge=0.0)
+    quota_limit: float = Field(..., gt=0.0)
+    quota_remaining: float = Field(default=0.0, ge=0.0)
+    reset_time: datetime | None = None
+    is_exhausted: bool = False
+    estimated_reset_duration: int | None = Field(None, ge=0)  # seconds
+
+    def __post_init__(self):
+        """Calculate remaining quota and exhaustion status."""
+        self.quota_remaining = max(0.0, self.quota_limit - self.current_usage)
+        self.is_exhausted = self.quota_remaining <= 0.0
+
+    @property
+    def usage_percentage(self) -> float:
+        """Calculate usage as percentage of limit."""
+        return (self.current_usage / self.quota_limit) * 100.0
+
+    @property
+    def is_near_exhaustion(self, threshold: float = 90.0) -> bool:
+        """Check if quota is near exhaustion (default 90%)."""
+        return self.usage_percentage >= threshold
+
+
+class CostEstimate(BaseModel):
+    """Cost estimation for LLM requests.
+
+    Attributes:
+        provider_name: Name of the provider
+        estimated_tokens: Estimated tokens for the request
+        cost_per_token: Cost per token in USD
+        estimated_cost_usd: Total estimated cost
+        currency: Currency for cost (default USD)
+        confidence_score: Confidence in estimation (0.0-1.0)
+        cost_breakdown: Detailed cost breakdown
+        estimation_method: Method used for estimation
+
+    Example:
+        >>> estimate = CostEstimate(
+        ...     provider_name="gemini",
+        ...     estimated_tokens=500,
+        ...     cost_per_token=0.0001,
+        ...     confidence_score=0.85
+        ... )
+    """
+
+    provider_name: str
+    estimated_tokens: int = Field(..., ge=0)
+    cost_per_token: float = Field(..., ge=0.0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0.0)
+    currency: str = Field(default="USD")
+    confidence_score: float = Field(default=1.0, ge=0.0, le=1.0)
+    cost_breakdown: dict[str, Any] = Field(default_factory=dict)
+    estimation_method: str = Field(default="token_based")
+
+    def __post_init__(self):
+        """Calculate estimated cost."""
+        self.estimated_cost_usd = self.estimated_tokens * self.cost_per_token
+
+    @property
+    def is_high_confidence(self, threshold: float = 0.8) -> bool:
+        """Check if estimation confidence is high."""
+        return self.confidence_score >= threshold
+
+    def add_cost_component(self, component: str, cost: float):
+        """Add component to cost breakdown."""
+        self.cost_breakdown[component] = cost
+        # Recalculate total if breakdown is provided
+        if self.cost_breakdown:
+            self.estimated_cost_usd = sum(self.cost_breakdown.values())
