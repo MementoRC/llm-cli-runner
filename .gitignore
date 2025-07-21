@@ -87,3 +87,4 @@ models/
 .aider/
 .claude_backup/
 .claude/state/
+.claude/settings.local.json
