@@ -56,21 +56,21 @@ class GitHubServiceConfig:
     # Authentication settings
     github_token: str | None = None
     auto_refresh_token: bool = True
-    
-    # Rate limiting settings  
+
+    # Rate limiting settings
     enable_rate_limiting: bool = True
     rate_limit_buffer: int = 10  # Keep this many requests in reserve
     rate_limit_backoff: float = 60.0  # Seconds to wait when rate limited
-    
+
     # Webhook settings
     webhook_secret: str | None = None
     webhook_events: list[str] = field(default_factory=lambda: ["push", "pull_request"])
-    
+
     # Service settings
     max_concurrent_operations: int = 5
     operation_timeout: int = 300  # 5 minutes
     cache_ttl: int = 300  # 5 minutes
-    
+
     # GitHub API settings
     api_base_url: str = "https://api.github.com"
     user_agent: str = "MCP-Git-Server/1.1.0"
@@ -84,30 +84,30 @@ class GitHubServiceState:
     is_running: bool = False
     started_at: datetime | None = None
     last_activity: datetime | None = None
-    
+
     # Authentication state
     is_authenticated: bool = False
     authenticated_user: dict[str, Any] | None = None
     token_validated_at: datetime | None = None
-    
+
     # Rate limiting state
     rate_limit_remaining: int | None = None
     rate_limit_reset_at: datetime | None = None
     rate_limit_used: int = 0
-    
+
     # Operation tracking
     active_operations: set[str] = field(default_factory=set)
     completed_operations: int = 0
     failed_operations: int = 0
     operation_history: list[dict[str, Any]] = field(default_factory=list)
-    
+
     # Error tracking
     last_error: Exception | None = None
     error_count: int = 0
     errors: list[dict[str, Any]] = field(default_factory=list)
 
 
-@dataclass  
+@dataclass
 class GitHubOperationResult:
     """Result of a GitHub service operation."""
 
@@ -143,11 +143,11 @@ class GitHubService(DebuggableComponent):
         self.state = GitHubServiceState()
         self._lock = Lock()
         self._executor = ThreadPoolExecutor(max_workers=self.config.max_concurrent_operations)
-        
+
         # Initialize GitHub token from config or environment
         if self.config.github_token is None:
             self.config.github_token = get_github_token()
-        
+
         logger.info("GitHub service initialized")
 
     async def start(self) -> None:
@@ -168,20 +168,20 @@ class GitHubService(DebuggableComponent):
             return
 
         logger.info("Starting GitHub service...")
-        
+
         try:
             # Authenticate if token is available
             if self.config.github_token:
                 await self.authenticate(self.config.github_token)
-            
+
             # Update service state
             with self._lock:
                 self.state.is_running = True
                 self.state.started_at = datetime.now()
                 self.state.last_activity = datetime.now()
-            
+
             logger.info("GitHub service started successfully")
-            
+
         except Exception as e:
             logger.error(f"Failed to start GitHub service: {e}")
             raise GitHubServiceError(f"Service startup failed: {e}") from e
@@ -197,27 +197,27 @@ class GitHubService(DebuggableComponent):
             return
 
         logger.info("Stopping GitHub service...")
-        
+
         # Wait for active operations to complete
         max_wait = 30  # seconds
         wait_start = time.time()
-        
+
         while self.state.active_operations and (time.time() - wait_start) < max_wait:
             logger.info(f"Waiting for {len(self.state.active_operations)} active operations to complete...")
             await asyncio.sleep(1)
-        
+
         # Force shutdown if operations are still active
         if self.state.active_operations:
             logger.warning(f"Force stopping with {len(self.state.active_operations)} active operations")
-        
+
         # Shutdown executor
         self._executor.shutdown(wait=True)
-        
+
         # Update service state
         with self._lock:
             self.state.is_running = False
             self.state.active_operations.clear()
-        
+
         logger.info("GitHub service stopped")
 
     async def authenticate(self, token: str | None = None) -> bool:
@@ -242,25 +242,25 @@ class GitHubService(DebuggableComponent):
             raise GitHubAuthenticationError("No GitHub token provided")
 
         logger.info("Authenticating with GitHub API...")
-        
+
         try:
             # Validate token format
             if not validate_github_token(auth_token):
                 raise GitHubAuthenticationError("Invalid GitHub token format")
-            
+
             # Test authentication by getting user info
             user_info = await get_authenticated_user()
-            
+
             # Update service state
             with self._lock:
                 self.state.is_authenticated = True
                 self.state.authenticated_user = user_info
                 self.state.token_validated_at = datetime.now()
                 self.config.github_token = auth_token
-            
+
             logger.info(f"Successfully authenticated as {user_info.get('login', 'unknown')}")
             return True
-            
+
         except GitHubAuthenticationError:
             logger.error("GitHub authentication failed")
             with self._lock:
@@ -276,9 +276,9 @@ class GitHubService(DebuggableComponent):
         return self.state.is_authenticated
 
     async def create_pull_request_workflow(
-        self, 
+        self,
         repo_owner: str,
-        repo_name: str, 
+        repo_name: str,
         pr_request: PullRequestRequest,
         auto_merge: bool = False,
         wait_for_checks: bool = True
@@ -308,24 +308,24 @@ class GitHubService(DebuggableComponent):
             >>> print(f"PR #{result.data['number']} created")
         """
         operation_id = f"pr_workflow_{repo_owner}_{repo_name}_{int(time.time())}"
-        
+
         try:
             await self._start_operation(operation_id)
             start_time = time.time()
-            
+
             # Create the pull request
             logger.info(f"Creating PR: {pr_request.title} in {repo_owner}/{repo_name}")
             pr = await create_pull_request(repo_owner, repo_name, pr_request)
             pr_number = pr["number"]
-            
+
             result_data = {"pull_request": pr}
-            
+
             # Wait for status checks if requested
             if wait_for_checks:
                 logger.info(f"Waiting for status checks on PR #{pr_number}")
                 pr_with_status = await self._wait_for_pr_checks(repo_owner, repo_name, pr_number)
                 result_data["status_checks"] = pr_with_status.get("status_checks", {})
-            
+
             # Auto-merge if requested and checks pass
             if auto_merge and self._pr_checks_passed(result_data.get("status_checks", {})):
                 logger.info(f"Auto-merging PR #{pr_number}")
@@ -334,14 +334,14 @@ class GitHubService(DebuggableComponent):
                     commit_title=f"Merge PR #{pr_number}: {pr_request.title}"
                 )
                 result_data["merge_result"] = merge_result
-            
+
             duration = time.time() - start_time
             return GitHubOperationResult(
                 success=True,
                 data=result_data,
                 duration=duration
             )
-            
+
         except Exception as e:
             logger.error(f"Pull request workflow failed: {e}")
             await self._record_error(e)
@@ -370,16 +370,16 @@ class GitHubService(DebuggableComponent):
             >>> print(f"Webhook processed: {result.success}")
         """
         operation_id = f"webhook_{event_type}_{int(time.time())}"
-        
+
         try:
             await self._start_operation(operation_id)
             start_time = time.time()
-            
+
             logger.info(f"Processing webhook event: {event_type}")
-            
+
             # Process different event types
             result_data = {}
-            
+
             if event_type == "pull_request":
                 result_data = await self._handle_pr_webhook(event_data)
             elif event_type == "push":
@@ -389,13 +389,13 @@ class GitHubService(DebuggableComponent):
             else:
                 logger.warning(f"Unhandled webhook event type: {event_type}")
                 result_data = {"message": f"Event type {event_type} not handled"}
-            
+
             return GitHubOperationResult(
                 success=True,
                 data=result_data,
                 duration=time.time() - start_time
             )
-            
+
         except Exception as e:
             logger.error(f"Webhook processing failed: {e}")
             await self._record_error(e)
@@ -442,14 +442,14 @@ class GitHubService(DebuggableComponent):
             >>> print(f"Repository health score: {insights.data['health_score']}")
         """
         operation_id = f"insights_{repo_owner}_{repo_name}"
-        
+
         try:
             await self._start_operation(operation_id)
             start_time = time.time()
-            
+
             # Get detailed repository information
             repo_details = await get_repository_with_details(repo_owner, repo_name)
-            
+
             # Calculate insights
             insights = {
                 "repository": repo_details,
@@ -458,13 +458,13 @@ class GitHubService(DebuggableComponent):
                 "maintenance_status": self._assess_maintenance_status(repo_details),
                 "insights_generated_at": datetime.now().isoformat()
             }
-            
+
             return GitHubOperationResult(
                 success=True,
                 data=insights,
                 duration=time.time() - start_time
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to get repository insights: {e}")
             return GitHubOperationResult(
@@ -494,25 +494,25 @@ class GitHubService(DebuggableComponent):
         """Validate the GitHub service configuration and state."""
         errors = []
         warnings = []
-        
+
         # Check authentication
         if not self.state.is_authenticated:
             errors.append("GitHub service not authenticated")
-        
+
         # Check token validity
         if not self.config.github_token:
             errors.append("No GitHub token configured")
         elif not validate_github_token(self.config.github_token):
             errors.append("Invalid GitHub token format")
-        
+
         # Check rate limiting
         if self._is_approaching_rate_limit():
             warnings.append("Approaching GitHub API rate limit")
-        
+
         # Check service status
         if not self.state.is_running:
             warnings.append("GitHub service not running")
-        
+
         return GitHubServiceValidationResult(
             is_valid=len(errors) == 0,
             validation_errors=errors,
@@ -534,15 +534,15 @@ class GitHubService(DebuggableComponent):
                 "user": self.state.authenticated_user.get("login") if self.state.authenticated_user else None
             }
         }
-        
+
         if debug_level == "DEBUG":
             debug_data.update({
                 "active_operations_list": list(self.state.active_operations),
                 "recent_operations": self.state.operation_history[-10:],
-                "recent_errors": [{"error": str(e["error"]), "timestamp": e["timestamp"]} 
+                "recent_errors": [{"error": str(e["error"]), "timestamp": e["timestamp"]}
                                  for e in self.state.errors[-5:]]
             })
-        
+
         return GitHubServiceDebugInfo(
             debug_level=debug_level,
             debug_data=debug_data,
@@ -561,10 +561,10 @@ class GitHubService(DebuggableComponent):
             "state": self.state.__dict__,
             "rate_limit": self.get_rate_limit_status()
         }
-        
+
         if path is None:
             return full_state
-        
+
         # Navigate to specific path using dot notation
         current = full_state
         for part in path.split("."):
@@ -572,7 +572,7 @@ class GitHubService(DebuggableComponent):
                 current = current[part]
             else:
                 return {}
-        
+
         return {path: current}
 
     def get_component_dependencies(self) -> list[str]:
@@ -616,14 +616,14 @@ class GitHubService(DebuggableComponent):
                 self.state.completed_operations += 1
             else:
                 self.state.failed_operations += 1
-            
+
             # Record operation in history
             self.state.operation_history.append({
                 "operation_id": operation_id,
                 "success": success,
                 "timestamp": datetime.now().isoformat()
             })
-            
+
             # Keep only recent history
             if len(self.state.operation_history) > 100:
                 self.state.operation_history = self.state.operation_history[-50:]
@@ -637,7 +637,7 @@ class GitHubService(DebuggableComponent):
                 "error": error,
                 "timestamp": datetime.now().isoformat()
             })
-            
+
             # Keep only recent errors
             if len(self.state.errors) > 50:
                 self.state.errors = self.state.errors[-25:]
@@ -653,13 +653,13 @@ class GitHubService(DebuggableComponent):
         start_time = time.time()
         while (time.time() - start_time) < timeout:
             pr_status = await get_pull_request_with_status(repo_owner, repo_name, pr_number)
-            
+
             status_checks = pr_status.get("status_checks", {})
             if self._pr_checks_complete(status_checks):
                 return pr_status
-            
+
             await asyncio.sleep(30)  # Wait 30 seconds between checks
-        
+
         logger.warning(f"Timeout waiting for PR #{pr_number} checks")
         return await get_pull_request_with_status(repo_owner, repo_name, pr_number)
 
@@ -667,7 +667,7 @@ class GitHubService(DebuggableComponent):
         """Check if PR status checks are complete."""
         if not status_checks:
             return True
-        
+
         state = status_checks.get("state", "pending")
         return state in ["success", "failure", "error"]
 
@@ -675,16 +675,16 @@ class GitHubService(DebuggableComponent):
         """Check if PR status checks passed."""
         if not status_checks:
             return True
-        
+
         return status_checks.get("state") == "success"
 
     async def _handle_pr_webhook(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """Handle pull request webhook events."""
         action = event_data.get("action", "unknown")
         pr = event_data.get("pull_request", {})
-        
+
         logger.info(f"Processing PR webhook: {action} for PR #{pr.get('number', 'unknown')}")
-        
+
         return {
             "event_type": "pull_request",
             "action": action,
@@ -697,9 +697,9 @@ class GitHubService(DebuggableComponent):
         """Handle push webhook events."""
         ref = event_data.get("ref", "unknown")
         commits = event_data.get("commits", [])
-        
+
         logger.info(f"Processing push webhook: {len(commits)} commits to {ref}")
-        
+
         return {
             "event_type": "push",
             "ref": ref,
@@ -711,9 +711,9 @@ class GitHubService(DebuggableComponent):
         """Handle issue webhook events."""
         action = event_data.get("action", "unknown")
         issue = event_data.get("issue", {})
-        
+
         logger.info(f"Processing issue webhook: {action} for issue #{issue.get('number', 'unknown')}")
-        
+
         return {
             "event_type": "issues",
             "action": action,
@@ -726,27 +726,27 @@ class GitHubService(DebuggableComponent):
         """Calculate repository health score."""
         # Simple health score based on activity and maintenance
         score = 0.0
-        
+
         # Factor in recent activity
         if repo_data.get("pushed_at"):
             # Add scoring logic based on recent pushes
             score += 30.0
-        
+
         # Factor in documentation
         if repo_data.get("has_wiki") or "README" in str(repo_data.get("description", "")):
             score += 20.0
-        
+
         # Factor in community
         if repo_data.get("stargazers_count", 0) > 0:
             score += min(25.0, repo_data["stargazers_count"] / 10)
-        
+
         # Factor in issues management
         open_issues = repo_data.get("open_issues_count", 0)
         if open_issues == 0:
             score += 25.0
         elif open_issues < 10:
             score += 15.0
-        
+
         return min(100.0, score)
 
     def _calculate_activity_level(self, repo_data: dict[str, Any]) -> str:
@@ -755,7 +755,7 @@ class GitHubService(DebuggableComponent):
         pushed_at = repo_data.get("pushed_at")
         if not pushed_at:
             return "dormant"
-        
+
         # This would need proper date parsing in real implementation
         return "active"  # Simplified for now
 
@@ -784,11 +784,11 @@ class GitHubService(DebuggableComponent):
         """Calculate operations per minute metric."""
         if not self.state.started_at:
             return 0.0
-        
+
         uptime_minutes = (datetime.now() - self.state.started_at).total_seconds() / 60
         if uptime_minutes == 0:
             return 0.0
-        
+
         total_operations = self.state.completed_operations + self.state.failed_operations
         return total_operations / uptime_minutes
 
@@ -802,7 +802,7 @@ class GitHubService(DebuggableComponent):
         total_operations = self.state.completed_operations + self.state.failed_operations
         if total_operations == 0:
             return 0.0
-        
+
         return (self.state.failed_operations / total_operations) * 100
 
 
@@ -816,7 +816,7 @@ class GitHubServiceError(GitHubPrimitiveError):
 @dataclass
 class GitHubServiceComponentState:
     """GitHub service component state implementation."""
-    
+
     component_id: str
     component_type: str
     state_data: dict[str, Any]
@@ -826,7 +826,7 @@ class GitHubServiceComponentState:
 @dataclass
 class GitHubServiceValidationResult:
     """GitHub service validation result implementation."""
-    
+
     is_valid: bool
     validation_errors: list[str]
     validation_warnings: list[str]
@@ -836,7 +836,7 @@ class GitHubServiceValidationResult:
 @dataclass
 class GitHubServiceDebugInfo:
     """GitHub service debug info implementation."""
-    
+
     debug_level: str
     debug_data: dict[str, Any]
     stack_trace: list[str] | None
