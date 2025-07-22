@@ -577,7 +577,9 @@ async def get_repository_with_details(
         # Get branches (first page)
         try:
             branches = await make_github_request(
-                "GET", f"/repos/{repo_owner}/{repo_name}/branches", params={"per_page": 30}
+                "GET",
+                f"/repos/{repo_owner}/{repo_name}/branches",
+                params={"per_page": 30},
             )
             repo["branches"] = branches
         except GitHubAPIError:
@@ -587,7 +589,9 @@ async def get_repository_with_details(
         # Get contributors (first page)
         try:
             contributors = await make_github_request(
-                "GET", f"/repos/{repo_owner}/{repo_name}/contributors", params={"per_page": 30}
+                "GET",
+                f"/repos/{repo_owner}/{repo_name}/contributors",
+                params={"per_page": 30},
             )
             repo["contributors"] = contributors
         except GitHubAPIError:

@@ -19,6 +19,7 @@ from ..protocols.debugging_protocol import DebuggableComponent
 @dataclass
 class DebugOperation:
     """Information about a debugging operation."""
+
     operation_id: str
     operation_name: str
     start_time: datetime
@@ -27,7 +28,7 @@ class DebugOperation:
     metadata: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    sub_operations: list['DebugOperation'] = field(default_factory=list)
+    sub_operations: list["DebugOperation"] = field(default_factory=list)
 
     @property
     def duration_seconds(self) -> float | None:
@@ -59,23 +60,23 @@ class DebugOperation:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'operation_id': self.operation_id,
-            'operation_name': self.operation_name,
-            'start_time': self.start_time.isoformat(),
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'duration_seconds': self.duration_seconds,
-            'status': self.status,
-            'metadata': self.metadata,
-            'errors': self.errors,
-            'warnings': self.warnings,
-            'sub_operations': [sub_op.to_dict() for sub_op in self.sub_operations],
+            "operation_id": self.operation_id,
+            "operation_name": self.operation_name,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "duration_seconds": self.duration_seconds,
+            "status": self.status,
+            "metadata": self.metadata,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "sub_operations": [sub_op.to_dict() for sub_op in self.sub_operations],
         }
 
 
 class DebugContext:
     """
     Context manager for debugging operations with hierarchical operation tracking.
-    
+
     This class maintains debugging context across complex operations, tracking
     metadata, errors, warnings, and nested operations for comprehensive debugging.
     """
@@ -84,13 +85,13 @@ class DebugContext:
     _local_storage = threading.local()
 
     # Global registry of all debug contexts
-    _global_contexts: dict[str, 'DebugContext'] = {}
+    _global_contexts: dict[str, "DebugContext"] = {}
     _global_lock = threading.RLock()
 
     def __init__(self, context_name: str, context_id: str | None = None):
         """
         Initialize debug context.
-        
+
         Args:
             context_name: Human-readable name for the context
             context_id: Optional unique identifier (auto-generated if not provided)
@@ -110,10 +111,10 @@ class DebugContext:
         with DebugContext._global_lock:
             DebugContext._global_contexts[self.context_id] = self
 
-    def __enter__(self) -> 'DebugContext':
+    def __enter__(self) -> "DebugContext":
         """Enter the debug context."""
         # Set as current context in thread-local storage
-        if not hasattr(DebugContext._local_storage, 'context_stack'):
+        if not hasattr(DebugContext._local_storage, "context_stack"):
             DebugContext._local_storage.context_stack = []
 
         DebugContext._local_storage.context_stack.append(self)
@@ -122,7 +123,7 @@ class DebugContext:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit the debug context."""
         # Remove from thread-local stack
-        if hasattr(DebugContext._local_storage, 'context_stack'):
+        if hasattr(DebugContext._local_storage, "context_stack"):
             try:
                 DebugContext._local_storage.context_stack.remove(self)
             except ValueError:
@@ -131,20 +132,25 @@ class DebugContext:
         # Complete any running operation
         if self._current_operation and not self._current_operation.is_completed:
             if exc_type:
-                self._current_operation.add_error(f"Context exited with exception: {exc_type.__name__}: {exc_val}")
+                self._current_operation.add_error(
+                    f"Context exited with exception: {exc_type.__name__}: {exc_val}"
+                )
                 self._current_operation.complete("failed")
             else:
                 self._current_operation.complete("completed")
 
     @classmethod
-    def get_current_context(cls) -> Optional['DebugContext']:
+    def get_current_context(cls) -> Optional["DebugContext"]:
         """Get the current debug context for this thread."""
-        if hasattr(cls._local_storage, 'context_stack') and cls._local_storage.context_stack:
+        if (
+            hasattr(cls._local_storage, "context_stack")
+            and cls._local_storage.context_stack
+        ):
             return cls._local_storage.context_stack[-1]
         return None
 
     @classmethod
-    def get_context_by_id(cls, context_id: str) -> Optional['DebugContext']:
+    def get_context_by_id(cls, context_id: str) -> Optional["DebugContext"]:
         """Get a debug context by its ID."""
         with cls._global_lock:
             return cls._global_contexts.get(context_id)
@@ -174,19 +180,23 @@ class DebugContext:
             if self._current_operation:
                 self._current_operation.add_warning(warning_message)
 
-    def register_component(self, component_id: str, component: DebuggableComponent) -> None:
+    def register_component(
+        self, component_id: str, component: DebuggableComponent
+    ) -> None:
         """Register a component with this debug context."""
         with self._lock:
             self.registered_components[component_id] = component
 
-    def start_operation(self, operation_name: str, operation_id: str | None = None) -> DebugOperation:
+    def start_operation(
+        self, operation_name: str, operation_id: str | None = None
+    ) -> DebugOperation:
         """
         Start a new debug operation.
-        
+
         Args:
             operation_name: Name of the operation
             operation_id: Optional unique identifier
-            
+
         Returns:
             DebugOperation instance
         """
@@ -215,7 +225,9 @@ class DebugContext:
                 parent_op = self._find_parent_operation(self._current_operation)
                 self._current_operation = parent_op
 
-    def _find_parent_operation(self, operation: DebugOperation) -> DebugOperation | None:
+    def _find_parent_operation(
+        self, operation: DebugOperation
+    ) -> DebugOperation | None:
         """Find the parent operation of a given operation."""
         for op in self.operations:
             if operation in op.sub_operations:
@@ -226,7 +238,9 @@ class DebugContext:
                 return parent
         return None
 
-    def _find_parent_in_subops(self, parent: DebugOperation, target: DebugOperation) -> DebugOperation | None:
+    def _find_parent_in_subops(
+        self, parent: DebugOperation, target: DebugOperation
+    ) -> DebugOperation | None:
         """Recursively find parent operation in sub-operations."""
         for sub_op in parent.sub_operations:
             if target in sub_op.sub_operations:
@@ -240,10 +254,10 @@ class DebugContext:
     def operation(self, operation_name: str) -> Iterator[DebugOperation]:
         """
         Context manager for a debug operation.
-        
+
         Args:
             operation_name: Name of the operation
-            
+
         Yields:
             DebugOperation instance
         """
@@ -267,20 +281,20 @@ class DebugContext:
                     debug_info = component.get_debug_info()
 
                     states[comp_id] = {
-                        'component_type': state.component_type,
-                        'state_data': state.state_data,
-                        'last_updated': state.last_updated.isoformat(),
-                        'validation': {
-                            'is_valid': validation.is_valid,
-                            'errors': validation.validation_errors,
-                            'warnings': validation.validation_warnings,
+                        "component_type": state.component_type,
+                        "state_data": state.state_data,
+                        "last_updated": state.last_updated.isoformat(),
+                        "validation": {
+                            "is_valid": validation.is_valid,
+                            "errors": validation.validation_errors,
+                            "warnings": validation.validation_warnings,
                         },
-                        'performance_metrics': debug_info.performance_metrics,
+                        "performance_metrics": debug_info.performance_metrics,
                     }
                 except Exception as e:
                     states[comp_id] = {
-                        'error': f"Failed to capture state: {str(e)}",
-                        'error_type': type(e).__name__,
+                        "error": f"Failed to capture state: {str(e)}",
+                        "error_type": type(e).__name__,
                     }
 
             return states
@@ -330,22 +344,30 @@ class DebugContext:
                 component_states = self.capture_component_states()
                 for comp_id, state in component_states.items():
                     report_lines.append(f"### {comp_id}")
-                    if 'error' in state:
+                    if "error" in state:
                         report_lines.append(f"❌ **Error**: {state['error']}")
                     else:
-                        report_lines.append(f"**Type**: {state.get('component_type', 'Unknown')}")
-                        report_lines.append(f"**Last Updated**: {state.get('last_updated', 'Unknown')}")
+                        report_lines.append(
+                            f"**Type**: {state.get('component_type', 'Unknown')}"
+                        )
+                        report_lines.append(
+                            f"**Last Updated**: {state.get('last_updated', 'Unknown')}"
+                        )
 
-                        validation = state.get('validation', {})
-                        status = "✅ Valid" if validation.get('is_valid', False) else "❌ Invalid"
+                        validation = state.get("validation", {})
+                        status = (
+                            "✅ Valid"
+                            if validation.get("is_valid", False)
+                            else "❌ Invalid"
+                        )
                         report_lines.append(f"**Validation**: {status}")
 
-                        if validation.get('errors'):
+                        if validation.get("errors"):
                             report_lines.append("**Errors**:")
-                            for error in validation['errors']:
+                            for error in validation["errors"]:
                                 report_lines.append(f"  - {error}")
 
-                        metrics = state.get('performance_metrics', {})
+                        metrics = state.get("performance_metrics", {})
                         if metrics:
                             report_lines.append("**Performance**:")
                             for metric, value in metrics.items():
@@ -355,7 +377,9 @@ class DebugContext:
 
             return "\n".join(report_lines)
 
-    def _format_operation_report(self, operation: DebugOperation, indent: int = 0) -> list[str]:
+    def _format_operation_report(
+        self, operation: DebugOperation, indent: int = 0
+    ) -> list[str]:
         """Format an operation for the report."""
         lines = []
         prefix = "  " * indent
@@ -365,10 +389,12 @@ class DebugContext:
             "completed": "✅",
             "failed": "❌",
             "cancelled": "⏹️",
-            "running": "🔄"
+            "running": "🔄",
         }.get(operation.status, "❓")
 
-        lines.append(f"{prefix}{status_emoji} **{operation.operation_name}** ({operation.operation_id})")
+        lines.append(
+            f"{prefix}{status_emoji} **{operation.operation_name}** ({operation.operation_id})"
+        )
         lines.append(f"{prefix}  - **Started**: {operation.start_time.isoformat()}")
 
         if operation.end_time:
@@ -406,27 +432,29 @@ class DebugContext:
         """Convert context to dictionary for serialization."""
         with self._lock:
             return {
-                'context_id': self.context_id,
-                'context_name': self.context_name,
-                'creation_time': self.creation_time.isoformat(),
-                'metadata': self.metadata,
-                'operations': [op.to_dict() for op in self.operations],
-                'registered_components': list(self.registered_components.keys()),
-                'context_errors': self.context_errors,
-                'context_warnings': self.context_warnings,
-                'component_states': self.capture_component_states(),
+                "context_id": self.context_id,
+                "context_name": self.context_name,
+                "creation_time": self.creation_time.isoformat(),
+                "metadata": self.metadata,
+                "operations": [op.to_dict() for op in self.operations],
+                "registered_components": list(self.registered_components.keys()),
+                "context_errors": self.context_errors,
+                "context_warnings": self.context_warnings,
+                "component_states": self.capture_component_states(),
             }
 
 
 @contextmanager
-def debug_operation(operation_name: str, context: DebugContext | None = None) -> Iterator[DebugOperation]:
+def debug_operation(
+    operation_name: str, context: DebugContext | None = None
+) -> Iterator[DebugOperation]:
     """
     Standalone context manager for debug operations.
-    
+
     Args:
         operation_name: Name of the operation
         context: Optional debug context (uses current context if not provided)
-        
+
     Yields:
         DebugOperation instance
     """
@@ -460,10 +488,10 @@ class GlobalDebugContextManager:
     def cleanup_old_contexts(max_age_hours: int = 24) -> int:
         """
         Clean up old debug contexts.
-        
+
         Args:
             max_age_hours: Maximum age in hours before contexts are cleaned up
-            
+
         Returns:
             Number of contexts cleaned up
         """
@@ -496,17 +524,19 @@ class GlobalDebugContextManager:
         # Calculate average context age
         if contexts:
             now = datetime.now()
-            total_age = sum((now - ctx.creation_time).total_seconds() for ctx in contexts)
+            total_age = sum(
+                (now - ctx.creation_time).total_seconds() for ctx in contexts
+            )
             avg_age_seconds = total_age / len(contexts)
         else:
             avg_age_seconds = 0
 
         return {
-            'total_contexts': total_contexts,
-            'total_operations': total_operations,
-            'total_errors': total_errors,
-            'total_warnings': total_warnings,
-            'average_context_age_seconds': avg_age_seconds,
+            "total_contexts": total_contexts,
+            "total_operations": total_operations,
+            "total_errors": total_errors,
+            "total_warnings": total_warnings,
+            "average_context_age_seconds": avg_age_seconds,
         }
 
     @staticmethod

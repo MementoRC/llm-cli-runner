@@ -51,7 +51,9 @@ class MockComponentState:
 class MockValidationResult:
     """Mock implementation of ValidationResult protocol."""
 
-    def __init__(self, is_valid: bool = True, errors: list = None, warnings: list = None):
+    def __init__(
+        self, is_valid: bool = True, errors: list = None, warnings: list = None
+    ):
         self._is_valid = is_valid
         self._validation_errors = errors or []
         self._validation_warnings = warnings or []
@@ -77,8 +79,13 @@ class MockValidationResult:
 class MockDebugInfo:
     """Mock implementation of DebugInfo protocol."""
 
-    def __init__(self, debug_level: str = "INFO", debug_data: dict = None,
-                 stack_trace: list = None, performance_metrics: dict = None):
+    def __init__(
+        self,
+        debug_level: str = "INFO",
+        debug_data: dict = None,
+        stack_trace: list = None,
+        performance_metrics: dict = None,
+    ):
         self._debug_level = debug_level
         self._debug_data = debug_data or {}
         self._stack_trace = stack_trace
@@ -104,33 +111,40 @@ class MockDebugInfo:
 class MockDebuggableComponent:
     """Mock implementation of DebuggableComponent protocol."""
 
-    def __init__(self, component_id: str, component_type: str = "MockComponent",
-                 state_data: dict = None, is_valid: bool = True):
+    def __init__(
+        self,
+        component_id: str,
+        component_type: str = "MockComponent",
+        state_data: dict = None,
+        is_valid: bool = True,
+    ):
         self.component_id = component_id
         self.component_type = component_type
         self.state_data = state_data or {"status": "active", "value": 42}
         self.is_valid = is_valid
         self.call_counts = {
-            'get_component_state': 0,
-            'validate_component': 0,
-            'get_debug_info': 0,
+            "get_component_state": 0,
+            "validate_component": 0,
+            "get_debug_info": 0,
         }
 
     def get_component_state(self) -> MockComponentState:
-        self.call_counts['get_component_state'] += 1
-        return MockComponentState(self.component_id, self.component_type, self.state_data)
+        self.call_counts["get_component_state"] += 1
+        return MockComponentState(
+            self.component_id, self.component_type, self.state_data
+        )
 
     def validate_component(self) -> MockValidationResult:
-        self.call_counts['validate_component'] += 1
+        self.call_counts["validate_component"] += 1
         errors = [] if self.is_valid else ["Mock validation error"]
         return MockValidationResult(self.is_valid, errors)
 
     def get_debug_info(self, debug_level: str = "INFO") -> MockDebugInfo:
-        self.call_counts['get_debug_info'] += 1
+        self.call_counts["get_debug_info"] += 1
         return MockDebugInfo(
             debug_level=debug_level,
             debug_data={"mock_debug": True, "level": debug_level},
-            performance_metrics={"response_time_ms": 123.45, "memory_usage_mb": 67.89}
+            performance_metrics={"response_time_ms": 123.45, "memory_usage_mb": 67.89},
         )
 
     def inspect_state(self, path: str = None) -> dict:
@@ -272,7 +286,9 @@ class TestComponentStateInspector:
     def test_capture_state_snapshot(self):
         """Test capturing a state snapshot."""
         inspector = ComponentStateInspector()
-        component = MockDebuggableComponent("test_comp", state_data={"status": "running"})
+        component = MockDebuggableComponent(
+            "test_comp", state_data={"status": "running"}
+        )
 
         inspector.register_component("test_comp", component)
         snapshot = inspector.capture_state_snapshot("test_comp")
@@ -283,7 +299,10 @@ class TestComponentStateInspector:
         assert snapshot.state_data == {"status": "running"}
         assert snapshot.validation_result is not None
         assert snapshot.validation_result["is_valid"] is True
-        assert snapshot.performance_metrics == {"response_time_ms": 123.45, "memory_usage_mb": 67.89}
+        assert snapshot.performance_metrics == {
+            "response_time_ms": 123.45,
+            "memory_usage_mb": 67.89,
+        }
 
         # Check that component methods were called
         assert component.call_counts["get_component_state"] == 1
@@ -378,7 +397,9 @@ class TestComponentStateInspector:
         comparison = inspector.compare_states("test_comp", snapshot1, snapshot2)
 
         assert comparison["component_id"] == "test_comp"
-        assert comparison["time_delta_seconds"] == pytest.approx((timestamp2 - timestamp1).total_seconds(), rel=1e-3)
+        assert comparison["time_delta_seconds"] == pytest.approx(
+            (timestamp2 - timestamp1).total_seconds(), rel=1e-3
+        )
 
         differences = comparison["differences"]
         assert "new_key" in differences["added_keys"]
@@ -410,7 +431,9 @@ class TestComponentStateInspector:
 
         # Add components with different states
         comp1 = MockDebuggableComponent("comp1", state_data={"status": "healthy"})
-        comp2 = MockDebuggableComponent("comp2", state_data={"status": "warning"}, is_valid=False)
+        comp2 = MockDebuggableComponent(
+            "comp2", state_data={"status": "warning"}, is_valid=False
+        )
 
         inspector.register_component("comp1", comp1)
         inspector.register_component("comp2", comp2)
@@ -454,7 +477,9 @@ class TestComponentStateInspector:
         assert "test_comp" in export_data["state_history_summary"]
 
         history_summary = export_data["state_history_summary"]["test_comp"]
-        assert history_summary["total_snapshots"] == 2  # One from capture_state_snapshot, one from export_full_state
+        assert (
+            history_summary["total_snapshots"] == 2
+        )  # One from capture_state_snapshot, one from export_full_state
 
     def test_thread_safety(self):
         """Test thread safety of the inspector."""

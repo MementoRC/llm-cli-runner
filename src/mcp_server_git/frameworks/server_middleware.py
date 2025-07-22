@@ -55,11 +55,11 @@ class BaseMiddleware(ABC):
     ) -> Any:
         """
         Process a request through this middleware.
-        
+
         Args:
             context: The middleware context
             next_handler: The next handler in the chain
-            
+
         Returns:
             The processed response
         """
@@ -132,8 +132,10 @@ class AuthenticationMiddleware(BaseMiddleware):
 
         # Check cache first
         now = time.time()
-        if (token in self.last_validation and
-            now - self.last_validation[token] < self.validation_interval):
+        if (
+            token in self.last_validation
+            and now - self.last_validation[token] < self.validation_interval
+        ):
             return token in self.token_cache
 
         # Validate token format
@@ -155,8 +157,8 @@ class AuthenticationMiddleware(BaseMiddleware):
             error={
                 "code": -32001,
                 "message": "Authentication Error",
-                "data": {"details": message}
-            }
+                "data": {"details": message},
+            },
         )
 
 
@@ -206,9 +208,7 @@ class LoggingMiddleware(BaseMiddleware):
         request = context.request
         method = getattr(request, "method", "unknown")
 
-        self.logger.info(
-            f"🔄 [{request_id}] Incoming request: {method}"
-        )
+        self.logger.info(f"🔄 [{request_id}] Incoming request: {method}")
         self.logger.debug(
             f"📝 [{request_id}] Request details: {type(request).__name__}"
         )
@@ -218,13 +218,15 @@ class LoggingMiddleware(BaseMiddleware):
         context: MiddlewareContext,
         request_id: str,
         success: bool,
-        error: Exception | None = None
+        error: Exception | None = None,
     ) -> None:
         """Log response details."""
         elapsed = context.elapsed_time()
 
         if success:
-            response_type = type(context.response).__name__ if context.response else "None"
+            response_type = (
+                type(context.response).__name__ if context.response else "None"
+            )
             self.logger.info(
                 f"✅ [{request_id}] Request completed in {elapsed:.3f}s -> {response_type}"
             )
@@ -255,7 +257,7 @@ class ErrorHandlingMiddleware(BaseMiddleware):
 
         except Exception as e:
             # Check if it's a JSONRPCError (which is a Pydantic model, not an exception)
-            if hasattr(e, 'jsonrpc') and hasattr(e, 'error'):
+            if hasattr(e, "jsonrpc") and hasattr(e, "error"):
                 # Re-raise JSON-RPC errors as-is
                 raise
             # Handle unexpected errors
@@ -267,9 +269,7 @@ class ErrorHandlingMiddleware(BaseMiddleware):
         error_type = type(error).__name__
         self.error_counts[error_type] = self.error_counts.get(error_type, 0) + 1
 
-        self.logger.error(
-            f"🚨 Unhandled error ({error_type}): {str(error)}"
-        )
+        self.logger.error(f"🚨 Unhandled error ({error_type}): {str(error)}")
 
     def _create_error_response(
         self, error: Exception, context: MiddlewareContext
@@ -290,11 +290,8 @@ class ErrorHandlingMiddleware(BaseMiddleware):
             error={
                 "code": error_code,
                 "message": "Internal Server Error",
-                "data": {
-                    "details": error_message,
-                    "error_type": type(error).__name__
-                }
-            }
+                "data": {"details": error_message, "error_type": type(error).__name__},
+            },
         )
 
     def _mask_sensitive_info(self, message: str) -> str:
@@ -302,10 +299,15 @@ class ErrorHandlingMiddleware(BaseMiddleware):
         import re
 
         # Mask tokens and API keys
-        message = re.sub(r'(token|key|secret)[:=]\s*\S+', r'\1: [REDACTED]', message, flags=re.IGNORECASE)
+        message = re.sub(
+            r"(token|key|secret)[:=]\s*\S+",
+            r"\1: [REDACTED]",
+            message,
+            flags=re.IGNORECASE,
+        )
 
         # Mask file paths (keep just filename)
-        message = re.sub(r'/[^/\s]+/', '/...//', message)
+        message = re.sub(r"/[^/\s]+/", "/...//", message)
 
         return message
 
@@ -346,7 +348,7 @@ class RequestTrackingMiddleware(BaseMiddleware):
             "id": request_id,
             "method": getattr(context.request, "method", "unknown"),
             "start_time": context.start_time,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.active_requests[request_id] = request_info
@@ -373,7 +375,7 @@ class RequestTrackingMiddleware(BaseMiddleware):
         request_id: str,
         context: MiddlewareContext,
         success: bool,
-        error: Exception | None = None
+        error: Exception | None = None,
     ) -> None:
         """Record request completion in history."""
         request_info = self.active_requests.get(request_id, {})
@@ -383,14 +385,14 @@ class RequestTrackingMiddleware(BaseMiddleware):
             "success": success,
             "duration": context.elapsed_time(),
             "end_time": time.time(),
-            "error_type": type(error).__name__ if error else None
+            "error_type": type(error).__name__ if error else None,
         }
 
         self.request_history.append(completion_record)
 
         # Maintain history size limit
         if len(self.request_history) > self.max_history:
-            self.request_history = self.request_history[-self.max_history:]
+            self.request_history = self.request_history[-self.max_history :]
 
     def get_metrics(self) -> dict[str, Any]:
         """Get request tracking metrics."""
@@ -409,7 +411,9 @@ class RequestTrackingMiddleware(BaseMiddleware):
             "error_rate": (total_requests - successful_requests) / total_requests,
             "average_duration": avg_duration,
             "active_requests": len(self.active_requests),
-            "last_request": self.request_history[-1]["timestamp"] if self.request_history else None
+            "last_request": self.request_history[-1]["timestamp"]
+            if self.request_history
+            else None,
         }
 
 
@@ -452,6 +456,7 @@ class MiddlewareChainManager:
                 # End of chain - return the request as-is
                 async def end_handler(ctx: MiddlewareContext) -> Any:
                     return ctx.request
+
                 return end_handler
 
             middleware = self.middlewares[index]
@@ -475,13 +480,9 @@ class MiddlewareChainManager:
         return {
             "middleware_count": len(self.middlewares),
             "middlewares": [
-                {
-                    "name": m.name,
-                    "enabled": m.is_enabled(),
-                    "type": type(m).__name__
-                }
+                {"name": m.name, "enabled": m.is_enabled(), "type": type(m).__name__}
                 for m in self.middlewares
-            ]
+            ],
         }
 
     def validate_chain_configuration(self) -> dict[str, Any]:
@@ -501,18 +502,22 @@ class MiddlewareChainManager:
         if "AuthenticationMiddleware" in middleware_types:
             auth_index = middleware_types.index("AuthenticationMiddleware")
             if auth_index > 2:
-                issues.append("AuthenticationMiddleware should be positioned earlier in chain")
+                issues.append(
+                    "AuthenticationMiddleware should be positioned earlier in chain"
+                )
 
         # Error handling should be early to catch all errors
         if "ErrorHandlingMiddleware" in middleware_types:
             error_index = middleware_types.index("ErrorHandlingMiddleware")
             if error_index > 1:
-                issues.append("ErrorHandlingMiddleware should be positioned early in chain")
+                issues.append(
+                    "ErrorHandlingMiddleware should be positioned early in chain"
+                )
 
         return {
             "valid": len(issues) == 0,
             "issues": issues,
-            "middleware_order": middleware_types
+            "middleware_order": middleware_types,
         }
 
     def get_debug_info(self) -> dict[str, Any]:
@@ -520,14 +525,14 @@ class MiddlewareChainManager:
         debug_info = {
             "chain_length": len(self.middlewares),
             "enabled_count": sum(1 for m in self.middlewares if m.is_enabled()),
-            "middleware_details": []
+            "middleware_details": [],
         }
 
         for middleware in self.middlewares:
             middleware_debug = {
                 "name": middleware.name,
                 "type": type(middleware).__name__,
-                "enabled": middleware.is_enabled()
+                "enabled": middleware.is_enabled(),
             }
 
             # Add specific debug info for different middleware types

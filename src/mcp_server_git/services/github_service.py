@@ -8,7 +8,7 @@ webhook processing, and state management.
 
 Design principles:
     - Complete functionality: End-to-end GitHub repository management
-    - State management: Maintains operational state and configuration  
+    - State management: Maintains operational state and configuration
     - Rate limiting: Intelligent API rate limiting with backoff
     - Error recovery: Robust error handling and graceful degradation
     - Observability: Comprehensive metrics and debugging support
@@ -122,7 +122,7 @@ class GitHubOperationResult:
 class GitHubService(DebuggableComponent):
     """
     Comprehensive GitHub service providing high-level GitHub functionality.
-    
+
     This service orchestrates GitHub operations, handles authentication,
     rate limiting, webhook processing, and provides comprehensive state
     management and debugging capabilities.
@@ -142,7 +142,9 @@ class GitHubService(DebuggableComponent):
         self.config = config or GitHubServiceConfig()
         self.state = GitHubServiceState()
         self._lock = Lock()
-        self._executor = ThreadPoolExecutor(max_workers=self.config.max_concurrent_operations)
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.config.max_concurrent_operations
+        )
 
         # Initialize GitHub token from config or environment
         if self.config.github_token is None:
@@ -153,7 +155,7 @@ class GitHubService(DebuggableComponent):
     async def start(self) -> None:
         """
         Start the GitHub service.
-        
+
         Raises:
             GitHubServiceError: If service fails to start
             GitHubAuthenticationError: If authentication fails
@@ -189,7 +191,7 @@ class GitHubService(DebuggableComponent):
     async def stop(self) -> None:
         """
         Stop the GitHub service.
-        
+
         Example:
             >>> await service.stop()
         """
@@ -203,12 +205,16 @@ class GitHubService(DebuggableComponent):
         wait_start = time.time()
 
         while self.state.active_operations and (time.time() - wait_start) < max_wait:
-            logger.info(f"Waiting for {len(self.state.active_operations)} active operations to complete...")
+            logger.info(
+                f"Waiting for {len(self.state.active_operations)} active operations to complete..."
+            )
             await asyncio.sleep(1)
 
         # Force shutdown if operations are still active
         if self.state.active_operations:
-            logger.warning(f"Force stopping with {len(self.state.active_operations)} active operations")
+            logger.warning(
+                f"Force stopping with {len(self.state.active_operations)} active operations"
+            )
 
         # Shutdown executor
         self._executor.shutdown(wait=True)
@@ -258,7 +264,9 @@ class GitHubService(DebuggableComponent):
                 self.state.token_validated_at = datetime.now()
                 self.config.github_token = auth_token
 
-            logger.info(f"Successfully authenticated as {user_info.get('login', 'unknown')}")
+            logger.info(
+                f"Successfully authenticated as {user_info.get('login', 'unknown')}"
+            )
             return True
 
         except GitHubAuthenticationError:
@@ -281,14 +289,14 @@ class GitHubService(DebuggableComponent):
         repo_name: str,
         pr_request: PullRequestRequest,
         auto_merge: bool = False,
-        wait_for_checks: bool = True
+        wait_for_checks: bool = True,
     ) -> GitHubOperationResult:
         """
         Complete pull request workflow with optional auto-merge.
 
         Args:
             repo_owner: Repository owner
-            repo_name: Repository name  
+            repo_name: Repository name
             pr_request: Pull request creation parameters
             auto_merge: Whether to auto-merge if checks pass
             wait_for_checks: Whether to wait for status checks
@@ -323,37 +331,41 @@ class GitHubService(DebuggableComponent):
             # Wait for status checks if requested
             if wait_for_checks:
                 logger.info(f"Waiting for status checks on PR #{pr_number}")
-                pr_with_status = await self._wait_for_pr_checks(repo_owner, repo_name, pr_number)
+                pr_with_status = await self._wait_for_pr_checks(
+                    repo_owner, repo_name, pr_number
+                )
                 result_data["status_checks"] = pr_with_status.get("status_checks", {})
 
             # Auto-merge if requested and checks pass
-            if auto_merge and self._pr_checks_passed(result_data.get("status_checks", {})):
+            if auto_merge and self._pr_checks_passed(
+                result_data.get("status_checks", {})
+            ):
                 logger.info(f"Auto-merging PR #{pr_number}")
                 merge_result = await merge_pull_request(
-                    repo_owner, repo_name, pr_number,
-                    commit_title=f"Merge PR #{pr_number}: {pr_request.title}"
+                    repo_owner,
+                    repo_name,
+                    pr_number,
+                    commit_title=f"Merge PR #{pr_number}: {pr_request.title}",
                 )
                 result_data["merge_result"] = merge_result
 
             duration = time.time() - start_time
             return GitHubOperationResult(
-                success=True,
-                data=result_data,
-                duration=duration
+                success=True, data=result_data, duration=duration
             )
 
         except Exception as e:
             logger.error(f"Pull request workflow failed: {e}")
             await self._record_error(e)
             return GitHubOperationResult(
-                success=False,
-                error=e,
-                duration=time.time() - start_time
+                success=False, error=e, duration=time.time() - start_time
             )
         finally:
             await self._finish_operation(operation_id)
 
-    async def handle_webhook_event(self, event_type: str, event_data: dict[str, Any]) -> GitHubOperationResult:
+    async def handle_webhook_event(
+        self, event_type: str, event_data: dict[str, Any]
+    ) -> GitHubOperationResult:
         """
         Process GitHub webhook events.
 
@@ -391,18 +403,14 @@ class GitHubService(DebuggableComponent):
                 result_data = {"message": f"Event type {event_type} not handled"}
 
             return GitHubOperationResult(
-                success=True,
-                data=result_data,
-                duration=time.time() - start_time
+                success=True, data=result_data, duration=time.time() - start_time
             )
 
         except Exception as e:
             logger.error(f"Webhook processing failed: {e}")
             await self._record_error(e)
             return GitHubOperationResult(
-                success=False,
-                error=e,
-                duration=time.time() - start_time
+                success=False, error=e, duration=time.time() - start_time
             )
         finally:
             await self._finish_operation(operation_id)
@@ -420,13 +428,17 @@ class GitHubService(DebuggableComponent):
         """
         return {
             "remaining": self.state.rate_limit_remaining,
-            "reset_at": self.state.rate_limit_reset_at.isoformat() if self.state.rate_limit_reset_at else None,
+            "reset_at": self.state.rate_limit_reset_at.isoformat()
+            if self.state.rate_limit_reset_at
+            else None,
             "used": self.state.rate_limit_used,
             "buffer": self.config.rate_limit_buffer,
-            "approaching_limit": self._is_approaching_rate_limit()
+            "approaching_limit": self._is_approaching_rate_limit(),
         }
 
-    async def get_repository_insights(self, repo_owner: str, repo_name: str) -> GitHubOperationResult:
+    async def get_repository_insights(
+        self, repo_owner: str, repo_name: str
+    ) -> GitHubOperationResult:
         """
         Get comprehensive repository insights and analytics.
 
@@ -456,21 +468,17 @@ class GitHubService(DebuggableComponent):
                 "health_score": self._calculate_health_score(repo_details),
                 "activity_level": self._calculate_activity_level(repo_details),
                 "maintenance_status": self._assess_maintenance_status(repo_details),
-                "insights_generated_at": datetime.now().isoformat()
+                "insights_generated_at": datetime.now().isoformat(),
             }
 
             return GitHubOperationResult(
-                success=True,
-                data=insights,
-                duration=time.time() - start_time
+                success=True, data=insights, duration=time.time() - start_time
             )
 
         except Exception as e:
             logger.error(f"Failed to get repository insights: {e}")
             return GitHubOperationResult(
-                success=False,
-                error=e,
-                duration=time.time() - start_time
+                success=False, error=e, duration=time.time() - start_time
             )
         finally:
             await self._finish_operation(operation_id)
@@ -485,9 +493,9 @@ class GitHubService(DebuggableComponent):
             state_data={
                 "config": self.config.__dict__,
                 "state": self.state.__dict__,
-                "rate_limit_status": self.get_rate_limit_status()
+                "rate_limit_status": self.get_rate_limit_status(),
             },
-            last_updated=self.state.last_activity or datetime.now()
+            last_updated=self.state.last_activity or datetime.now(),
         )
 
     def validate_component(self) -> "GitHubServiceValidationResult":
@@ -517,31 +525,39 @@ class GitHubService(DebuggableComponent):
             is_valid=len(errors) == 0,
             validation_errors=errors,
             validation_warnings=warnings,
-            validation_timestamp=datetime.now()
+            validation_timestamp=datetime.now(),
         )
 
     def get_debug_info(self, debug_level: str = "INFO") -> "GitHubServiceDebugInfo":
         """Get debug information for the GitHub service."""
         debug_data = {
-            "service_uptime": (datetime.now() - self.state.started_at).total_seconds() if self.state.started_at else 0,
+            "service_uptime": (datetime.now() - self.state.started_at).total_seconds()
+            if self.state.started_at
+            else 0,
             "operations": {
                 "active": len(self.state.active_operations),
                 "completed": self.state.completed_operations,
-                "failed": self.state.failed_operations
+                "failed": self.state.failed_operations,
             },
             "authentication": {
                 "is_authenticated": self.state.is_authenticated,
-                "user": self.state.authenticated_user.get("login") if self.state.authenticated_user else None
-            }
+                "user": self.state.authenticated_user.get("login")
+                if self.state.authenticated_user
+                else None,
+            },
         }
 
         if debug_level == "DEBUG":
-            debug_data.update({
-                "active_operations_list": list(self.state.active_operations),
-                "recent_operations": self.state.operation_history[-10:],
-                "recent_errors": [{"error": str(e["error"]), "timestamp": e["timestamp"]}
-                                 for e in self.state.errors[-5:]]
-            })
+            debug_data.update(
+                {
+                    "active_operations_list": list(self.state.active_operations),
+                    "recent_operations": self.state.operation_history[-10:],
+                    "recent_errors": [
+                        {"error": str(e["error"]), "timestamp": e["timestamp"]}
+                        for e in self.state.errors[-5:]
+                    ],
+                }
+            )
 
         return GitHubServiceDebugInfo(
             debug_level=debug_level,
@@ -550,8 +566,8 @@ class GitHubService(DebuggableComponent):
             performance_metrics={
                 "operations_per_minute": self._calculate_operations_per_minute(),
                 "average_operation_duration": self._calculate_average_operation_duration(),
-                "error_rate": self._calculate_error_rate()
-            }
+                "error_rate": self._calculate_error_rate(),
+            },
         )
 
     def inspect_state(self, path: str | None = None) -> dict[str, Any]:
@@ -559,7 +575,7 @@ class GitHubService(DebuggableComponent):
         full_state = {
             "config": self.config.__dict__,
             "state": self.state.__dict__,
-            "rate_limit": self.get_rate_limit_status()
+            "rate_limit": self.get_rate_limit_status(),
         }
 
         if path is None:
@@ -577,27 +593,37 @@ class GitHubService(DebuggableComponent):
 
     def get_component_dependencies(self) -> list[str]:
         """Get list of component dependencies."""
-        return ["github_primitives", "github_operations", "network_connection", "github_api"]
+        return [
+            "github_primitives",
+            "github_operations",
+            "network_connection",
+            "github_api",
+        ]
 
     def export_state_json(self) -> str:
         """Export component state as JSON."""
         state = self.get_component_state()
-        return json.dumps({
-            "component_id": state.component_id,
-            "component_type": state.component_type,
-            "state_data": state.state_data,
-            "last_updated": state.last_updated.isoformat(),
-            "exported_at": datetime.now().isoformat()
-        }, indent=2)
+        return json.dumps(
+            {
+                "component_id": state.component_id,
+                "component_type": state.component_type,
+                "state_data": state.state_data,
+                "last_updated": state.last_updated.isoformat(),
+                "exported_at": datetime.now().isoformat(),
+            },
+            indent=2,
+        )
 
     def health_check(self) -> dict[str, bool | str | int | float]:
         """Perform health check on the GitHub service."""
         return {
             "healthy": self.state.is_running and self.state.is_authenticated,
             "status": self._get_health_status(),
-            "uptime": (datetime.now() - self.state.started_at).total_seconds() if self.state.started_at else 0,
+            "uptime": (datetime.now() - self.state.started_at).total_seconds()
+            if self.state.started_at
+            else 0,
             "last_error": str(self.state.last_error) if self.state.last_error else None,
-            "error_count": self.state.error_count
+            "error_count": self.state.error_count,
         }
 
     # Private helper methods
@@ -618,11 +644,13 @@ class GitHubService(DebuggableComponent):
                 self.state.failed_operations += 1
 
             # Record operation in history
-            self.state.operation_history.append({
-                "operation_id": operation_id,
-                "success": success,
-                "timestamp": datetime.now().isoformat()
-            })
+            self.state.operation_history.append(
+                {
+                    "operation_id": operation_id,
+                    "success": success,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
             # Keep only recent history
             if len(self.state.operation_history) > 100:
@@ -633,10 +661,9 @@ class GitHubService(DebuggableComponent):
         with self._lock:
             self.state.last_error = error
             self.state.error_count += 1
-            self.state.errors.append({
-                "error": error,
-                "timestamp": datetime.now().isoformat()
-            })
+            self.state.errors.append(
+                {"error": error, "timestamp": datetime.now().isoformat()}
+            )
 
             # Keep only recent errors
             if len(self.state.errors) > 50:
@@ -648,11 +675,15 @@ class GitHubService(DebuggableComponent):
             return False
         return self.state.rate_limit_remaining <= self.config.rate_limit_buffer
 
-    async def _wait_for_pr_checks(self, repo_owner: str, repo_name: str, pr_number: int, timeout: int = 300) -> dict[str, Any]:
+    async def _wait_for_pr_checks(
+        self, repo_owner: str, repo_name: str, pr_number: int, timeout: int = 300
+    ) -> dict[str, Any]:
         """Wait for PR status checks to complete."""
         start_time = time.time()
         while (time.time() - start_time) < timeout:
-            pr_status = await get_pull_request_with_status(repo_owner, repo_name, pr_number)
+            pr_status = await get_pull_request_with_status(
+                repo_owner, repo_name, pr_number
+            )
 
             status_checks = pr_status.get("status_checks", {})
             if self._pr_checks_complete(status_checks):
@@ -683,14 +714,16 @@ class GitHubService(DebuggableComponent):
         action = event_data.get("action", "unknown")
         pr = event_data.get("pull_request", {})
 
-        logger.info(f"Processing PR webhook: {action} for PR #{pr.get('number', 'unknown')}")
+        logger.info(
+            f"Processing PR webhook: {action} for PR #{pr.get('number', 'unknown')}"
+        )
 
         return {
             "event_type": "pull_request",
             "action": action,
             "pr_number": pr.get("number"),
             "pr_title": pr.get("title"),
-            "processed_at": datetime.now().isoformat()
+            "processed_at": datetime.now().isoformat(),
         }
 
     async def _handle_push_webhook(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -704,7 +737,7 @@ class GitHubService(DebuggableComponent):
             "event_type": "push",
             "ref": ref,
             "commit_count": len(commits),
-            "processed_at": datetime.now().isoformat()
+            "processed_at": datetime.now().isoformat(),
         }
 
     async def _handle_issue_webhook(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -712,14 +745,16 @@ class GitHubService(DebuggableComponent):
         action = event_data.get("action", "unknown")
         issue = event_data.get("issue", {})
 
-        logger.info(f"Processing issue webhook: {action} for issue #{issue.get('number', 'unknown')}")
+        logger.info(
+            f"Processing issue webhook: {action} for issue #{issue.get('number', 'unknown')}"
+        )
 
         return {
             "event_type": "issues",
             "action": action,
             "issue_number": issue.get("number"),
             "issue_title": issue.get("title"),
-            "processed_at": datetime.now().isoformat()
+            "processed_at": datetime.now().isoformat(),
         }
 
     def _calculate_health_score(self, repo_data: dict[str, Any]) -> float:
@@ -733,7 +768,9 @@ class GitHubService(DebuggableComponent):
             score += 30.0
 
         # Factor in documentation
-        if repo_data.get("has_wiki") or "README" in str(repo_data.get("description", "")):
+        if repo_data.get("has_wiki") or "README" in str(
+            repo_data.get("description", "")
+        ):
             score += 20.0
 
         # Factor in community
@@ -789,7 +826,9 @@ class GitHubService(DebuggableComponent):
         if uptime_minutes == 0:
             return 0.0
 
-        total_operations = self.state.completed_operations + self.state.failed_operations
+        total_operations = (
+            self.state.completed_operations + self.state.failed_operations
+        )
         return total_operations / uptime_minutes
 
     def _calculate_average_operation_duration(self) -> float:
@@ -799,7 +838,9 @@ class GitHubService(DebuggableComponent):
 
     def _calculate_error_rate(self) -> float:
         """Calculate error rate percentage."""
-        total_operations = self.state.completed_operations + self.state.failed_operations
+        total_operations = (
+            self.state.completed_operations + self.state.failed_operations
+        )
         if total_operations == 0:
             return 0.0
 
@@ -808,10 +849,12 @@ class GitHubService(DebuggableComponent):
 
 class GitHubServiceError(GitHubPrimitiveError):
     """Base exception for GitHub service errors."""
+
     pass
 
 
 # Protocol implementations for DebuggableComponent
+
 
 @dataclass
 class GitHubServiceComponentState:

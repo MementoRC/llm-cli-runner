@@ -117,6 +117,7 @@ class SessionService(DebuggableComponent):
         # Initialize heartbeat manager if needed
         if not self.session_manager.heartbeat_manager:
             from ..session import HeartbeatManager
+
             self.session_manager.heartbeat_manager = HeartbeatManager(
                 self.session_manager
             )
@@ -168,9 +169,7 @@ class SessionService(DebuggableComponent):
                 session_id, user, repository
             )
 
-            logger.info(
-                f"SessionService created session {session_id} for user {user}"
-            )
+            logger.info(f"SessionService created session {session_id} for user {user}")
             return session
 
         except Exception as e:
@@ -254,9 +253,7 @@ class SessionService(DebuggableComponent):
             logger.error(f"Error checking client capability {capability_type}: {e}")
             return False
 
-    async def list_repository_roots(
-        self, server_session: ServerSession
-    ) -> list[str]:
+    async def list_repository_roots(self, server_session: ServerSession) -> list[str]:
         """
         List repository roots from client capabilities.
 
@@ -287,6 +284,7 @@ class SessionService(DebuggableComponent):
                 try:
                     # Validate that path is a git repository
                     import git
+
                     git.Repo(path)
                     repo_paths.append(str(path))
                 except git.InvalidGitRepositoryError:
@@ -396,8 +394,8 @@ class SessionService(DebuggableComponent):
                 else 0
             ),
             "operations_per_second": (
-                self.operation_count /
-                (datetime.now() - self.start_time).total_seconds()
+                self.operation_count
+                / (datetime.now() - self.start_time).total_seconds()
                 if self.start_time and self.operation_count > 0
                 else 0
             ),

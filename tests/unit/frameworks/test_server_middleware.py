@@ -185,9 +185,10 @@ class TestLoggingMiddleware:
         context = MiddlewareContext(request=MagicMock(method="test_method"))
         next_handler = AsyncMock(return_value="success_response")
 
-        with patch.object(middleware, '_log_request') as mock_log_req, \
-             patch.object(middleware, '_log_response') as mock_log_resp:
-
+        with (
+            patch.object(middleware, "_log_request") as mock_log_req,
+            patch.object(middleware, "_log_response") as mock_log_resp,
+        ):
             result = await middleware.process_request(context, next_handler)
 
             assert result == "success_response"
@@ -209,9 +210,10 @@ class TestLoggingMiddleware:
         test_error = Exception("Test error")
         next_handler = AsyncMock(side_effect=test_error)
 
-        with patch.object(middleware, '_log_request') as mock_log_req, \
-             patch.object(middleware, '_log_response') as mock_log_resp:
-
+        with (
+            patch.object(middleware, "_log_request") as mock_log_req,
+            patch.object(middleware, "_log_response") as mock_log_resp,
+        ):
             with pytest.raises(Exception) as exc_info:
                 await middleware.process_request(context, next_handler)
 
@@ -344,7 +346,7 @@ class TestRequestTrackingMiddleware:
         test_error = Exception("Test error")
         next_handler = AsyncMock(side_effect=test_error)
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Test error"):
             await middleware.process_request(context, next_handler)
 
         assert len(middleware.request_history) == 1
@@ -369,7 +371,7 @@ class TestRequestTrackingMiddleware:
 
         assert metrics["total_requests"] == 3
         assert metrics["successful_requests"] == 2
-        assert metrics["error_rate"] == pytest.approx(1/3, rel=1e-3)
+        assert metrics["error_rate"] == pytest.approx(1 / 3, rel=1e-3)
         assert metrics["average_duration"] == pytest.approx(0.2, rel=1e-3)
         assert metrics["last_request"] == "2023-01-01T12:00:00"
 
@@ -383,7 +385,9 @@ class TestRequestTrackingMiddleware:
 
         # Simulate cleanup
         if len(middleware.request_history) > middleware.max_history:
-            middleware.request_history = middleware.request_history[-middleware.max_history:]
+            middleware.request_history = middleware.request_history[
+                -middleware.max_history :
+            ]
 
         assert len(middleware.request_history) == 3
         assert middleware.request_history[0]["id"] == "req_2"  # Oldest removed
@@ -485,7 +489,9 @@ class TestMiddlewareChainManager:
 
         request = MagicMock()
         request.test_value = "original"
-        request.__str__ = lambda self: "original"  # Make string conversion return "original"
+        request.__str__ = (
+            lambda self: "original"
+        )  # Make string conversion return "original"
 
         result = await manager.process_request(request)
 
@@ -554,7 +560,9 @@ class TestMiddlewareChainManager:
 
         assert validation["valid"] is False
         assert len(validation["issues"]) > 0
-        assert any("AuthenticationMiddleware" in issue for issue in validation["issues"])
+        assert any(
+            "AuthenticationMiddleware" in issue for issue in validation["issues"]
+        )
         assert any("ErrorHandlingMiddleware" in issue for issue in validation["issues"])
 
 

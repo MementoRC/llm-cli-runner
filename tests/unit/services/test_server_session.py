@@ -27,9 +27,7 @@ class TestSessionService:
     def test_initialization(self):
         """Test service initialization."""
         service = SessionService(
-            idle_timeout=600.0,
-            heartbeat_timeout=30.0,
-            service_id="test_service"
+            idle_timeout=600.0, heartbeat_timeout=30.0, service_id="test_service"
         )
 
         assert service.service_id == "test_service"
@@ -44,7 +42,9 @@ class TestSessionService:
         """Test service startup."""
         service = SessionService(service_id="test_service")
 
-        with patch.object(service.session_manager, 'restore_sessions', new_callable=AsyncMock):
+        with patch.object(
+            service.session_manager, "restore_sessions", new_callable=AsyncMock
+        ):
             await service.start()
 
         assert service.is_running
@@ -57,7 +57,9 @@ class TestSessionService:
         service = SessionService(service_id="test_service")
         service.is_running = True
 
-        with patch.object(service.session_manager, 'restore_sessions', new_callable=AsyncMock):
+        with patch.object(
+            service.session_manager, "restore_sessions", new_callable=AsyncMock
+        ):
             await service.start()
 
         # Should not change start_time if already running
@@ -69,7 +71,7 @@ class TestSessionService:
         service = SessionService(service_id="test_service")
         service.is_running = True
 
-        with patch.object(service.session_manager, 'shutdown', new_callable=AsyncMock):
+        with patch.object(service.session_manager, "shutdown", new_callable=AsyncMock):
             await service.stop()
 
         assert not service.is_running
@@ -80,7 +82,7 @@ class TestSessionService:
         service = SessionService(service_id="test_service")
         assert not service.is_running
 
-        with patch.object(service.session_manager, 'shutdown', new_callable=AsyncMock):
+        with patch.object(service.session_manager, "shutdown", new_callable=AsyncMock):
             await service.stop()
 
         assert not service.is_running
@@ -93,7 +95,7 @@ class TestSessionService:
 
         mock_session = MagicMock()
         with patch.object(
-            service.session_manager, 'create_session', new_callable=AsyncMock
+            service.session_manager, "create_session", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = mock_session
 
@@ -103,7 +105,9 @@ class TestSessionService:
 
         assert result is mock_session
         assert service.operation_count == 1
-        mock_create.assert_called_once_with("test_session", "test_user", Path("/test/repo"))
+        mock_create.assert_called_once_with(
+            "test_session", "test_user", Path("/test/repo")
+        )
 
     @pytest.mark.asyncio
     async def test_create_session_service_not_running(self):
@@ -121,7 +125,7 @@ class TestSessionService:
         service.is_running = True
 
         with patch.object(
-            service.session_manager, 'create_session', new_callable=AsyncMock
+            service.session_manager, "create_session", new_callable=AsyncMock
         ) as mock_create:
             mock_create.side_effect = Exception("Creation failed")
 
@@ -139,7 +143,7 @@ class TestSessionService:
 
         mock_session = MagicMock()
         with patch.object(
-            service.session_manager, 'get_session', new_callable=AsyncMock
+            service.session_manager, "get_session", new_callable=AsyncMock
         ) as mock_get:
             mock_get.return_value = mock_session
 
@@ -164,7 +168,7 @@ class TestSessionService:
         service.is_running = True
 
         with patch.object(
-            service.session_manager, 'close_session', new_callable=AsyncMock
+            service.session_manager, "close_session", new_callable=AsyncMock
         ) as mock_close:
             await service.close_session("test_session")
 
@@ -177,7 +181,7 @@ class TestSessionService:
         service.is_running = True
 
         with patch.object(
-            service.session_manager, 'close_session', new_callable=AsyncMock
+            service.session_manager, "close_session", new_callable=AsyncMock
         ) as mock_close:
             mock_close.side_effect = Exception("Close failed")
 
@@ -193,6 +197,7 @@ class TestSessionService:
         service = SessionService(service_id="test_service")
 
         from mcp.server.session import ServerSession
+
         mock_session = MagicMock(spec=ServerSession)
 
         result = await service.validate_server_session(mock_session)
@@ -252,6 +257,7 @@ class TestSessionService:
 
         # Mock ServerSession with proper spec
         from mcp.server.session import ServerSession
+
         mock_session = MagicMock(spec=ServerSession)
         mock_session.check_client_capability.return_value = True
 
@@ -269,9 +275,10 @@ class TestSessionService:
         mock_git_module.Repo = mock_repo_class
         mock_repo_class.return_value = MagicMock()  # Valid repo
 
-        with patch('builtins.__import__') as mock_import:
+        with patch("builtins.__import__") as mock_import:
+
             def import_side_effect(name, *args, **kwargs):
-                if name == 'git':
+                if name == "git":
                     return mock_git_module
                 return __import__(name, *args, **kwargs)
 
@@ -325,9 +332,10 @@ class TestSessionService:
         mock_git_module.InvalidGitRepositoryError = MockInvalidGitRepositoryError
         mock_repo_class.side_effect = MockInvalidGitRepositoryError("Not a git repo")
 
-        with patch('builtins.__import__') as mock_import:
+        with patch("builtins.__import__") as mock_import:
+
             def import_side_effect(name, *args, **kwargs):
-                if name == 'git':
+                if name == "git":
                     return mock_git_module
                 return __import__(name, *args, **kwargs)
 
@@ -348,7 +356,7 @@ class TestSessionService:
 
         mock_metrics = {"session1": {"status": "active"}}
         with patch.object(
-            service.session_manager, 'get_metrics', new_callable=AsyncMock
+            service.session_manager, "get_metrics", new_callable=AsyncMock
         ) as mock_get_metrics:
             mock_get_metrics.return_value = mock_metrics
 
@@ -368,7 +376,7 @@ class TestSessionService:
         service.is_running = True
 
         with patch.object(
-            service.session_manager, 'cleanup_idle_sessions', new_callable=AsyncMock
+            service.session_manager, "cleanup_idle_sessions", new_callable=AsyncMock
         ) as mock_cleanup:
             await service.cleanup_idle_sessions()
 
@@ -500,6 +508,7 @@ class TestSessionService:
         assert isinstance(json_str, str)
 
         import json
+
         state_data = json.loads(json_str)
 
         assert "component_state" in state_data
@@ -550,7 +559,7 @@ class TestSessionServiceState:
         state = SessionServiceState(
             component_id="test_id",
             component_type="SessionService",
-            state_data={"key": "value"}
+            state_data={"key": "value"},
         )
 
         assert state.component_id == "test_id"
@@ -567,7 +576,7 @@ class TestSessionServiceValidationResult:
         result = SessionServiceValidationResult(
             is_valid=True,
             validation_errors=["error1"],
-            validation_warnings=["warning1"]
+            validation_warnings=["warning1"],
         )
 
         assert result.is_valid is True
@@ -584,7 +593,7 @@ class TestSessionServiceDebugInfo:
         debug_info = SessionServiceDebugInfo(
             debug_level="detailed",
             debug_data={"key": "value"},
-            performance_metrics={"metric": 1.0}
+            performance_metrics={"metric": 1.0},
         )
 
         assert debug_info.debug_level == "detailed"

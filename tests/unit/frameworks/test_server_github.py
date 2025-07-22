@@ -53,13 +53,15 @@ class TestGitHubServiceConfig:
 
     def test_custom_configuration(self):
         """Test custom configuration values."""
-        github_config = GitHubConfig(api_token="ghp_" + "y" * 36)  # Valid length GitHub token
+        github_config = GitHubConfig(
+            api_token="ghp_" + "y" * 36
+        )  # Valid length GitHub token
         config = GitHubServiceConfig(
             github_config=github_config,
             enable_webhooks=True,
             enable_cli_operations=False,
             max_concurrent_operations=5,
-            operation_timeout=60.0
+            operation_timeout=60.0,
         )
 
         assert config.github_config == github_config
@@ -78,7 +80,7 @@ class TestGitHubOperationResult:
             success=True,
             operation="get_pr_checks",
             data={"checks": []},
-            execution_time=1.5
+            execution_time=1.5,
         )
 
         assert result.success is True
@@ -96,7 +98,7 @@ class TestGitHubOperationResult:
             operation="get_pr_details",
             error_message="API rate limit exceeded",
             status_code=403,
-            retry_count=2
+            retry_count=2,
         )
 
         assert result.success is False
@@ -138,7 +140,7 @@ class TestGitHubService:
         return GitHubServiceConfig(
             github_config=github_config,
             max_concurrent_operations=5,
-            operation_timeout=15.0
+            operation_timeout=15.0,
         )
 
     @pytest.fixture
@@ -169,9 +171,14 @@ class TestGitHubService:
     @pytest.mark.asyncio
     async def test_start_service(self, github_service):
         """Test starting the GitHub service."""
-        with patch.object(github_service, '_validate_configuration', new_callable=AsyncMock) as mock_validate, \
-             patch.object(github_service, '_initialize_rate_limiting', new_callable=AsyncMock) as mock_rate_limit:
-
+        with (
+            patch.object(
+                github_service, "_validate_configuration", new_callable=AsyncMock
+            ) as mock_validate,
+            patch.object(
+                github_service, "_initialize_rate_limiting", new_callable=AsyncMock
+            ) as mock_rate_limit,
+        ):
             await github_service.start()
 
             assert github_service._state.is_initialized
@@ -184,14 +191,18 @@ class TestGitHubService:
         """Test starting service when already running."""
         github_service._state.is_running = True
 
-        with patch.object(github_service, '_validate_configuration', new_callable=AsyncMock) as mock_validate:
+        with patch.object(
+            github_service, "_validate_configuration", new_callable=AsyncMock
+        ) as mock_validate:
             await github_service.start()
             mock_validate.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_start_service_validation_failure(self, github_service):
         """Test service start with configuration validation failure."""
-        with patch.object(github_service, '_validate_configuration', new_callable=AsyncMock) as mock_validate:
+        with patch.object(
+            github_service, "_validate_configuration", new_callable=AsyncMock
+        ) as mock_validate:
             mock_validate.side_effect = Exception("Invalid token")
 
             with pytest.raises(Exception, match="Invalid token"):
@@ -243,11 +254,11 @@ class TestGitHubServiceOperations:
         """Test successful PR checks retrieval."""
         mock_result = {"check_runs": [{"name": "test", "status": "completed"}]}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_pr_checks",
-                data=mock_result
+                success=True, operation="get_pr_checks", data=mock_result
             )
 
             result = await github_service.get_pr_checks("owner", "repo", 123)
@@ -262,11 +273,11 @@ class TestGitHubServiceOperations:
         """Test successful failing jobs retrieval."""
         mock_result = {"failing_jobs": [{"name": "test-job", "status": "failed"}]}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_failing_jobs",
-                data=mock_result
+                success=True, operation="get_failing_jobs", data=mock_result
             )
 
             result = await github_service.get_failing_jobs("owner", "repo", 123)
@@ -280,11 +291,11 @@ class TestGitHubServiceOperations:
         """Test successful workflow run retrieval."""
         mock_result = {"run": {"id": 123, "status": "completed"}}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_workflow_run",
-                data=mock_result
+                success=True, operation="get_workflow_run", data=mock_result
             )
 
             result = await github_service.get_workflow_run("owner", "repo", 123)
@@ -298,11 +309,11 @@ class TestGitHubServiceOperations:
         """Test successful PR details retrieval."""
         mock_result = {"pr": {"number": 123, "title": "Test PR"}}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_pr_details",
-                data=mock_result
+                success=True, operation="get_pr_details", data=mock_result
             )
 
             result = await github_service.get_pr_details("owner", "repo", 123)
@@ -316,11 +327,11 @@ class TestGitHubServiceOperations:
         """Test successful pull requests listing."""
         mock_result = {"prs": [{"number": 123}, {"number": 124}]}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="list_pull_requests",
-                data=mock_result
+                success=True, operation="list_pull_requests", data=mock_result
             )
 
             result = await github_service.list_pull_requests("owner", "repo")
@@ -334,11 +345,11 @@ class TestGitHubServiceOperations:
         """Test successful PR status retrieval."""
         mock_result = {"status": {"state": "success"}}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_pr_status",
-                data=mock_result
+                success=True, operation="get_pr_status", data=mock_result
             )
 
             result = await github_service.get_pr_status("owner", "repo", 123)
@@ -352,11 +363,11 @@ class TestGitHubServiceOperations:
         """Test successful PR files retrieval."""
         mock_result = {"files": [{"filename": "test.py", "status": "modified"}]}
 
-        with patch.object(github_service, '_execute_github_operation', new_callable=AsyncMock) as mock_execute:
+        with patch.object(
+            github_service, "_execute_github_operation", new_callable=AsyncMock
+        ) as mock_execute:
             mock_execute.return_value = GitHubOperationResult(
-                success=True,
-                operation="get_pr_files",
-                data=mock_result
+                success=True, operation="get_pr_files", data=mock_result
             )
 
             result = await github_service.get_pr_files("owner", "repo", 123)
@@ -379,13 +390,12 @@ class TestGitHubServiceExecutionFramework:
         """Test successful operation execution."""
         mock_func = AsyncMock(return_value={"result": "success"})
 
-        with patch.object(github_service, '_check_rate_limits', new_callable=AsyncMock), \
-             patch.object(github_service, '_record_operation_history') as mock_record:
-
+        with (
+            patch.object(github_service, "_check_rate_limits", new_callable=AsyncMock),
+            patch.object(github_service, "_record_operation_history") as mock_record,
+        ):
             result = await github_service._execute_github_operation(
-                "test_operation",
-                mock_func,
-                param1="value1"
+                "test_operation", mock_func, param1="value1"
             )
 
             assert result.success
@@ -401,13 +411,12 @@ class TestGitHubServiceExecutionFramework:
         """Test operation execution with failure."""
         mock_func = AsyncMock(side_effect=Exception("API Error"))
 
-        with patch.object(github_service, '_check_rate_limits', new_callable=AsyncMock), \
-             patch.object(github_service, '_record_operation_history') as mock_record:
-
+        with (
+            patch.object(github_service, "_check_rate_limits", new_callable=AsyncMock),
+            patch.object(github_service, "_record_operation_history") as mock_record,
+        ):
             result = await github_service._execute_github_operation(
-                "test_operation",
-                mock_func,
-                param1="value1"
+                "test_operation", mock_func, param1="value1"
             )
 
             assert not result.success
@@ -425,7 +434,9 @@ class TestGitHubServiceExecutionFramework:
         github_service._config.enable_rate_limiting = True
         mock_func = AsyncMock(return_value={})
 
-        with patch.object(github_service, '_check_rate_limits', new_callable=AsyncMock) as mock_rate_check:
+        with patch.object(
+            github_service, "_check_rate_limits", new_callable=AsyncMock
+        ) as mock_rate_check:
             await github_service._execute_github_operation("test_op", mock_func)
             mock_rate_check.assert_called_once()
 
@@ -435,16 +446,16 @@ class TestGitHubServiceExecutionFramework:
         github_service._config.enable_rate_limiting = False
         mock_func = AsyncMock(return_value={})
 
-        with patch.object(github_service, '_check_rate_limits', new_callable=AsyncMock) as mock_rate_check:
+        with patch.object(
+            github_service, "_check_rate_limits", new_callable=AsyncMock
+        ) as mock_rate_check:
             await github_service._execute_github_operation("test_op", mock_func)
             mock_rate_check.assert_not_called()
 
     def test_record_operation_history(self, github_service):
         """Test operation history recording."""
         result = GitHubOperationResult(
-            success=True,
-            operation="test_op",
-            execution_time=1.5
+            success=True, operation="test_op", execution_time=1.5
         )
 
         github_service._record_operation_history(result)
@@ -461,9 +472,7 @@ class TestGitHubServiceExecutionFramework:
         # Add more than 100 operations
         for i in range(105):
             result = GitHubOperationResult(
-                success=True,
-                operation=f"test_op_{i}",
-                execution_time=1.0
+                success=True, operation=f"test_op_{i}", execution_time=1.0
             )
             github_service._record_operation_history(result)
 
@@ -491,10 +500,10 @@ class TestGitHubServiceDebuggableComponent:
         state = github_service.get_component_state()
 
         # Check that it returns an object with the required protocol properties
-        assert hasattr(state, 'component_id')
-        assert hasattr(state, 'component_type')
-        assert hasattr(state, 'state_data')
-        assert hasattr(state, 'last_updated')
+        assert hasattr(state, "component_id")
+        assert hasattr(state, "component_type")
+        assert hasattr(state, "state_data")
+        assert hasattr(state, "last_updated")
 
         assert state.component_type == "GitHubService"
         assert "github_service_" in state.component_id
@@ -518,10 +527,10 @@ class TestGitHubServiceDebuggableComponent:
         result = github_service.validate_component()
 
         # Check that it returns an object with the required protocol properties
-        assert hasattr(result, 'is_valid')
-        assert hasattr(result, 'validation_errors')
-        assert hasattr(result, 'validation_warnings')
-        assert hasattr(result, 'validation_timestamp')
+        assert hasattr(result, "is_valid")
+        assert hasattr(result, "validation_errors")
+        assert hasattr(result, "validation_warnings")
+        assert hasattr(result, "validation_timestamp")
 
         assert result.is_valid is True
         assert len(result.validation_errors) == 0
@@ -546,10 +555,10 @@ class TestGitHubServiceDebuggableComponent:
         debug_info = github_service.get_debug_info("INFO")
 
         # Check that it returns an object with the required protocol properties
-        assert hasattr(debug_info, 'debug_level')
-        assert hasattr(debug_info, 'debug_data')
-        assert hasattr(debug_info, 'stack_trace')
-        assert hasattr(debug_info, 'performance_metrics')
+        assert hasattr(debug_info, "debug_level")
+        assert hasattr(debug_info, "debug_data")
+        assert hasattr(debug_info, "stack_trace")
+        assert hasattr(debug_info, "performance_metrics")
 
         assert debug_info.debug_level == "INFO"
         assert "service_state" in debug_info.debug_data
@@ -627,7 +636,9 @@ class TestGitHubServiceDebuggableComponent:
         assert "success_rate" in health
         assert "active_operations" in health
 
-        assert health["healthy"] is True  # Success rate > 0.8 AND initialized AND running
+        assert (
+            health["healthy"] is True
+        )  # Success rate > 0.8 AND initialized AND running
         assert health["operation_count"] == 10
         assert health["error_count"] == 2
         assert health["success_rate"] == 0.8

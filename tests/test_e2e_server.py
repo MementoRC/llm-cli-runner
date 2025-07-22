@@ -66,10 +66,7 @@ class MCPTestClient:
         )
 
         # Send initialized notification to complete handshake
-        notification = {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized"
-        }
+        notification = {"jsonrpc": "2.0", "method": "notifications/initialized"}
         notification_json = json.dumps(notification) + "\n"
         self.process.stdin.write(notification_json.encode())
         await self.process.stdin.drain()

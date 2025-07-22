@@ -80,7 +80,7 @@ class GitHubServiceState:
 class GitHubService(DebuggableComponent):
     """
     Comprehensive GitHub service for MCP Git Server.
-    
+
     Provides GitHub API integration, webhook handling, and GitHub-specific
     functionality following the established service patterns.
     """
@@ -91,7 +91,7 @@ class GitHubService(DebuggableComponent):
         self._state = GitHubServiceState(configuration=self._config)
         self._executor = ThreadPoolExecutor(
             max_workers=self._config.max_concurrent_operations,
-            thread_name_prefix="github-service"
+            thread_name_prefix="github-service",
         )
         self._operation_lock = Lock()
         self._operation_history: list[dict[str, Any]] = []
@@ -130,7 +130,10 @@ class GitHubService(DebuggableComponent):
             timeout = 30.0
             start_time = time.time()
 
-            while self._state.active_operations > 0 and (time.time() - start_time) < timeout:
+            while (
+                self._state.active_operations > 0
+                and (time.time() - start_time) < timeout
+            ):
                 await asyncio.sleep(0.1)
 
             # Shutdown executor
@@ -151,7 +154,7 @@ class GitHubService(DebuggableComponent):
         repo_name: str,
         pr_number: int,
         conclusion: str | None = None,
-        status: str | None = None
+        status: str | None = None,
     ) -> GitHubOperationResult:
         """Get check runs for a pull request."""
         return await self._execute_github_operation(
@@ -161,7 +164,7 @@ class GitHubService(DebuggableComponent):
             repo_name=repo_name,
             pr_number=pr_number,
             conclusion=conclusion,
-            status=status
+            status=status,
         )
 
     async def get_failing_jobs(
@@ -170,7 +173,7 @@ class GitHubService(DebuggableComponent):
         repo_name: str,
         pr_number: int,
         include_annotations: bool = True,
-        include_logs: bool = True
+        include_logs: bool = True,
     ) -> GitHubOperationResult:
         """Get detailed information about failing jobs in a PR."""
         return await self._execute_github_operation(
@@ -180,15 +183,11 @@ class GitHubService(DebuggableComponent):
             repo_name=repo_name,
             pr_number=pr_number,
             include_annotations=include_annotations,
-            include_logs=include_logs
+            include_logs=include_logs,
         )
 
     async def get_workflow_run(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        run_id: int,
-        include_logs: bool = False
+        self, repo_owner: str, repo_name: str, run_id: int, include_logs: bool = False
     ) -> GitHubOperationResult:
         """Get detailed workflow run information."""
         return await self._execute_github_operation(
@@ -197,7 +196,7 @@ class GitHubService(DebuggableComponent):
             repo_owner=repo_owner,
             repo_name=repo_name,
             run_id=run_id,
-            include_logs=include_logs
+            include_logs=include_logs,
         )
 
     async def get_pr_details(
@@ -206,7 +205,7 @@ class GitHubService(DebuggableComponent):
         repo_name: str,
         pr_number: int,
         include_files: bool = False,
-        include_reviews: bool = False
+        include_reviews: bool = False,
     ) -> GitHubOperationResult:
         """Get comprehensive PR details."""
         return await self._execute_github_operation(
@@ -216,7 +215,7 @@ class GitHubService(DebuggableComponent):
             repo_name=repo_name,
             pr_number=pr_number,
             include_files=include_files,
-            include_reviews=include_reviews
+            include_reviews=include_reviews,
         )
 
     async def list_pull_requests(
@@ -229,7 +228,7 @@ class GitHubService(DebuggableComponent):
         sort: str = "created",
         direction: str = "desc",
         per_page: int = 30,
-        page: int = 1
+        page: int = 1,
     ) -> GitHubOperationResult:
         """List pull requests for a repository with filtering and pagination."""
         return await self._execute_github_operation(
@@ -243,14 +242,11 @@ class GitHubService(DebuggableComponent):
             sort=sort,
             direction=direction,
             per_page=per_page,
-            page=page
+            page=page,
         )
 
     async def get_pr_status(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int
+        self, repo_owner: str, repo_name: str, pr_number: int
     ) -> GitHubOperationResult:
         """Get the status and check runs for a pull request."""
         return await self._execute_github_operation(
@@ -258,7 +254,7 @@ class GitHubService(DebuggableComponent):
             self._get_pr_status_impl,
             repo_owner=repo_owner,
             repo_name=repo_name,
-            pr_number=pr_number
+            pr_number=pr_number,
         )
 
     async def get_pr_files(
@@ -268,7 +264,7 @@ class GitHubService(DebuggableComponent):
         pr_number: int,
         per_page: int = 30,
         page: int = 1,
-        include_patch: bool = False
+        include_patch: bool = False,
     ) -> GitHubOperationResult:
         """Get files changed in a pull request with pagination support."""
         return await self._execute_github_operation(
@@ -279,16 +275,13 @@ class GitHubService(DebuggableComponent):
             pr_number=pr_number,
             per_page=per_page,
             page=page,
-            include_patch=include_patch
+            include_patch=include_patch,
         )
 
     # Private Implementation Methods
 
     async def _execute_github_operation(
-        self,
-        operation_name: str,
-        operation_func,
-        **kwargs
+        self, operation_name: str, operation_func, **kwargs
     ) -> GitHubOperationResult:
         """Execute a GitHub operation with error handling and metrics."""
         start_time = time.time()
@@ -312,7 +305,7 @@ class GitHubService(DebuggableComponent):
                 success=True,
                 operation=operation_name,
                 data=result,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             self._record_operation_history(operation_result)
@@ -328,7 +321,7 @@ class GitHubService(DebuggableComponent):
                 success=False,
                 operation=operation_name,
                 error_message=str(e),
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             self._record_operation_history(operation_result)
@@ -361,7 +354,7 @@ class GitHubService(DebuggableComponent):
             "operation": result.operation,
             "success": result.success,
             "execution_time": result.execution_time,
-            "error_message": result.error_message
+            "error_message": result.error_message,
         }
 
         self._operation_history.append(history_entry)
@@ -437,6 +430,7 @@ class GitHubService(DebuggableComponent):
 
     def validate_component(self):
         """Validate component configuration and state."""
+
         class GitHubServiceValidationResult:
             def __init__(self, is_valid: bool, errors: list[str], warnings: list[str]):
                 self._is_valid = is_valid
@@ -479,8 +473,15 @@ class GitHubService(DebuggableComponent):
 
     def get_debug_info(self, debug_level: str = "INFO"):
         """Get debugging information."""
+
         class GitHubServiceDebugInfo:
-            def __init__(self, debug_level: str, state: GitHubServiceState, config: GitHubServiceConfig, operation_history: list[dict[str, Any]]):
+            def __init__(
+                self,
+                debug_level: str,
+                state: GitHubServiceState,
+                config: GitHubServiceConfig,
+                operation_history: list[dict[str, Any]],
+            ):
                 self._debug_level = debug_level
                 self._state = state
                 self._config = config
@@ -497,13 +498,13 @@ class GitHubService(DebuggableComponent):
                         "initialized": self._state.is_initialized,
                         "running": self._state.is_running,
                         "operations": self._state.operation_count,
-                        "errors": self._state.error_count
+                        "errors": self._state.error_count,
                     },
                     "configuration": {
                         "rate_limiting_enabled": self._config.enable_rate_limiting,
                         "webhooks_enabled": self._config.enable_webhooks,
-                        "max_concurrent": self._config.max_concurrent_operations
-                    }
+                        "max_concurrent": self._config.max_concurrent_operations,
+                    },
                 }
 
                 if self._debug_level in ["DEBUG", "TRACE"]:
@@ -521,7 +522,7 @@ class GitHubService(DebuggableComponent):
                 return {
                     "success_rate": self._calculate_success_rate(),
                     "average_execution_time": self._calculate_average_execution_time(),
-                    "operations_per_minute": self._calculate_operations_per_minute()
+                    "operations_per_minute": self._calculate_operations_per_minute(),
                 }
 
             def _calculate_success_rate(self) -> float:
@@ -533,7 +534,9 @@ class GitHubService(DebuggableComponent):
             def _calculate_average_execution_time(self) -> float:
                 if not self._operation_history:
                     return 0.0
-                total_time = sum(op.get("execution_time", 0.0) for op in self._operation_history)
+                total_time = sum(
+                    op.get("execution_time", 0.0) for op in self._operation_history
+                )
                 return total_time / len(self._operation_history)
 
             def _calculate_operations_per_minute(self) -> float:
@@ -542,7 +545,9 @@ class GitHubService(DebuggableComponent):
                 # Simple calculation based on recent operations
                 return min(60.0, self._state.operation_count)
 
-        return GitHubServiceDebugInfo(debug_level, self._state, self._config, self._operation_history)
+        return GitHubServiceDebugInfo(
+            debug_level, self._state, self._config, self._operation_history
+        )
 
     def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect internal state for debugging."""
@@ -554,18 +559,22 @@ class GitHubService(DebuggableComponent):
             "error_count": self._state.error_count,
             "active_operations": self._state.active_operations,
             "configuration": {
-                "github_config": self._config.github_config.model_dump() if self._config.github_config else {},
+                "github_config": self._config.github_config.model_dump()
+                if self._config.github_config
+                else {},
                 "enable_webhooks": self._config.enable_webhooks,
                 "enable_cli_operations": self._config.enable_cli_operations,
                 "enable_rate_limiting": self._config.enable_rate_limiting,
                 "max_concurrent_operations": self._config.max_concurrent_operations,
-                "operation_timeout": self._config.operation_timeout
+                "operation_timeout": self._config.operation_timeout,
             },
             "metrics": {
                 "success_rate": self._calculate_success_rate(),
-                "last_operation": self._state.last_operation_time.isoformat() if self._state.last_operation_time else None
+                "last_operation": self._state.last_operation_time.isoformat()
+                if self._state.last_operation_time
+                else None,
             },
-            "rate_limit_status": self._state.rate_limit_status
+            "rate_limit_status": self._state.rate_limit_status,
         }
 
         if path is None:
@@ -592,7 +601,7 @@ class GitHubService(DebuggableComponent):
             "GitHubConfig",
             "ThreadPoolExecutor",
             "GitHub API",
-            "Network connectivity"
+            "Network connectivity",
         ]
 
     def export_state_json(self) -> str:
@@ -604,7 +613,7 @@ class GitHubService(DebuggableComponent):
             if isinstance(obj, datetime):
                 return obj.isoformat()
             # Handle Pydantic HttpUrl and other complex types
-            if hasattr(obj, '__str__'):
+            if hasattr(obj, "__str__"):
                 return str(obj)
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
@@ -615,9 +624,9 @@ class GitHubService(DebuggableComponent):
         success_rate = self._calculate_success_rate()
         # Consider service healthy if initialized, running, and has good success rate
         is_healthy = (
-            self._state.is_initialized and
-            self._state.is_running and
-            success_rate >= 0.8
+            self._state.is_initialized
+            and self._state.is_running
+            and success_rate >= 0.8
         )
 
         return {
@@ -627,7 +636,7 @@ class GitHubService(DebuggableComponent):
             "operation_count": self._state.operation_count,
             "error_count": self._state.error_count,
             "success_rate": success_rate,
-            "active_operations": self._state.active_operations
+            "active_operations": self._state.active_operations,
         }
 
     def _calculate_success_rate(self) -> float:
