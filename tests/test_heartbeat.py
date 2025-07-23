@@ -56,7 +56,8 @@ class TestHeartbeatManager:
             s = await session_manager.create_session(f"concurrent-{i}")
             sessions.append(s)
             await heartbeat_manager.record_heartbeat(f"concurrent-{i}")
-        await asyncio.sleep(0.1)
+        # Sleep for less than the cleanup threshold (missed_threshold=2 * heartbeat_interval=0.05 = 0.1s)
+        await asyncio.sleep(0.05)
         for i in range(5):
             assert heartbeat_manager.get_last_heartbeat(f"concurrent-{i}") is not None
 
