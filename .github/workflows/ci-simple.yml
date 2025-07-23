@@ -20,7 +20,8 @@ jobs:
       uses: prefix-dev/setup-pixi@v0.8.11
       with:
         pixi-version: v0.49.0
-        cache: false
+        cache: true
+        cache-key: ci-simple-${{ runner.os }}-${{ matrix.python-version }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
     - name: Install dependencies

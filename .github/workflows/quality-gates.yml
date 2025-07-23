@@ -22,6 +22,7 @@ jobs:
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true
+        cache-key: quality-gates-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
     - name: Install dependencies
