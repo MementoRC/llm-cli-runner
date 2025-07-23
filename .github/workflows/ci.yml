@@ -132,6 +132,7 @@ jobs:
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true
+        cache-key: ci-main-security-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
     - name: Install dependencies
@@ -151,6 +152,7 @@ jobs:
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true
+        cache-key: ci-main-build-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
       - name: Test package functionality
