@@ -70,12 +70,14 @@ See also:
 
 # Framework exports
 from .server_core import MCPGitServerCore
+from .mcp_server_framework import MCPServerFramework, MCPPlugin
 
 __all__: list[str] = [
     # Core server framework
     "MCPGitServerCore",
-    # MCP server framework - to be implemented
-    # "mcp_server_framework",
+    # MCP server framework
+    "MCPServerFramework",
+    "MCPPlugin",
     # Tool registry framework - to be implemented
     # "tool_registry_framework",
     # Error handling framework - to be implemented
