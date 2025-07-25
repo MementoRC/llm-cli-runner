@@ -69,8 +69,8 @@ See also:
 """
 
 # Framework exports
+from .mcp_server_framework import MCPPlugin, MCPServerFramework
 from .server_core import MCPGitServerCore
-from .mcp_server_framework import MCPServerFramework, MCPPlugin
 
 __all__: list[str] = [
     # Core server framework

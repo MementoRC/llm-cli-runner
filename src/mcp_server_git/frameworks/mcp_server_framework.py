@@ -20,9 +20,10 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Protocol, TypeVar, Union
+from typing import Any, Protocol, TypeVar
 
 from ..protocols.debugging_protocol import (
     ComponentState,
@@ -39,60 +40,60 @@ T = TypeVar("T")
 @dataclass
 class FrameworkComponentState:
     """Implementation of ComponentState for the framework."""
-    
+
     component_id: str
     component_type: str
-    state_data: Dict[str, Any]
+    state_data: dict[str, Any]
     last_updated: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
 class FrameworkValidationResult:
     """Implementation of ValidationResult for the framework."""
-    
+
     is_valid: bool
-    validation_errors: List[str] = field(default_factory=list)
-    validation_warnings: List[str] = field(default_factory=list)
+    validation_errors: list[str] = field(default_factory=list)
+    validation_warnings: list[str] = field(default_factory=list)
     validation_timestamp: datetime = field(default_factory=datetime.now)
-    
+
     @property
-    def issues(self) -> List[str]:
+    def issues(self) -> list[str]:
         """Compatibility property for existing code."""
         return self.validation_errors + self.validation_warnings
-    
+
     @property
     def component_id(self) -> str:
         """Component ID for compatibility."""
         return "mcp_server_framework"
 
 
-@dataclass 
+@dataclass
 class FrameworkDebugInfo:
     """Implementation of DebugInfo for the framework."""
-    
+
     component_id: str
-    debug_data: Dict[str, Any]
+    debug_data: dict[str, Any]
     timestamp: datetime = field(default_factory=datetime.now)
     debug_level: str = "INFO"
-    stack_trace: Optional[List[str]] = None
-    performance_metrics: Dict[str, Union[int, float]] = field(default_factory=dict)
+    stack_trace: list[str] | None = None
+    performance_metrics: dict[str, int | float] = field(default_factory=dict)
 
 
 class MCPComponent(Protocol):
     """Protocol for MCP server components."""
-    
+
     async def initialize(self) -> None:
         """Initialize the component."""
         ...
-    
+
     async def start(self) -> None:
         """Start the component."""
         ...
-    
+
     async def stop(self) -> None:
         """Stop the component."""
         ...
-    
+
     @property
     def name(self) -> str:
         """Component name."""
@@ -101,32 +102,32 @@ class MCPComponent(Protocol):
 
 class MCPPlugin(ABC):
     """Abstract base class for MCP server plugins."""
-    
+
     def __init__(self, name: str):
         self.name = name
         self._initialized = False
         self._running = False
-    
+
     @abstractmethod
     async def initialize(self) -> None:
         """Initialize the plugin."""
         pass
-    
+
     @abstractmethod
     async def start(self) -> None:
         """Start the plugin."""
         pass
-    
+
     @abstractmethod
     async def stop(self) -> None:
         """Stop the plugin."""
         pass
-    
+
     @property
     def initialized(self) -> bool:
         """Check if plugin is initialized."""
         return self._initialized
-    
+
     @property
     def running(self) -> bool:
         """Check if plugin is running."""
@@ -136,10 +137,10 @@ class MCPPlugin(ABC):
 @dataclass
 class ComponentRegistration:
     """Registration information for a framework component."""
-    
+
     name: str
     component: Any
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     priority: int = 100
     auto_start: bool = True
     registered_at: datetime = field(default_factory=datetime.now)
@@ -148,7 +149,7 @@ class ComponentRegistration:
 @dataclass
 class EventSubscription:
     """Event subscription information."""
-    
+
     event_type: str
     callback: Callable
     component_name: str
@@ -173,8 +174,8 @@ class MCPServerFramework(DebuggableComponent):
         >>> await framework.initialize()
         >>> await framework.start()
     """
-    
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize the MCP server framework.
         
@@ -182,25 +183,25 @@ class MCPServerFramework(DebuggableComponent):
             config: Optional configuration dictionary
         """
         self._config = config or {}
-        self._components: Dict[str, ComponentRegistration] = {}
-        self._plugins: Dict[str, MCPPlugin] = {}
-        self._event_subscriptions: Dict[str, List[EventSubscription]] = {}
+        self._components: dict[str, ComponentRegistration] = {}
+        self._plugins: dict[str, MCPPlugin] = {}
+        self._event_subscriptions: dict[str, list[EventSubscription]] = {}
         self._started = False
         self._initialized = False
-        self._initialization_order: List[str] = []
-        self._shutdown_handlers: List[Callable] = []
-        
+        self._initialization_order: list[str] = []
+        self._shutdown_handlers: list[Callable] = []
+
         # Component state tracking
-        self._component_states: Dict[str, ComponentState] = {}
-        self._framework_started_at: Optional[datetime] = None
-        
+        self._component_states: dict[str, ComponentState] = {}
+        self._framework_started_at: datetime | None = None
+
         logger.info("MCPServerFramework initialized")
-    
+
     def register_component(
         self,
         name: str,
         component: Any,
-        dependencies: Optional[List[str]] = None,
+        dependencies: list[str] | None = None,
         priority: int = 100,
         auto_start: bool = True
     ) -> None:
@@ -219,7 +220,7 @@ class MCPServerFramework(DebuggableComponent):
         """
         if name in self._components:
             raise ValueError(f"Component '{name}' already registered")
-        
+
         registration = ComponentRegistration(
             name=name,
             component=component,
@@ -227,10 +228,10 @@ class MCPServerFramework(DebuggableComponent):
             priority=priority,
             auto_start=auto_start
         )
-        
+
         self._components[name] = registration
         logger.info(f"Registered component: {name} (priority: {priority})")
-    
+
     def register_plugin(self, plugin: MCPPlugin) -> None:
         """
         Register a plugin with the framework.
@@ -243,10 +244,10 @@ class MCPServerFramework(DebuggableComponent):
         """
         if plugin.name in self._plugins:
             raise ValueError(f"Plugin '{plugin.name}' already registered")
-        
+
         self._plugins[plugin.name] = plugin
         logger.info(f"Registered plugin: {plugin.name}")
-    
+
     def subscribe_to_event(
         self,
         event_type: str,
@@ -265,19 +266,19 @@ class MCPServerFramework(DebuggableComponent):
         """
         if event_type not in self._event_subscriptions:
             self._event_subscriptions[event_type] = []
-        
+
         subscription = EventSubscription(
             event_type=event_type,
             callback=callback,
             component_name=component_name,
             priority=priority
         )
-        
+
         self._event_subscriptions[event_type].append(subscription)
         self._event_subscriptions[event_type].sort(key=lambda x: x.priority)
-        
+
         logger.debug(f"Subscribed {component_name} to event: {event_type}")
-    
+
     async def emit_event(self, event_type: str, event_data: Any = None) -> None:
         """
         Emit an event to all subscribers.
@@ -288,9 +289,9 @@ class MCPServerFramework(DebuggableComponent):
         """
         if event_type not in self._event_subscriptions:
             return
-        
+
         logger.debug(f"Emitting event: {event_type}")
-        
+
         for subscription in self._event_subscriptions[event_type]:
             try:
                 if asyncio.iscoroutinefunction(subscription.callback):
@@ -301,8 +302,8 @@ class MCPServerFramework(DebuggableComponent):
                 logger.error(
                     f"Error in event callback for {subscription.component_name}: {e}"
                 )
-    
-    def get_component(self, name: str) -> Optional[Any]:
+
+    def get_component(self, name: str) -> Any | None:
         """
         Get a registered component by name.
         
@@ -314,8 +315,8 @@ class MCPServerFramework(DebuggableComponent):
         """
         registration = self._components.get(name)
         return registration.component if registration else None
-    
-    def _resolve_initialization_order(self) -> List[str]:
+
+    def _resolve_initialization_order(self) -> list[str]:
         """
         Resolve component initialization order based on dependencies and priorities.
         
@@ -329,39 +330,39 @@ class MCPServerFramework(DebuggableComponent):
         visited = set()
         temp_visited = set()
         order = []
-        
+
         def visit(component_name: str) -> None:
             if component_name in temp_visited:
                 raise ValueError(f"Circular dependency detected involving: {component_name}")
-            
+
             if component_name in visited:
                 return
-            
+
             temp_visited.add(component_name)
-            
+
             registration = self._components.get(component_name)
             if registration:
                 for dep in registration.dependencies:
                     if dep not in self._components:
                         raise ValueError(f"Dependency '{dep}' not found for component '{component_name}'")
                     visit(dep)
-            
+
             temp_visited.remove(component_name)
             visited.add(component_name)
             order.append(component_name)
-        
+
         # Sort by priority first, then resolve dependencies
         component_names = sorted(
             self._components.keys(),
             key=lambda name: self._components[name].priority
         )
-        
+
         for name in component_names:
             if name not in visited:
                 visit(name)
-        
+
         return order
-    
+
     async def initialize(self) -> None:
         """
         Initialize all registered components and plugins.
@@ -372,12 +373,12 @@ class MCPServerFramework(DebuggableComponent):
         """
         if self._initialized:
             raise RuntimeError("Framework already initialized")
-        
+
         logger.info("Initializing MCP server framework")
-        
+
         # Resolve initialization order
         self._initialization_order = self._resolve_initialization_order()
-        
+
         # Initialize plugins first
         for plugin in self._plugins.values():
             try:
@@ -387,32 +388,32 @@ class MCPServerFramework(DebuggableComponent):
             except Exception as e:
                 logger.error(f"Failed to initialize plugin {plugin.name}: {e}")
                 raise
-        
+
         # Initialize components in dependency order
         for component_name in self._initialization_order:
             registration = self._components[component_name]
             component = registration.component
-            
+
             try:
                 if hasattr(component, 'initialize'):
                     await component.initialize()
-                
+
                 # Update component state
                 self._component_states[component_name] = FrameworkComponentState(
                     component_id=component_name,
                     component_type=type(component).__name__,
                     state_data={"status": "initialized", "initialized_at": datetime.now().isoformat()}
                 )
-                
+
                 logger.debug(f"Initialized component: {component_name}")
             except Exception as e:
                 logger.error(f"Failed to initialize component {component_name}: {e}")
                 raise
-        
+
         self._initialized = True
         await self.emit_event("framework_initialized")
         logger.info("MCP server framework initialization completed")
-    
+
     async def start(self) -> None:
         """
         Start all registered components and plugins.
@@ -422,13 +423,13 @@ class MCPServerFramework(DebuggableComponent):
         """
         if not self._initialized:
             raise RuntimeError("Framework not initialized. Call initialize() first.")
-        
+
         if self._started:
             raise RuntimeError("Framework already started")
-        
+
         logger.info("Starting MCP server framework")
         self._framework_started_at = datetime.now()
-        
+
         # Start plugins
         for plugin in self._plugins.values():
             try:
@@ -438,43 +439,43 @@ class MCPServerFramework(DebuggableComponent):
             except Exception as e:
                 logger.error(f"Failed to start plugin {plugin.name}: {e}")
                 raise
-        
+
         # Start components in initialization order
         for component_name in self._initialization_order:
             registration = self._components[component_name]
-            
+
             if not registration.auto_start:
                 continue
-            
+
             component = registration.component
-            
+
             try:
                 if hasattr(component, 'start'):
                     await component.start()
-                
+
                 # Update component state
                 if component_name in self._component_states:
                     self._component_states[component_name].state_data.update({
                         "status": "running",
                         "started_at": datetime.now().isoformat()
                     })
-                
+
                 logger.debug(f"Started component: {component_name}")
             except Exception as e:
                 logger.error(f"Failed to start component {component_name}: {e}")
                 raise
-        
+
         self._started = True
         await self.emit_event("framework_started")
         logger.info("MCP server framework started successfully")
-    
+
     async def stop(self) -> None:
         """Stop all components and plugins in reverse order."""
         if not self._started:
             return
-        
+
         logger.info("Stopping MCP server framework")
-        
+
         # Execute shutdown handlers
         for handler in reversed(self._shutdown_handlers):
             try:
@@ -484,27 +485,27 @@ class MCPServerFramework(DebuggableComponent):
                     handler()
             except Exception as e:
                 logger.error(f"Error in shutdown handler: {e}")
-        
+
         # Stop components in reverse order
         for component_name in reversed(self._initialization_order):
             registration = self._components[component_name]
             component = registration.component
-            
+
             try:
                 if hasattr(component, 'stop'):
                     await component.stop()
-                
+
                 # Update component state
                 if component_name in self._component_states:
                     self._component_states[component_name].state_data.update({
                         "status": "stopped",
                         "stopped_at": datetime.now().isoformat()
                     })
-                
+
                 logger.debug(f"Stopped component: {component_name}")
             except Exception as e:
                 logger.error(f"Error stopping component {component_name}: {e}")
-        
+
         # Stop plugins
         for plugin in reversed(list(self._plugins.values())):
             try:
@@ -513,11 +514,11 @@ class MCPServerFramework(DebuggableComponent):
                 logger.debug(f"Stopped plugin: {plugin.name}")
             except Exception as e:
                 logger.error(f"Error stopping plugin {plugin.name}: {e}")
-        
+
         self._started = False
         await self.emit_event("framework_stopped")
         logger.info("MCP server framework stopped")
-    
+
     def add_shutdown_handler(self, handler: Callable) -> None:
         """
         Add a shutdown handler to be called during framework shutdown.
@@ -526,7 +527,7 @@ class MCPServerFramework(DebuggableComponent):
             handler: Callable to execute during shutdown
         """
         self._shutdown_handlers.append(handler)
-    
+
     # DebuggableComponent implementation
     def get_component_state(self) -> ComponentState:
         """Get current framework component state."""
@@ -543,31 +544,31 @@ class MCPServerFramework(DebuggableComponent):
                 "component_states": {name: state.state_data for name, state in self._component_states.items()}
             }
         )
-    
+
     def validate_component(self) -> ValidationResult:
         """Validate framework component state."""
         errors = []
         warnings = []
-        
+
         # Check for circular dependencies and unregistered dependencies
         try:
             self._resolve_initialization_order()
         except ValueError as e:
             # The dependency resolution already includes comprehensive error checking
             errors.append(f"Dependency resolution error: {e}")
-        
+
         # Check for orphaned event subscriptions
         for event_type, subscriptions in self._event_subscriptions.items():
             for subscription in subscriptions:
                 if subscription.component_name not in self._components and subscription.component_name not in self._plugins:
                     warnings.append(f"Event subscription from unknown component: {subscription.component_name}")
-        
+
         return FrameworkValidationResult(
             is_valid=len(errors) == 0,
             validation_errors=errors,
             validation_warnings=warnings
         )
-    
+
     def get_debug_info(self, debug_level: str = "INFO") -> DebugInfo:
         """Get framework debug information."""
         basic_info = {
@@ -576,14 +577,14 @@ class MCPServerFramework(DebuggableComponent):
             "plugins_registered": len(self._plugins),
             "event_subscriptions": len(self._event_subscriptions)
         }
-        
+
         # Add performance metrics
         performance_metrics = {
             "components_count": len(self._components),
             "plugins_count": len(self._plugins),
             "uptime_seconds": (datetime.now() - self._framework_started_at).total_seconds() if self._framework_started_at else 0
         }
-        
+
         if debug_level.upper() in ["DEBUG", "DETAILED"] or debug_level.lower() == "detailed":
             basic_info.update({
                 "component_names": list(self._components.keys()),
@@ -591,15 +592,15 @@ class MCPServerFramework(DebuggableComponent):
                 "initialization_order": self._initialization_order,
                 "event_types": list(self._event_subscriptions.keys())
             })
-        
+
         return FrameworkDebugInfo(
             component_id="mcp_server_framework",
             debug_data=basic_info,
             debug_level=debug_level.upper(),
             performance_metrics=performance_metrics
         )
-    
-    def inspect_state(self, path: Optional[str] = None) -> Dict[str, Any]:
+
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect specific parts of the framework state."""
         full_state = {
             "started": self._started,
@@ -624,10 +625,10 @@ class MCPServerFramework(DebuggableComponent):
             "initialization_order": self._initialization_order,
             "framework_started_at": self._framework_started_at.isoformat() if self._framework_started_at else None
         }
-        
+
         if path is None:
             return full_state
-        
+
         # Navigate to specific path
         current = full_state
         for part in path.split('.'):
@@ -635,16 +636,16 @@ class MCPServerFramework(DebuggableComponent):
                 current = current[part]
             else:
                 return {}
-        
+
         return current if isinstance(current, dict) else {path: current}
-    
-    def get_component_dependencies(self) -> List[str]:
+
+    def get_component_dependencies(self) -> list[str]:
         """Get list of component dependencies."""
         dependencies = set()
         for registration in self._components.values():
             dependencies.update(registration.dependencies)
         return list(dependencies)
-    
+
     def export_state_json(self) -> str:
         """Export framework state as JSON."""
         state = self.inspect_state()
@@ -653,21 +654,21 @@ class MCPServerFramework(DebuggableComponent):
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to export state as JSON: {e}")
             return json.dumps({"error": f"JSON export failed: {e}"})
-    
-    def health_check(self) -> Dict[str, Union[bool, str, int, float]]:
+
+    def health_check(self) -> dict[str, bool | str | int | float]:
         """Perform framework health check."""
         healthy = True
         status = "healthy"
         error_count = 0
         last_error = None
-        
+
         # Check framework state
         if not self._initialization_order:
             healthy = False
             status = "not_initialized"
             error_count += 1
             last_error = "Framework not initialized"
-        
+
         # Validate components
         validation_result = self.validate_component()
         if not validation_result.is_valid:
@@ -675,12 +676,12 @@ class MCPServerFramework(DebuggableComponent):
             status = "validation_failed"
             error_count += len(validation_result.validation_errors)
             last_error = validation_result.validation_errors[0] if validation_result.validation_errors else None
-        
+
         # Calculate uptime
         uptime = 0.0
         if self._framework_started_at:
             uptime = (datetime.now() - self._framework_started_at).total_seconds()
-        
+
         return {
             "healthy": healthy,
             "status": status,
