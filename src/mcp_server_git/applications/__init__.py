@@ -76,10 +76,10 @@ See also:
     - deployment: Application deployment documentation
 """
 
-# Placeholder exports - will be populated as modules are implemented
+# Application exports
 __all__: list[str] = [
-    # Main server application - to be implemented in Task 25
-    # "server_application",
+    # Main server application - implemented in Task 25
+    "server_application",
     # CLI application - to be implemented
     # "cli_application",
     # Test application - to be implemented
