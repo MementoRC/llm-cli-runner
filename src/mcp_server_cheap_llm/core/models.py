@@ -381,6 +381,11 @@ class UsageStats(BaseModel):
         return self.total_requests
 
     @property
+    def tokens_used(self) -> int:
+        """Alias for total_tokens_consumed for backward compatibility."""
+        return self.total_tokens_consumed
+
+    @property
     def success_rate(self) -> float:
         """Calculate success rate as percentage."""
         if self.total_requests == 0:
