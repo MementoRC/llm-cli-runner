@@ -16,6 +16,7 @@ import signal
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -216,24 +217,25 @@ class ServerApplication(DebuggableComponent):
         # Get configuration for services
         server_config = self._configuration_manager.get_current_config()
 
-        # Initialize Git service
-        self._git_service = GitService(
-            repository_path=self.config.repository_path,
-            config=server_config.git_config
+        # Initialize Git service (convert server_config to GitServiceConfig)
+        from ..services.git_service import GitServiceConfig
+        git_config = GitServiceConfig(
+            max_concurrent_operations=server_config.max_concurrent_operations,
+            operation_timeout_seconds=server_config.operation_timeout_seconds,
+            enable_security_validation=server_config.enable_security_validation,
         )
+        self._git_service = GitService(config=git_config)
 
         # Initialize GitHub service
         github_config = GitHubServiceConfig(
-            token=server_config.github_config.github_token,
-            api_version=server_config.github_config.api_version
+            github_token=server_config.github_token,
         )
         self._github_service = GitHubService(github_config)
 
         # Initialize metrics service
         if self.config.enable_metrics:
             self._metrics_service = MetricsService(
-                enable_system_metrics=True,
-                max_metric_history=1000
+                enable_system_metrics=True, max_metric_history=1000
             )
             logger.debug("Metrics service initialized")
 
@@ -265,7 +267,7 @@ class ServerApplication(DebuggableComponent):
                 name="server_core",
                 component=self._server_core,
                 dependencies=[],
-                priority=1
+                priority=1,
             )
 
         if self._configuration_manager:
@@ -273,7 +275,7 @@ class ServerApplication(DebuggableComponent):
                 name="configuration",
                 component=self._configuration_manager,
                 dependencies=[],
-                priority=2
+                priority=2,
             )
 
         # Register infrastructure components
@@ -282,7 +284,7 @@ class ServerApplication(DebuggableComponent):
                 name="security",
                 component=self._security_framework,
                 dependencies=["configuration"],
-                priority=3
+                priority=3,
             )
 
         if self._middleware_manager:
@@ -290,7 +292,7 @@ class ServerApplication(DebuggableComponent):
                 name="middleware",
                 component=self._middleware_manager,
                 dependencies=["configuration"],
-                priority=4
+                priority=4,
             )
 
         # Register services
@@ -299,7 +301,7 @@ class ServerApplication(DebuggableComponent):
                 name="git_service",
                 component=self._git_service,
                 dependencies=["configuration", "security"],
-                priority=5
+                priority=5,
             )
 
         if self._github_service:
@@ -307,7 +309,7 @@ class ServerApplication(DebuggableComponent):
                 name="github_service",
                 component=self._github_service,
                 dependencies=["configuration", "security"],
-                priority=6
+                priority=6,
             )
 
         if self._metrics_service:
@@ -315,7 +317,7 @@ class ServerApplication(DebuggableComponent):
                 name="metrics",
                 component=self._metrics_service,
                 dependencies=["configuration"],
-                priority=7
+                priority=7,
             )
 
         if self._session_manager:
@@ -323,7 +325,7 @@ class ServerApplication(DebuggableComponent):
                 name="sessions",
                 component=self._session_manager,
                 dependencies=["configuration"],
-                priority=8
+                priority=8,
             )
 
         # Register operations
@@ -332,7 +334,7 @@ class ServerApplication(DebuggableComponent):
                 name="notifications",
                 component=self._notification_operations,
                 dependencies=["configuration"],
-                priority=9
+                priority=9,
             )
 
         logger.debug("Component registration complete")
@@ -416,6 +418,7 @@ class ServerApplication(DebuggableComponent):
 
     def _install_signal_handlers(self) -> None:
         """Install signal handlers for graceful shutdown."""
+
         def signal_handler(signum: int, frame: Any) -> None:
             logger.info(f"Received signal {signum}, initiating graceful shutdown...")
             asyncio.create_task(self.stop())
@@ -480,7 +483,9 @@ class ServerApplication(DebuggableComponent):
             "status": "running" if self._running else "stopped",
             "initialized": self._initialized,
             "config": {
-                "repository_path": str(self.config.repository_path) if self.config.repository_path else None,
+                "repository_path": str(self.config.repository_path)
+                if self.config.repository_path
+                else None,
                 "enable_metrics": self.config.enable_metrics,
                 "enable_security": self.config.enable_security,
                 "enable_notifications": self.config.enable_notifications,
@@ -519,10 +524,14 @@ class ServerApplication(DebuggableComponent):
 
         # Generate recommendations
         if not self.config.enable_metrics:
-            recommendations.append("Consider enabling metrics for production monitoring")
+            recommendations.append(
+                "Consider enabling metrics for production monitoring"
+            )
 
         if not self.config.enable_security:
-            recommendations.append("Consider enabling security framework for production use")
+            recommendations.append(
+                "Consider enabling security framework for production use"
+            )
 
         return {
             "is_valid": len(issues) == 0,
@@ -546,7 +555,9 @@ class ServerApplication(DebuggableComponent):
                     component = registration.component
                     if hasattr(component, "get_debug_info"):
                         try:
-                            detailed_components[name] = component.get_debug_info(detailed=True)
+                            detailed_components[name] = component.get_debug_info(
+                                detailed=True
+                            )
                         except Exception as e:
                             detailed_components[name] = {"error": str(e)}
 
@@ -554,9 +565,123 @@ class ServerApplication(DebuggableComponent):
 
             # Add framework debug information
             if self._framework:
-                debug_info["framework_debug"] = self._framework.get_debug_info(detailed=True)
+                debug_info["framework_debug"] = self._framework.get_debug_info(
+                    detailed=True
+                )
 
         return debug_info
+
+    def inspect_state(self, path: str | None = None) -> dict[str, Any]:
+        """Inspect the current state of the application or a specific component.
+        
+        Args:
+            path: Optional path to inspect specific component (e.g., "framework", "git_service")
+            
+        Returns:
+            State information for the application or specified component
+        """
+        if path is None:
+            # Return overall application state
+            return {
+                "application_state": "running" if self._framework else "stopped",
+                "components": {
+                    "framework": self._framework is not None,
+                    "git_service": self._git_service is not None,
+                    "github_service": self._github_service is not None,
+                    "security_framework": self._security_framework is not None,
+                    "notifications": self._notifications is not None,
+                },
+                "configuration": {
+                    "repository_path": str(self._config.repository_path) if self._config.repository_path else None,
+                    "test_mode": self._config.test_mode,
+                    "debug_mode": self._config.debug_mode,
+                }
+            }
+        
+        # Return specific component state
+        if path == "framework" and self._framework:
+            return self._framework.get_component_state()
+        elif path == "git_service" and self._git_service:
+            return self._git_service.get_component_state()
+        elif path == "github_service" and self._github_service:
+            return self._github_service.get_component_state()
+        elif path == "security_framework" and self._security_framework:
+            return self._security_framework.get_component_state()
+        else:
+            return {"error": f"Component '{path}' not found or not initialized"}
+
+    def get_component_dependencies(self) -> list[str]:
+        """Get the list of component dependencies for this application.
+        
+        Returns:
+            List of component names that this application depends on
+        """
+        return [
+            "framework",
+            "git_service", 
+            "github_service",
+            "security_framework",
+            "notifications",
+            "configuration_manager"
+        ]
+
+    def export_state_json(self) -> str:
+        """Export the current application state as JSON string.
+        
+        Returns:
+            JSON string representation of the application state
+        """
+        import json
+        state = self.inspect_state()
+        return json.dumps(state, indent=2)
+
+    def health_check(self) -> dict[str, Any]:
+        """Perform a health check on the application and all components.
+        
+        Returns:
+            Health status information for the application and components
+        """
+        health = {
+            "overall_status": "healthy",
+            "timestamp": str(datetime.now()),
+            "components": {}
+        }
+        
+        try:
+            # Check framework health
+            if self._framework:
+                framework_health = self._framework.health_check()
+                health["components"]["framework"] = framework_health
+                if not framework_health.get("healthy", False):
+                    health["overall_status"] = "unhealthy"
+            else:
+                health["components"]["framework"] = {"healthy": False, "reason": "Not initialized"}
+                health["overall_status"] = "unhealthy"
+                
+            # Check other components
+            components_to_check = [
+                ("git_service", self._git_service),
+                ("github_service", self._github_service), 
+                ("security_framework", self._security_framework),
+            ]
+            
+            for name, component in components_to_check:
+                if component and hasattr(component, 'health_check'):
+                    comp_health = component.health_check()
+                    health["components"][name] = comp_health
+                    if not comp_health.get("healthy", False):
+                        health["overall_status"] = "unhealthy"
+                elif component:
+                    health["components"][name] = {"healthy": True, "status": "operational"}
+                else:
+                    health["components"][name] = {"healthy": False, "reason": "Not initialized"}
+                    health["overall_status"] = "unhealthy"
+                    
+        except Exception as e:
+            health["overall_status"] = "error"
+            health["error"] = str(e)
+            
+        return health
 
 
 async def main(
@@ -581,8 +706,7 @@ async def main(
     # Configure logging
     log_level = logging.DEBUG if debug_mode else logging.INFO
     logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Create application configuration
@@ -615,26 +739,18 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="MCP Git Server Application")
     parser.add_argument(
-        "--repository",
-        type=Path,
-        help="Path to the git repository to serve"
+        "--repository", type=Path, help="Path to the git repository to serve"
     )
-    parser.add_argument(
-        "--test-mode",
-        action="store_true",
-        help="Run in test mode"
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode"
-    )
+    parser.add_argument("--test-mode", action="store_true", help="Run in test mode")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
 
     # Run the server application
-    asyncio.run(main(
-        repository_path=args.repository,
-        test_mode=args.test_mode,
-        debug_mode=args.debug,
-    ))
+    asyncio.run(
+        main(
+            repository_path=args.repository,
+            test_mode=args.test_mode,
+            debug_mode=args.debug,
+        )
+    )

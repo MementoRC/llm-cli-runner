@@ -97,8 +97,8 @@ def main(
         print(f"📝 Debug logging enabled: {log_file}", file=sys.stderr)
         logger.info(f"📝 File logging enabled: {log_file}")
 
-    # Lazy import to avoid triggering GitPython imports during test collection
-    from .server import main as serve
+    # Use the new LLM-compliant server application instead of monolithic server
+    from .applications.server_application import main as serve
 
     asyncio.run(serve(repository, test_mode=test_mode))
 
