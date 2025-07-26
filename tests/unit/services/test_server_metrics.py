@@ -375,12 +375,12 @@ class TestMetricsService:
             mock_psutil.cpu_percent.return_value = 25.5
             mock_psutil.virtual_memory.return_value.percent = 60.0
             mock_psutil.disk_usage.return_value.percent = 45.0
-            
+
             def side_effect(module_name, *args, **kwargs):
                 if module_name == "psutil":
                     return mock_psutil
                 return __import__(module_name, *args, **kwargs)
-            
+
             mock_import.side_effect = side_effect
 
             await service.start()
@@ -407,7 +407,7 @@ class TestMetricsService:
                 if module_name == "psutil":
                     raise ImportError("No module named 'psutil'")
                 return __import__(module_name, *args, **kwargs)
-            
+
             mock_import.side_effect = side_effect
             await service._collect_system_health()
 

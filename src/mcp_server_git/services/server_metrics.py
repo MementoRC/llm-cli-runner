@@ -23,7 +23,7 @@ from mcp_server_git.protocols.debugging_protocol import (
 @dataclass
 class ComponentState:
     """Component state information for debugging."""
-    
+
     name: str
     status: str
     timestamp: datetime
@@ -34,7 +34,7 @@ class ComponentState:
 @dataclass
 class ValidationResult:
     """Component validation result."""
-    
+
     is_valid: bool
     issues: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -401,7 +401,7 @@ class MetricsService(DebuggableComponent):
             debug_info.update(self.get_metrics_summary())
 
         return debug_info
-    
+
     def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect specific parts of the component state."""
         full_state = {
@@ -417,10 +417,10 @@ class MetricsService(DebuggableComponent):
             },
             "metrics_data": self.get_metrics_summary(),
         }
-        
+
         if path is None:
             return full_state
-        
+
         # Simple path navigation (e.g., "service_config.max_metric_history")
         parts = path.split(".")
         current = full_state
@@ -429,9 +429,9 @@ class MetricsService(DebuggableComponent):
                 current = current[part]
             else:
                 return {}
-        
+
         return {path: current} if not isinstance(current, dict) else current
-    
+
     def get_component_dependencies(self) -> list[str]:
         """Get list of component dependencies."""
         # MetricsService has minimal dependencies
@@ -439,7 +439,7 @@ class MetricsService(DebuggableComponent):
         if self._enable_system_metrics:
             dependencies.append("psutil")  # Optional system dependency
         return dependencies
-    
+
     def export_state_json(self) -> str:
         """Export component state as JSON for external analysis."""
         state = {
@@ -448,24 +448,24 @@ class MetricsService(DebuggableComponent):
             "state": self.inspect_state(),
             "health": self.health_check(),
         }
-        
+
         return json.dumps(state, indent=2, default=str)
-    
+
     def health_check(self) -> dict[str, bool | str | int | float]:
         """Perform a health check on the component."""
         current_time = datetime.now()
         uptime = (current_time - self._start_time).total_seconds()
-        
+
         # Check for any health issues
         healthy = True
         status = "healthy"
         error_count = 0
         last_error = None
-        
+
         if not self._is_running:
             healthy = False
             status = "stopped"
-        
+
         # Check metric storage capacity
         with self._metrics_lock:
             storage_usage = len(self._metric_points) / self._max_metric_history
@@ -474,7 +474,7 @@ class MetricsService(DebuggableComponent):
                 status = "storage_full"
                 error_count += 1
                 last_error = f"Metric storage {storage_usage:.1%} full"
-        
+
         # Check health check staleness
         if self._enable_system_metrics and self._system_health.last_health_check:
             time_since_check = current_time - self._system_health.last_health_check
@@ -483,7 +483,7 @@ class MetricsService(DebuggableComponent):
                 status = "stale_health_checks"
                 error_count += 1
                 last_error = f"Health checks stale by {time_since_check.total_seconds():.1f}s"
-        
+
         return {
             "healthy": healthy,
             "status": status,
