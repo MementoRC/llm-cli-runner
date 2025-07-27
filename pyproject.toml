@@ -134,6 +134,7 @@ psutil = ">=5.9.0"
 pydantic = ">=2.0.0"
 python-dotenv = ">=1.0.0"
 structlog = ">=24.0.0"
+tiktoken = ">=0.5.0"
 tomli = ">=2.0.1"
 
 # Removed pypi-dependencies - using install-editable task instead
