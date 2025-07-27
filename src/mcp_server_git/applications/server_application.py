@@ -20,6 +20,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from mcp.types import Tool
+from pydantic import BaseModel
+
 from ..frameworks.mcp_server_framework import MCPServerFramework
 from ..frameworks.server_configuration import ServerConfigurationManager
 from ..frameworks.server_core import MCPGitServerCore
@@ -34,6 +37,170 @@ from ..services.server_metrics import MetricsService
 from ..services.server_session import SessionManager
 
 logger = logging.getLogger(__name__)
+
+# ===== MCP TOOL MODELS =====
+# Import the tool models from the original server to maintain compatibility
+
+from enum import Enum
+
+
+class GitTools(str, Enum):
+    """Git tool names."""
+
+    STATUS = "git_status"
+    DIFF_UNSTAGED = "git_diff_unstaged"
+    DIFF_STAGED = "git_diff_staged"
+    DIFF = "git_diff"
+    COMMIT = "git_commit"
+    ADD = "git_add"
+    RESET = "git_reset"
+    LOG = "git_log"
+    CREATE_BRANCH = "git_create_branch"
+    CHECKOUT = "git_checkout"
+    SHOW = "git_show"
+    INIT = "git_init"
+    PUSH = "git_push"
+    PULL = "git_pull"
+    DIFF_BRANCHES = "git_diff_branches"
+    REBASE = "git_rebase"
+    MERGE = "git_merge"
+    CHERRY_PICK = "git_cherry_pick"
+    ABORT = "git_abort"
+    CONTINUE = "git_continue"
+    FETCH = "git_fetch"
+    REMOTE_ADD = "git_remote_add"
+    REMOTE_REMOVE = "git_remote_remove"
+    REMOTE_LIST = "git_remote_list"
+    REMOTE_GET_URL = "git_remote_get_url"
+
+
+class GitStatus(BaseModel):
+    repo_path: str
+
+
+class GitDiffUnstaged(BaseModel):
+    repo_path: str
+
+
+class GitDiffStaged(BaseModel):
+    repo_path: str
+
+
+class GitDiff(BaseModel):
+    repo_path: str
+    target: str
+
+
+class GitCommit(BaseModel):
+    repo_path: str
+    message: str
+    gpg_sign: bool = False
+    gpg_key_id: str | None = None
+
+
+class GitAdd(BaseModel):
+    repo_path: str
+    files: list[str]
+
+
+class GitReset(BaseModel):
+    repo_path: str
+    mode: str = "mixed"  # soft, mixed, hard
+    target: str | None = None
+
+
+class GitLog(BaseModel):
+    repo_path: str
+    max_count: int = 10
+
+
+class GitCreateBranch(BaseModel):
+    repo_path: str
+    branch_name: str
+    start_point: str | None = None
+
+
+class GitCheckout(BaseModel):
+    repo_path: str
+    branch_name: str
+
+
+class GitShow(BaseModel):
+    repo_path: str
+    revision: str
+
+
+class GitInit(BaseModel):
+    repo_path: str
+
+
+class GitPush(BaseModel):
+    repo_path: str
+    remote: str = "origin"
+    branch: str | None = None
+    force: bool = False
+
+
+class GitPull(BaseModel):
+    repo_path: str
+    remote: str = "origin"
+    branch: str | None = None
+
+
+class GitDiffBranches(BaseModel):
+    repo_path: str
+    base_branch: str
+    target_branch: str
+
+
+class GitRebase(BaseModel):
+    repo_path: str
+    base_branch: str
+    interactive: bool = False
+
+
+class GitMerge(BaseModel):
+    repo_path: str
+    branch_name: str
+    no_ff: bool = False
+
+
+class GitCherryPick(BaseModel):
+    repo_path: str
+    commit_hash: str
+
+
+class GitAbort(BaseModel):
+    repo_path: str
+
+
+class GitContinue(BaseModel):
+    repo_path: str
+
+
+class GitFetch(BaseModel):
+    repo_path: str
+    remote: str = "origin"
+
+
+class GitRemoteAdd(BaseModel):
+    repo_path: str
+    name: str
+    url: str
+
+
+class GitRemoteRemove(BaseModel):
+    repo_path: str
+    name: str
+
+
+class GitRemoteList(BaseModel):
+    repo_path: str
+
+
+class GitRemoteGetUrl(BaseModel):
+    repo_path: str
+    name: str
 
 
 class ServerApplicationConfig:
@@ -179,6 +346,9 @@ class ServerApplication(DebuggableComponent):
         # Initialize the MCP server within the core
         self._server_core.initialize_server(self.config.repository_path)
 
+        # Register MCP tools with the server
+        await self._register_mcp_tools()
+
         logger.debug("Core framework initialized")
 
     async def _initialize_configuration(self) -> None:
@@ -219,6 +389,7 @@ class ServerApplication(DebuggableComponent):
 
         # Initialize Git service (convert server_config to GitServiceConfig)
         from ..services.git_service import GitServiceConfig
+
         git_config = GitServiceConfig(
             max_concurrent_operations=server_config.max_concurrent_operations,
             operation_timeout_seconds=server_config.operation_timeout_seconds,
@@ -249,11 +420,12 @@ class ServerApplication(DebuggableComponent):
         """Initialize operations components."""
         logger.debug("Initializing operations components...")
 
-        # Initialize notification operations
-        if self.config.enable_notifications:
-            server_config = self._configuration_manager.get_current_config()
-            self._notification_operations = NotificationOperations(server_config)
-            logger.debug("Notification operations initialized")
+        # Initialize notification operations - TEMPORARILY DISABLED due to abstract methods
+        # TODO: Fix NotificationOperations abstract method implementations
+        # if self.config.enable_notifications:
+        #     server_config = self._configuration_manager.get_current_config()
+        #     self._notification_operations = NotificationOperations(server_config)
+        #     logger.debug("Notification operations initialized")
 
         logger.debug("Operations components initialized")
 
@@ -573,10 +745,10 @@ class ServerApplication(DebuggableComponent):
 
     def inspect_state(self, path: str | None = None) -> dict[str, Any]:
         """Inspect the current state of the application or a specific component.
-        
+
         Args:
             path: Optional path to inspect specific component (e.g., "framework", "git_service")
-            
+
         Returns:
             State information for the application or specified component
         """
@@ -592,12 +764,14 @@ class ServerApplication(DebuggableComponent):
                     "notifications": self._notifications is not None,
                 },
                 "configuration": {
-                    "repository_path": str(self._config.repository_path) if self._config.repository_path else None,
+                    "repository_path": str(self._config.repository_path)
+                    if self._config.repository_path
+                    else None,
                     "test_mode": self._config.test_mode,
                     "debug_mode": self._config.debug_mode,
-                }
+                },
             }
-        
+
         # Return specific component state
         if path == "framework" and self._framework:
             return self._framework.get_component_state()
@@ -612,41 +786,42 @@ class ServerApplication(DebuggableComponent):
 
     def get_component_dependencies(self) -> list[str]:
         """Get the list of component dependencies for this application.
-        
+
         Returns:
             List of component names that this application depends on
         """
         return [
             "framework",
-            "git_service", 
+            "git_service",
             "github_service",
             "security_framework",
             "notifications",
-            "configuration_manager"
+            "configuration_manager",
         ]
 
     def export_state_json(self) -> str:
         """Export the current application state as JSON string.
-        
+
         Returns:
             JSON string representation of the application state
         """
         import json
+
         state = self.inspect_state()
         return json.dumps(state, indent=2)
 
     def health_check(self) -> dict[str, Any]:
         """Perform a health check on the application and all components.
-        
+
         Returns:
             Health status information for the application and components
         """
         health = {
             "overall_status": "healthy",
             "timestamp": str(datetime.now()),
-            "components": {}
+            "components": {},
         }
-        
+
         try:
             # Check framework health
             if self._framework:
@@ -655,33 +830,314 @@ class ServerApplication(DebuggableComponent):
                 if not framework_health.get("healthy", False):
                     health["overall_status"] = "unhealthy"
             else:
-                health["components"]["framework"] = {"healthy": False, "reason": "Not initialized"}
+                health["components"]["framework"] = {
+                    "healthy": False,
+                    "reason": "Not initialized",
+                }
                 health["overall_status"] = "unhealthy"
-                
+
             # Check other components
             components_to_check = [
                 ("git_service", self._git_service),
-                ("github_service", self._github_service), 
+                ("github_service", self._github_service),
                 ("security_framework", self._security_framework),
             ]
-            
+
             for name, component in components_to_check:
-                if component and hasattr(component, 'health_check'):
+                if component and hasattr(component, "health_check"):
                     comp_health = component.health_check()
                     health["components"][name] = comp_health
                     if not comp_health.get("healthy", False):
                         health["overall_status"] = "unhealthy"
                 elif component:
-                    health["components"][name] = {"healthy": True, "status": "operational"}
+                    health["components"][name] = {
+                        "healthy": True,
+                        "status": "operational",
+                    }
                 else:
-                    health["components"][name] = {"healthy": False, "reason": "Not initialized"}
+                    health["components"][name] = {
+                        "healthy": False,
+                        "reason": "Not initialized",
+                    }
                     health["overall_status"] = "unhealthy"
-                    
+
         except Exception as e:
             health["overall_status"] = "error"
             health["error"] = str(e)
-            
+
         return health
+
+    async def _register_mcp_tools(self) -> None:
+        """Register all MCP tools with the server."""
+        if not self._server_core or not self._server_core.server:
+            logger.error("Cannot register tools: server not initialized")
+            return
+
+        server = self._server_core.server
+        logger.info("Registering MCP tools...")
+
+        # Import git operations
+        from ..git.operations import (
+            git_status,
+            git_diff_unstaged,
+            git_diff_staged,
+            git_diff,
+            git_commit,
+            git_add,
+            git_reset,
+            git_log,
+            git_create_branch,
+            git_checkout,
+            git_show,
+            git_init,
+            git_push,
+            git_pull,
+            git_diff_branches,
+            git_rebase,
+            git_merge,
+            git_cherry_pick,
+            git_abort,
+            git_continue,
+            git_fetch,
+            git_remote_add,
+            git_remote_remove,
+            git_remote_list,
+            git_remote_get_url,
+        )
+        from ..utils.git_import import Repo
+
+        @server.list_tools()
+        async def list_tools() -> list[Tool]:
+            """Return available git tools."""
+            return [
+                Tool(
+                    name=GitTools.STATUS,
+                    description="Shows the working tree status",
+                    inputSchema=GitStatus.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.DIFF_UNSTAGED,
+                    description="Shows changes in the working directory that are not yet staged",
+                    inputSchema=GitDiffUnstaged.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.DIFF_STAGED,
+                    description="Shows changes that are staged for commit",
+                    inputSchema=GitDiffStaged.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.DIFF,
+                    description="Shows differences between branches or commits",
+                    inputSchema=GitDiff.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.COMMIT,
+                    description="Records changes to the repository",
+                    inputSchema=GitCommit.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.ADD,
+                    description="Adds file contents to the staging area",
+                    inputSchema=GitAdd.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.RESET,
+                    description="Reset repository with advanced options (--soft, --mixed, --hard)",
+                    inputSchema=GitReset.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.LOG,
+                    description="Shows the commit logs",
+                    inputSchema=GitLog.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.CREATE_BRANCH,
+                    description="Creates a new branch from an optional base branch",
+                    inputSchema=GitCreateBranch.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.CHECKOUT,
+                    description="Switches branches",
+                    inputSchema=GitCheckout.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.SHOW,
+                    description="Shows the contents of a commit",
+                    inputSchema=GitShow.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.INIT,
+                    description="Initialize a new Git repository",
+                    inputSchema=GitInit.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.PUSH,
+                    description="Push commits to remote repository",
+                    inputSchema=GitPush.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.PULL,
+                    description="Pull changes from remote repository",
+                    inputSchema=GitPull.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.DIFF_BRANCHES,
+                    description="Show differences between two branches",
+                    inputSchema=GitDiffBranches.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.REBASE,
+                    description="Rebase current branch onto another branch",
+                    inputSchema=GitRebase.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.MERGE,
+                    description="Merge a branch into the current branch",
+                    inputSchema=GitMerge.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.CHERRY_PICK,
+                    description="Apply a commit from another branch to current branch",
+                    inputSchema=GitCherryPick.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.ABORT,
+                    description="Abort an in-progress git operation (rebase, merge, cherry-pick)",
+                    inputSchema=GitAbort.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.CONTINUE,
+                    description="Continue an in-progress git operation after resolving conflicts",
+                    inputSchema=GitContinue.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.FETCH,
+                    description="Fetch changes from remote repository",
+                    inputSchema=GitFetch.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.REMOTE_ADD,
+                    description="Add a remote repository",
+                    inputSchema=GitRemoteAdd.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.REMOTE_REMOVE,
+                    description="Remove a remote repository",
+                    inputSchema=GitRemoteRemove.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.REMOTE_LIST,
+                    description="List remote repositories",
+                    inputSchema=GitRemoteList.model_json_schema(),
+                ),
+                Tool(
+                    name=GitTools.REMOTE_GET_URL,
+                    description="Get URL of a remote repository",
+                    inputSchema=GitRemoteGetUrl.model_json_schema(),
+                ),
+            ]
+
+        @server.call_tool()
+        async def call_tool(name: str, arguments: dict) -> list[dict]:
+            """Handle tool calls."""
+            try:
+                # Get repository path from arguments
+                repo_path = arguments.get("repo_path", ".")
+                repo = Repo(repo_path)
+
+                # Route to appropriate git operation
+                if name == GitTools.STATUS:
+                    result = git_status(repo)
+                elif name == GitTools.DIFF_UNSTAGED:
+                    result = git_diff_unstaged(repo)
+                elif name == GitTools.DIFF_STAGED:
+                    result = git_diff_staged(repo)
+                elif name == GitTools.DIFF:
+                    result = git_diff(repo, arguments["target"])
+                elif name == GitTools.COMMIT:
+                    result = git_commit(
+                        repo,
+                        arguments["message"],
+                        gpg_sign=arguments.get("gpg_sign", False),
+                        gpg_key_id=arguments.get("gpg_key_id"),
+                    )
+                elif name == GitTools.ADD:
+                    result = git_add(repo, arguments["files"])
+                elif name == GitTools.RESET:
+                    result = git_reset(
+                        repo,
+                        mode=arguments.get("mode", "mixed"),
+                        target=arguments.get("target"),
+                    )
+                elif name == GitTools.LOG:
+                    result = git_log(repo, max_count=arguments.get("max_count", 10))
+                elif name == GitTools.CREATE_BRANCH:
+                    result = git_create_branch(
+                        repo,
+                        arguments["branch_name"],
+                        start_point=arguments.get("start_point"),
+                    )
+                elif name == GitTools.CHECKOUT:
+                    result = git_checkout(repo, arguments["branch_name"])
+                elif name == GitTools.SHOW:
+                    result = git_show(repo, arguments["revision"])
+                elif name == GitTools.INIT:
+                    result = git_init(repo)
+                elif name == GitTools.PUSH:
+                    result = git_push(
+                        repo,
+                        remote=arguments.get("remote", "origin"),
+                        branch=arguments.get("branch"),
+                        force=arguments.get("force", False),
+                    )
+                elif name == GitTools.PULL:
+                    result = git_pull(
+                        repo,
+                        remote=arguments.get("remote", "origin"),
+                        branch=arguments.get("branch"),
+                    )
+                elif name == GitTools.DIFF_BRANCHES:
+                    result = git_diff_branches(
+                        repo, arguments["base_branch"], arguments["target_branch"]
+                    )
+                elif name == GitTools.REBASE:
+                    result = git_rebase(
+                        repo,
+                        arguments["base_branch"],
+                        interactive=arguments.get("interactive", False),
+                    )
+                elif name == GitTools.MERGE:
+                    result = git_merge(
+                        repo,
+                        arguments["branch_name"],
+                        no_ff=arguments.get("no_ff", False),
+                    )
+                elif name == GitTools.CHERRY_PICK:
+                    result = git_cherry_pick(repo, arguments["commit_hash"])
+                elif name == GitTools.ABORT:
+                    result = git_abort(repo)
+                elif name == GitTools.CONTINUE:
+                    result = git_continue(repo)
+                elif name == GitTools.FETCH:
+                    result = git_fetch(repo, remote=arguments.get("remote", "origin"))
+                elif name == GitTools.REMOTE_ADD:
+                    result = git_remote_add(repo, arguments["name"], arguments["url"])
+                elif name == GitTools.REMOTE_REMOVE:
+                    result = git_remote_remove(repo, arguments["name"])
+                elif name == GitTools.REMOTE_LIST:
+                    result = git_remote_list(repo)
+                elif name == GitTools.REMOTE_GET_URL:
+                    result = git_remote_get_url(repo, arguments["name"])
+                else:
+                    raise ValueError(f"Unknown tool: {name}")
+
+                return [{"type": "text", "text": str(result)}]
+
+            except Exception as e:
+                logger.error(f"Error executing tool {name}: {e}")
+                return [{"type": "text", "text": f"Error: {e}"}]
+
+        logger.info("MCP tools registered successfully")
 
 
 async def main(
