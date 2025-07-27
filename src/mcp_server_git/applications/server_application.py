@@ -203,6 +203,108 @@ class GitRemoteGetUrl(BaseModel):
     name: str
 
 
+class GitHubTools(str, Enum):
+    """GitHub tool names."""
+
+    CREATE_ISSUE = "github_create_issue"
+    LIST_ISSUES = "github_list_issues"
+    UPDATE_ISSUE = "github_update_issue"
+    GET_PR_CHECKS = "github_get_pr_checks"
+    GET_PR_DETAILS = "github_get_pr_details"
+    LIST_PULL_REQUESTS = "github_list_pull_requests"
+    GET_PR_STATUS = "github_get_pr_status"
+    GET_PR_FILES = "github_get_pr_files"
+    EDIT_PR_DESCRIPTION = "github_edit_pr_description"
+
+
+class GitHubCreateIssue(BaseModel):
+    repo_owner: str
+    repo_name: str
+    title: str
+    body: str | None = None
+    labels: list[str] | None = None
+    assignees: list[str] | None = None
+    milestone: int | None = None
+
+
+class GitHubListIssues(BaseModel):
+    repo_owner: str
+    repo_name: str
+    state: str = "open"  # open, closed, all
+    labels: str | None = None
+    assignee: str | None = None
+    creator: str | None = None
+    mentioned: str | None = None
+    milestone: str | None = None
+    sort: str = "created"  # created, updated, comments
+    direction: str = "desc"  # asc, desc
+    since: str | None = None
+    per_page: int = 30
+    page: int = 1
+
+
+class GitHubUpdateIssue(BaseModel):
+    repo_owner: str
+    repo_name: str
+    issue_number: int
+    title: str | None = None
+    body: str | None = None
+    state: str | None = None  # open, closed
+    labels: list[str] | None = None
+    assignees: list[str] | None = None
+    milestone: int | None = None
+
+
+class GitHubGetPrChecks(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    status: str | None = None
+    conclusion: str | None = None
+
+
+class GitHubGetPrDetails(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    include_files: bool = False
+    include_reviews: bool = False
+
+
+class GitHubListPullRequests(BaseModel):
+    repo_owner: str
+    repo_name: str
+    state: str = "open"  # open, closed, all
+    head: str | None = None
+    base: str | None = None
+    sort: str = "created"  # created, updated, popularity
+    direction: str = "desc"  # asc, desc
+    per_page: int = 30
+    page: int = 1
+
+
+class GitHubGetPrStatus(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+
+
+class GitHubGetPrFiles(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    per_page: int = 30
+    page: int = 1
+    include_patch: bool = False
+
+
+class GitHubEditPrDescription(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    description: str
+
+
 class ServerApplicationConfig:
     """Configuration for the server application."""
 
@@ -1035,6 +1137,52 @@ class ServerApplication(DebuggableComponent):
                     description="Get URL of a remote repository",
                     inputSchema=GitRemoteGetUrl.model_json_schema(),
                 ),
+                # GitHub Tools
+                Tool(
+                    name=GitHubTools.CREATE_ISSUE,
+                    description="Create a new GitHub issue",
+                    inputSchema=GitHubCreateIssue.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.LIST_ISSUES,
+                    description="List GitHub issues with filtering options",
+                    inputSchema=GitHubListIssues.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.UPDATE_ISSUE,
+                    description="Update an existing GitHub issue",
+                    inputSchema=GitHubUpdateIssue.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.GET_PR_CHECKS,
+                    description="Get check runs for a pull request",
+                    inputSchema=GitHubGetPrChecks.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.GET_PR_DETAILS,
+                    description="Get detailed information about a pull request",
+                    inputSchema=GitHubGetPrDetails.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.LIST_PULL_REQUESTS,
+                    description="List pull requests with filtering options",
+                    inputSchema=GitHubListPullRequests.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.GET_PR_STATUS,
+                    description="Get the status of a pull request",
+                    inputSchema=GitHubGetPrStatus.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.GET_PR_FILES,
+                    description="Get files changed in a pull request",
+                    inputSchema=GitHubGetPrFiles.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.EDIT_PR_DESCRIPTION,
+                    description="Edit the description of a pull request",
+                    inputSchema=GitHubEditPrDescription.model_json_schema(),
+                ),
             ]
 
         @server.call_tool()
@@ -1128,6 +1276,104 @@ class ServerApplication(DebuggableComponent):
                     result = git_remote_list(repo)
                 elif name == GitTools.REMOTE_GET_URL:
                     result = git_remote_get_url(repo, arguments["name"])
+                # GitHub Tools
+                elif name == GitHubTools.CREATE_ISSUE:
+                    from ..github.api import github_create_issue
+                    result = await github_create_issue(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        title=arguments["title"],
+                        body=arguments.get("body"),
+                        labels=arguments.get("labels"),
+                        assignees=arguments.get("assignees"),
+                        milestone=arguments.get("milestone"),
+                    )
+                elif name == GitHubTools.LIST_ISSUES:
+                    from ..github.api import github_list_issues
+                    result = await github_list_issues(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        state=arguments.get("state", "open"),
+                        labels=arguments.get("labels"),
+                        assignee=arguments.get("assignee"),
+                        creator=arguments.get("creator"),
+                        mentioned=arguments.get("mentioned"),
+                        milestone=arguments.get("milestone"),
+                        sort=arguments.get("sort", "created"),
+                        direction=arguments.get("direction", "desc"),
+                        since=arguments.get("since"),
+                        per_page=arguments.get("per_page", 30),
+                        page=arguments.get("page", 1),
+                    )
+                elif name == GitHubTools.UPDATE_ISSUE:
+                    from ..github.api import github_update_issue
+                    result = await github_update_issue(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        issue_number=arguments["issue_number"],
+                        title=arguments.get("title"),
+                        body=arguments.get("body"),
+                        state=arguments.get("state"),
+                        labels=arguments.get("labels"),
+                        assignees=arguments.get("assignees"),
+                        milestone=arguments.get("milestone"),
+                    )
+                elif name == GitHubTools.GET_PR_CHECKS:
+                    from ..github.api import github_get_pr_checks
+                    result = await github_get_pr_checks(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        pr_number=arguments["pr_number"],
+                        status=arguments.get("status"),
+                        conclusion=arguments.get("conclusion"),
+                    )
+                elif name == GitHubTools.GET_PR_DETAILS:
+                    from ..github.api import github_get_pr_details
+                    result = await github_get_pr_details(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        pr_number=arguments["pr_number"],
+                        include_files=arguments.get("include_files", False),
+                        include_reviews=arguments.get("include_reviews", False),
+                    )
+                elif name == GitHubTools.LIST_PULL_REQUESTS:
+                    from ..github.api import github_list_pull_requests
+                    result = await github_list_pull_requests(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        state=arguments.get("state", "open"),
+                        head=arguments.get("head"),
+                        base=arguments.get("base"),
+                        sort=arguments.get("sort", "created"),
+                        direction=arguments.get("direction", "desc"),
+                        per_page=arguments.get("per_page", 30),
+                        page=arguments.get("page", 1),
+                    )
+                elif name == GitHubTools.GET_PR_STATUS:
+                    from ..github.api import github_get_pr_status
+                    result = await github_get_pr_status(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        pr_number=arguments["pr_number"],
+                    )
+                elif name == GitHubTools.GET_PR_FILES:
+                    from ..github.api import github_get_pr_files
+                    result = await github_get_pr_files(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        pr_number=arguments["pr_number"],
+                        per_page=arguments.get("per_page", 30),
+                        page=arguments.get("page", 1),
+                        include_patch=arguments.get("include_patch", False),
+                    )
+                elif name == GitHubTools.EDIT_PR_DESCRIPTION:
+                    from ..github.api import github_edit_pr_description
+                    result = await github_edit_pr_description(
+                        repo_owner=arguments["repo_owner"],
+                        repo_name=arguments["repo_name"],
+                        pr_number=arguments["pr_number"],
+                        description=arguments["description"],
+                    )
                 else:
                     raise ValueError(f"Unknown tool: {name}")
 
