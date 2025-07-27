@@ -34,29 +34,31 @@ class TestConfigurationState:
     def test_configuration_state_creation(self):
         """Test creation of configuration state."""
         from datetime import datetime
+
         config = GitServerConfig()
         state = ConfigurationState(
             config=config,
-            source_precedence=['defaults', 'environment'],
+            source_precedence=["defaults", "environment"],
             last_loaded=datetime.now(),
-            validation_errors=[]
+            validation_errors=[],
         )
 
         assert state.component_id == "server_configuration"
         assert state.component_type == "ServerConfigurationManager"
         assert state.config == config
-        assert state.source_precedence == ['defaults', 'environment']
+        assert state.source_precedence == ["defaults", "environment"]
         assert isinstance(state.state_data, dict)
 
     def test_configuration_state_data(self):
         """Test configuration state data export."""
         from datetime import datetime
+
         config = GitServerConfig(port=8080, host="localhost")
         state = ConfigurationState(
             config=config,
-            source_precedence=['defaults'],
+            source_precedence=["defaults"],
             last_loaded=datetime.now(),
-            validation_errors=["Test error"]
+            validation_errors=["Test error"],
         )
 
         state_data = state.state_data
@@ -83,10 +85,10 @@ class TestServerConfigurationManager:
             "host": "testhost",
             "port": 9000,
             "max_concurrent_operations": 20,
-            "enable_security_validation": False
+            "enable_security_validation": False,
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_path = Path(f.name)
 
@@ -139,13 +141,9 @@ class TestServerConfigurationManager:
         if yaml is None:
             pytest.skip("PyYAML not available")
 
-        config_data = {
-            "host": "yamlhost",
-            "port": 8888,
-            "log_level": "DEBUG"
-        }
+        config_data = {"host": "yamlhost", "port": 8888, "log_level": "DEBUG"}
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             temp_path = Path(f.name)
 
@@ -160,7 +158,7 @@ class TestServerConfigurationManager:
     @pytest.mark.asyncio
     async def test_load_invalid_config_file(self, config_manager):
         """Test handling of invalid configuration file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {")
             temp_path = Path(f.name)
 
@@ -174,21 +172,21 @@ class TestServerConfigurationManager:
     async def test_load_environment_config(self, config_manager):
         """Test loading configuration from environment variables."""
         test_env = {
-            'MCP_GIT_HOST': 'envhost',
-            'MCP_GIT_PORT': '7777',
-            'MCP_GIT_ENABLE_SECURITY_VALIDATION': 'false',
-            'MCP_GIT_MAX_CONCURRENT_OPERATIONS': '15',
-            'OTHER_VAR': 'ignored'
+            "MCP_GIT_HOST": "envhost",
+            "MCP_GIT_PORT": "7777",
+            "MCP_GIT_ENABLE_SECURITY_VALIDATION": "false",
+            "MCP_GIT_MAX_CONCURRENT_OPERATIONS": "15",
+            "OTHER_VAR": "ignored",
         }
 
         with patch.dict(os.environ, test_env, clear=False):
             env_config = await config_manager._load_environment_config()
 
-        assert env_config['host'] == 'envhost'
-        assert env_config['port'] == 7777
-        assert env_config['enable_security_validation'] is False
-        assert env_config['max_concurrent_operations'] == 15
-        assert 'other_var' not in env_config
+        assert env_config["host"] == "envhost"
+        assert env_config["port"] == 7777
+        assert env_config["enable_security_validation"] is False
+        assert env_config["max_concurrent_operations"] == 15
+        assert "other_var" not in env_config
 
     @pytest.mark.asyncio
     async def test_load_environment_config_with_dotenv(self, config_manager):
@@ -201,25 +199,27 @@ MCP_GIT_LOG_LEVEL=WARNING
 
         # Store original environment variables to restore later
         original_env_vars = {}
-        env_var_names = ['MCP_GIT_HOST', 'MCP_GIT_PORT', 'MCP_GIT_LOG_LEVEL']
+        env_var_names = ["MCP_GIT_HOST", "MCP_GIT_PORT", "MCP_GIT_LOG_LEVEL"]
         for var_name in env_var_names:
             if var_name in os.environ:
                 original_env_vars[var_name] = os.environ[var_name]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False, dir='.') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".env", delete=False, dir="."
+        ) as f:
             f.write(env_content)
             env_path = Path(f.name)
-            env_path.rename('.env')
+            env_path.rename(".env")
 
         try:
             env_config = await config_manager._load_environment_config()
-            assert env_config.get('host') == 'dotenvhost'
-            assert env_config.get('port') == 6666
-            assert env_config.get('log_level') == 'WARNING'
+            assert env_config.get("host") == "dotenvhost"
+            assert env_config.get("port") == 6666
+            assert env_config.get("log_level") == "WARNING"
         finally:
             # Clean up .env file
-            if Path('.env').exists():
-                Path('.env').unlink()
+            if Path(".env").exists():
+                Path(".env").unlink()
 
             # Clean up environment variables set by load_dotenv
             for var_name in env_var_names:
@@ -234,40 +234,40 @@ MCP_GIT_LOG_LEVEL=WARNING
         """Test merging configuration sources with precedence."""
         # Set up test sources
         config_manager._config_sources = {
-            'defaults': {'host': 'default', 'port': 8080, 'log_level': 'INFO'},
-            'file': {'host': 'filehost', 'port': 9000},
-            'environment': {'port': 7777}
+            "defaults": {"host": "default", "port": 8080, "log_level": "INFO"},
+            "file": {"host": "filehost", "port": 9000},
+            "environment": {"port": 7777},
         }
 
         merged = await config_manager._merge_configuration_sources()
 
         # Environment should override file, file should override defaults
-        assert merged['host'] == 'filehost'  # From file
-        assert merged['port'] == 7777  # From environment (highest precedence)
-        assert merged['log_level'] == 'INFO'  # From defaults
+        assert merged["host"] == "filehost"  # From file
+        assert merged["port"] == 7777  # From environment (highest precedence)
+        assert merged["log_level"] == "INFO"  # From defaults
 
     @pytest.mark.asyncio
     async def test_validate_configuration_success(self, config_manager):
         """Test successful configuration validation."""
         valid_config = {
-            'host': 'testhost',
-            'port': 8080,
-            'max_concurrent_operations': 10
+            "host": "testhost",
+            "port": 8080,
+            "max_concurrent_operations": 10,
         }
 
         validated = await config_manager._validate_configuration(valid_config)
 
         assert isinstance(validated, GitServerConfig)
-        assert validated.host == 'testhost'
+        assert validated.host == "testhost"
         assert validated.port == 8080
 
     @pytest.mark.asyncio
     async def test_validate_configuration_failure_strict(self, config_manager):
         """Test configuration validation failure in strict mode."""
         invalid_config = {
-            'host': 'testhost',
-            'port': 99999,  # Invalid port (too high)
-            'max_concurrent_operations': -1  # Invalid (negative)
+            "host": "testhost",
+            "port": 99999,  # Invalid port (too high)
+            "max_concurrent_operations": -1,  # Invalid (negative)
         }
 
         with pytest.raises(ConfigurationError, match="Configuration validation failed"):
@@ -279,16 +279,16 @@ MCP_GIT_LOG_LEVEL=WARNING
         config_manager = ServerConfigurationManager(validation_strict=False)
 
         invalid_config = {
-            'host': 'testhost',
-            'port': 99999,  # Invalid port
-            'valid_field': 'INFO'  # This would be log_level
+            "host": "testhost",
+            "port": 99999,  # Invalid port
+            "valid_field": "INFO",  # This would be log_level
         }
 
         # Should not raise, but use defaults for invalid fields
         validated = await config_manager._validate_configuration(invalid_config)
 
         assert isinstance(validated, GitServerConfig)
-        assert validated.host == 'testhost'
+        assert validated.host == "testhost"
         assert validated.port != 99999  # Should use default
 
     @pytest.mark.asyncio
@@ -310,19 +310,19 @@ MCP_GIT_LOG_LEVEL=WARNING
         """Test successful configuration update."""
         await config_manager.initialize()
 
-        updates = {'port': 9999, 'host': 'updatedhost'}
+        updates = {"port": 9999, "host": "updatedhost"}
         await config_manager.update_config(updates)
 
         config = config_manager.get_current_config()
         assert config.port == 9999
-        assert config.host == 'updatedhost'
+        assert config.host == "updatedhost"
 
     @pytest.mark.asyncio
     async def test_update_config_validation_failure(self, config_manager):
         """Test configuration update with validation failure."""
         await config_manager.initialize()
 
-        invalid_updates = {'port': -1}  # Invalid port
+        invalid_updates = {"port": -1}  # Invalid port
 
         with pytest.raises(ConfigurationError, match="Failed to update configuration"):
             await config_manager.update_config(invalid_updates)
@@ -331,7 +331,7 @@ MCP_GIT_LOG_LEVEL=WARNING
     async def test_update_config_before_init(self, config_manager):
         """Test updating configuration before initialization."""
         with pytest.raises(ConfigurationError, match="Configuration not initialized"):
-            await config_manager.update_config({'port': 9000})
+            await config_manager.update_config({"port": 9000})
 
     @pytest.mark.asyncio
     async def test_reload_configuration(self, config_manager, temp_config_file):
@@ -345,7 +345,7 @@ MCP_GIT_LOG_LEVEL=WARNING
 
         # Update the config file
         new_config = {"host": "reloadedhost", "port": 8888}
-        with open(temp_config_file, 'w') as f:
+        with open(temp_config_file, "w") as f:
             json.dump(new_config, f)
 
         # Reload configuration
@@ -360,22 +360,22 @@ MCP_GIT_LOG_LEVEL=WARNING
         # Initialize with a known config
         config_manager._current_config = GitServerConfig(host="exporthost", port=8888)
 
-        exported = config_manager.export_configuration('dict')
+        exported = config_manager.export_configuration("dict")
 
         assert isinstance(exported, dict)
-        assert exported['host'] == 'exporthost'
-        assert exported['port'] == 8888
+        assert exported["host"] == "exporthost"
+        assert exported["port"] == 8888
 
     def test_export_configuration_json(self, config_manager):
         """Test exporting configuration as JSON."""
         config_manager._current_config = GitServerConfig(host="exporthost", port=8888)
 
-        exported = config_manager.export_configuration('json')
+        exported = config_manager.export_configuration("json")
 
         assert isinstance(exported, str)
         parsed = json.loads(exported)
-        assert parsed['host'] == 'exporthost'
-        assert parsed['port'] == 8888
+        assert parsed["host"] == "exporthost"
+        assert parsed["port"] == 8888
 
     def test_export_configuration_yaml(self, config_manager):
         """Test exporting configuration as YAML."""
@@ -384,24 +384,24 @@ MCP_GIT_LOG_LEVEL=WARNING
 
         config_manager._current_config = GitServerConfig(host="exporthost", port=8888)
 
-        exported = config_manager.export_configuration('yaml')
+        exported = config_manager.export_configuration("yaml")
 
         assert isinstance(exported, str)
         parsed = yaml.safe_load(exported)
-        assert parsed['host'] == 'exporthost'
-        assert parsed['port'] == 8888
+        assert parsed["host"] == "exporthost"
+        assert parsed["port"] == 8888
 
     def test_export_configuration_invalid_format(self, config_manager):
         """Test exporting configuration with invalid format."""
         config_manager._current_config = GitServerConfig()
 
         with pytest.raises(ValueError, match="Unsupported format type"):
-            config_manager.export_configuration('xml')
+            config_manager.export_configuration("xml")
 
     def test_export_configuration_before_init(self, config_manager):
         """Test exporting configuration before initialization."""
         with pytest.raises(ConfigurationError, match="Configuration not initialized"):
-            config_manager.export_configuration('dict')
+            config_manager.export_configuration("dict")
 
     @pytest.mark.asyncio
     async def test_debuggable_component_interface(self, config_manager):
@@ -439,15 +439,14 @@ class TestConfigurationIntegration:
         """Test complete configuration lifecycle with file, env, and updates."""
         # Create temporary config file
         file_config = {"host": "filehost", "port": 8000}
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(file_config, f)
             temp_path = Path(f.name)
 
         try:
             # Set environment variables
-            env_vars = {'MCP_GIT_PORT': '9000', 'MCP_GIT_LOG_LEVEL': 'DEBUG'}
+            env_vars = {"MCP_GIT_PORT": "9000", "MCP_GIT_LOG_LEVEL": "DEBUG"}
             with patch.dict(os.environ, env_vars, clear=False):
-
                 # Initialize configuration manager
                 config_manager = ServerConfigurationManager(config_file_path=temp_path)
                 await config_manager.initialize()
@@ -459,20 +458,20 @@ class TestConfigurationIntegration:
                 assert config.log_level == "DEBUG"  # From environment
 
                 # Update configuration
-                await config_manager.update_config({'max_concurrent_operations': 25})
+                await config_manager.update_config({"max_concurrent_operations": 25})
                 updated_config = config_manager.get_current_config()
                 assert updated_config.max_concurrent_operations == 25
 
                 # Export configuration
-                exported = config_manager.export_configuration('dict')
-                assert exported['host'] == "filehost"
-                assert exported['port'] == 9000
-                assert exported['max_concurrent_operations'] == 25
+                exported = config_manager.export_configuration("dict")
+                assert exported["host"] == "filehost"
+                assert exported["port"] == 9000
+                assert exported["max_concurrent_operations"] == 25
 
                 # Test state inspection
                 state = config_manager.get_component_state()
-                assert 'environment' in state.source_precedence
-                assert 'file' in state.source_precedence
+                assert "environment" in state.source_precedence
+                assert "file" in state.source_precedence
 
         finally:
             temp_path.unlink()
@@ -488,14 +487,14 @@ class TestConfigurationIntegration:
 
         # Try invalid update (should fail)
         with pytest.raises(ConfigurationError):
-            await config_manager.update_config({'port': 'invalid_port'})
+            await config_manager.update_config({"port": "invalid_port"})
 
         # Original configuration should be preserved
         current_config = config_manager.get_current_config()
         assert current_config.port == original_port
 
         # Valid update should still work
-        await config_manager.update_config({'host': 'recoveredhost'})
+        await config_manager.update_config({"host": "recoveredhost"})
         updated_config = config_manager.get_current_config()
-        assert updated_config.host == 'recoveredhost'
+        assert updated_config.host == "recoveredhost"
         assert updated_config.port == original_port

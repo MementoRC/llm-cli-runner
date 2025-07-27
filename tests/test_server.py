@@ -24,8 +24,14 @@ def test_repository(tmp_path: Path):
         test_repo = git.Repo.init(repo_path, initial_branch="master")
 
         # Additional check: ensure the repository object is real, not a mock
-        if isinstance(test_repo, MagicMock) or not hasattr(test_repo, 'working_dir') or isinstance(test_repo.working_dir, MagicMock):
-            pytest.skip("Git repository creation returned mock object - git operations unavailable")
+        if (
+            isinstance(test_repo, MagicMock)
+            or not hasattr(test_repo, "working_dir")
+            or isinstance(test_repo.working_dir, MagicMock)
+        ):
+            pytest.skip(
+                "Git repository creation returned mock object - git operations unavailable"
+            )
 
         Path(repo_path / "test.txt").write_text("test")
         test_repo.index.add(["test.txt"])

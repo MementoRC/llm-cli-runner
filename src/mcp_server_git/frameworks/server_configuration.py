@@ -1,7 +1,7 @@
 """
 Server configuration management module with comprehensive loading and validation.
 
-This module implements the server configuration management layer as part of the 
+This module implements the server configuration management layer as part of the
 server decomposition effort, extracting configuration-related functionality from
 the monolithic server.py into a focused, maintainable module.
 
@@ -20,15 +20,15 @@ Architecture:
 
 Usage:
     >>> from mcp_server_git.frameworks import ServerConfigurationManager
-    >>> 
+    >>>
     >>> # Load configuration with defaults
     >>> config_manager = ServerConfigurationManager()
     >>> await config_manager.initialize()
-    >>> 
+    >>>
     >>> # Access current configuration
     >>> config = config_manager.get_current_config()
     >>> print(f"Server running on {config.host}:{config.port}")
-    >>> 
+    >>>
     >>> # Update configuration
     >>> await config_manager.update_config({'port': 9000})
 
@@ -63,6 +63,7 @@ from mcp_server_git.protocols.debugging_protocol import (
 
 class ConfigurationError(Exception):
     """Exception raised when configuration operations fail."""
+
     pass
 
 
@@ -74,7 +75,7 @@ class ConfigurationState:
         config: GitServerConfig,
         source_precedence: list[str],
         last_loaded: datetime,
-        validation_errors: list[str] | None = None
+        validation_errors: list[str] | None = None,
     ):
         self.config = config
         self.source_precedence = source_precedence
@@ -107,16 +108,16 @@ class ConfigurationState:
 class ServerConfigurationManager(DebuggableComponent):
     """
     Comprehensive server configuration manager with multi-source loading and validation.
-    
+
     This class manages all aspects of server configuration, including loading from
     multiple sources, validation, runtime updates, and state inspection.
-    
+
     Configuration precedence (highest to lowest):
         1. Command line arguments
         2. Environment variables
         3. Configuration files (.yaml, .json, .toml)
         4. Default values from Pydantic models
-    
+
     Attributes:
         _current_config: Current validated configuration
         _config_sources: Active configuration sources
@@ -128,11 +129,11 @@ class ServerConfigurationManager(DebuggableComponent):
         self,
         config_file_path: Path | None = None,
         auto_reload: bool = False,
-        validation_strict: bool = True
+        validation_strict: bool = True,
     ):
         """
         Initialize configuration manager.
-        
+
         Args:
             config_file_path: Path to configuration file (optional)
             auto_reload: Enable automatic configuration reloading
@@ -153,10 +154,10 @@ class ServerConfigurationManager(DebuggableComponent):
     async def initialize(self) -> None:
         """
         Initialize configuration manager and load initial configuration.
-        
+
         Loads configuration from all available sources in precedence order
         and performs comprehensive validation.
-        
+
         Raises:
             ConfigurationError: If configuration loading or validation fails
         """
@@ -190,41 +191,44 @@ class ServerConfigurationManager(DebuggableComponent):
 
         # 1. Load from configuration file
         if self._config_file_path and self._config_file_path.exists():
-            self._config_sources['file'] = await self._load_config_file(self._config_file_path)
+            self._config_sources["file"] = await self._load_config_file(
+                self._config_file_path
+            )
 
         # 2. Load from environment variables
         env_config = await self._load_environment_config()
         if env_config:
-            self._config_sources['environment'] = env_config
+            self._config_sources["environment"] = env_config
 
         # 3. Load default configuration
-        self._config_sources['defaults'] = await self._load_default_config()
+        self._config_sources["defaults"] = await self._load_default_config()
 
     async def _load_config_file(self, file_path: Path) -> dict[str, Any]:
         """
         Load configuration from file (supports YAML, JSON, TOML).
-        
+
         Args:
             file_path: Path to configuration file
-            
+
         Returns:
             Configuration dictionary
-            
+
         Raises:
             ConfigurationError: If file cannot be loaded or parsed
         """
         try:
-            content = file_path.read_text(encoding='utf-8')
+            content = file_path.read_text(encoding="utf-8")
 
-            if file_path.suffix.lower() in ['.yml', '.yaml']:
+            if file_path.suffix.lower() in [".yml", ".yaml"]:
                 if yaml is None:
                     raise ConfigurationError("YAML support requires 'PyYAML' package")
                 return yaml.safe_load(content) or {}
-            elif file_path.suffix.lower() == '.json':
+            elif file_path.suffix.lower() == ".json":
                 return json.loads(content) or {}
-            elif file_path.suffix.lower() == '.toml':
+            elif file_path.suffix.lower() == ".toml":
                 try:
                     import tomli
+
                     return tomli.loads(content) or {}
                 except ImportError:
                     raise ConfigurationError("TOML support requires 'tomli' package")
@@ -234,40 +238,44 @@ class ServerConfigurationManager(DebuggableComponent):
                     return json.loads(content) or {}
                 except json.JSONDecodeError:
                     if yaml is None:
-                        raise ConfigurationError("Cannot parse file: JSON parsing failed and YAML not available")
+                        raise ConfigurationError(
+                            "Cannot parse file: JSON parsing failed and YAML not available"
+                        )
                     return yaml.safe_load(content) or {}
 
         except Exception as e:
-            raise ConfigurationError(f"Failed to load config file {file_path}: {e}") from e
+            raise ConfigurationError(
+                f"Failed to load config file {file_path}: {e}"
+            ) from e
 
     async def _load_environment_config(self) -> dict[str, Any]:
         """
         Load configuration from environment variables.
-        
+
         Environment variables are prefixed with 'MCP_GIT_' and converted to
         lowercase for configuration key matching.
-        
+
         Returns:
             Configuration dictionary from environment
         """
         # Load .env file if it exists
-        env_file = Path('.env')
+        env_file = Path(".env")
         if env_file.exists():
             load_dotenv(env_file)
 
         config = {}
-        prefix = 'MCP_GIT_'
+        prefix = "MCP_GIT_"
 
         for key, value in os.environ.items():
             if key.startswith(prefix):
-                config_key = key[len(prefix):].lower()
+                config_key = key[len(prefix) :].lower()
 
                 # Convert string values to appropriate types
-                if value.lower() in ['true', 'false']:
-                    config[config_key] = value.lower() == 'true'
+                if value.lower() in ["true", "false"]:
+                    config[config_key] = value.lower() == "true"
                 elif value.isdigit():
                     config[config_key] = int(value)
-                elif value.replace('.', '').isdigit():
+                elif value.replace(".", "").isdigit():
                     config[config_key] = float(value)
                 else:
                     config[config_key] = value
@@ -277,7 +285,7 @@ class ServerConfigurationManager(DebuggableComponent):
     async def _load_default_config(self) -> dict[str, Any]:
         """
         Load default configuration from Pydantic model.
-        
+
         Returns:
             Default configuration dictionary
         """
@@ -287,9 +295,9 @@ class ServerConfigurationManager(DebuggableComponent):
     async def _merge_configuration_sources(self) -> dict[str, Any]:
         """
         Merge configuration sources according to precedence rules.
-        
+
         Precedence: CLI args > Environment vars > Config file > Defaults
-        
+
         Returns:
             Merged configuration dictionary
         """
@@ -297,35 +305,37 @@ class ServerConfigurationManager(DebuggableComponent):
         source_precedence = []
 
         # Start with defaults (lowest precedence)
-        if 'defaults' in self._config_sources:
-            merged.update(self._config_sources['defaults'])
-            source_precedence.append('defaults')
+        if "defaults" in self._config_sources:
+            merged.update(self._config_sources["defaults"])
+            source_precedence.append("defaults")
 
         # Override with file configuration
-        if 'file' in self._config_sources:
-            merged.update(self._config_sources['file'])
-            source_precedence.append('file')
+        if "file" in self._config_sources:
+            merged.update(self._config_sources["file"])
+            source_precedence.append("file")
 
         # Override with environment variables
-        if 'environment' in self._config_sources:
-            merged.update(self._config_sources['environment'])
-            source_precedence.append('environment')
+        if "environment" in self._config_sources:
+            merged.update(self._config_sources["environment"])
+            source_precedence.append("environment")
 
         # Store precedence for debugging
         self._source_precedence = source_precedence
 
         return merged
 
-    async def _validate_configuration(self, config_data: dict[str, Any]) -> GitServerConfig:
+    async def _validate_configuration(
+        self, config_data: dict[str, Any]
+    ) -> GitServerConfig:
         """
         Validate configuration data using Pydantic model.
-        
+
         Args:
             config_data: Configuration dictionary to validate
-            
+
         Returns:
             Validated GitServerConfig instance
-            
+
         Raises:
             ConfigurationError: If validation fails
         """
@@ -334,7 +344,9 @@ class ServerConfigurationManager(DebuggableComponent):
         except ValidationError as e:
             if self._validation_strict:
                 errors = [f"{err['loc'][0]}: {err['msg']}" for err in e.errors()]
-                raise ConfigurationError(f"Configuration validation failed: {'; '.join(errors)}") from e
+                raise ConfigurationError(
+                    f"Configuration validation failed: {'; '.join(errors)}"
+                ) from e
             else:
                 # In non-strict mode, use defaults for invalid values
                 valid_data = {}
@@ -360,9 +372,9 @@ class ServerConfigurationManager(DebuggableComponent):
         if self._current_config:
             self._state = ConfigurationState(
                 config=self._current_config,
-                source_precedence=getattr(self, '_source_precedence', []),
+                source_precedence=getattr(self, "_source_precedence", []),
                 last_loaded=datetime.now(),
-                validation_errors=[]
+                validation_errors=[],
             )
 
     # DebuggableComponent implementation
@@ -374,7 +386,7 @@ class ServerConfigurationManager(DebuggableComponent):
                 config=GitServerConfig(),
                 source_precedence=[],
                 last_loaded=datetime.now(),
-                validation_errors=["Component not initialized"]
+                validation_errors=["Component not initialized"],
             )
         return self._state
 
@@ -404,51 +416,61 @@ class ServerConfigurationManager(DebuggableComponent):
                 # Re-validate current config to ensure it's still valid
                 GitServerConfig(**self._current_config.model_dump())
             except ValidationError as e:
-                errors.extend([f"Config validation: {err['msg']}" for err in e.errors()])
+                errors.extend(
+                    [f"Config validation: {err['msg']}" for err in e.errors()]
+                )
                 is_valid = False
 
         return {
             "is_valid": is_valid,
             "validation_errors": errors,
             "validation_warnings": warnings,
-            "validation_timestamp": datetime.now()
+            "validation_timestamp": datetime.now(),
         }
 
     def get_debug_info(self, debug_level: str = "INFO") -> dict[str, Any]:
         """Get debug information for the component."""
         debug_data = {
             "initialization_status": self._initialized,
-            "config_file_path": str(self._config_file_path) if self._config_file_path else None,
+            "config_file_path": str(self._config_file_path)
+            if self._config_file_path
+            else None,
             "auto_reload_enabled": self._auto_reload,
             "validation_strict": self._validation_strict,
             "sources_count": len(self._config_sources),
             "watchers_count": len(self._watchers),
-            "current_config_present": self._current_config is not None
+            "current_config_present": self._current_config is not None,
         }
 
         if debug_level in ["DEBUG", "INFO"]:
-            debug_data.update({
-                "source_precedence": getattr(self, '_source_precedence', []),
-                "config_sources": list(self._config_sources.keys()),
-            })
+            debug_data.update(
+                {
+                    "source_precedence": getattr(self, "_source_precedence", []),
+                    "config_sources": list(self._config_sources.keys()),
+                }
+            )
 
         if debug_level == "DEBUG":
-            debug_data.update({
-                "current_config": self._current_config.model_dump() if self._current_config else None,
-                "state_data": self._state.state_data if self._state else None
-            })
+            debug_data.update(
+                {
+                    "current_config": self._current_config.model_dump()
+                    if self._current_config
+                    else None,
+                    "state_data": self._state.state_data if self._state else None,
+                }
+            )
 
         performance_metrics = {
             "uptime_seconds": (datetime.now() - self._start_time).total_seconds(),
             "error_count": self._error_count,
-            "initialization_time": 0.0  # Would track actual init time in production
+            "initialization_time": 0.0,  # Would track actual init time in production
         }
 
         return {
             "debug_level": debug_level,
             "debug_data": debug_data,
             "stack_trace": None,  # Not implemented for this component
-            "performance_metrics": performance_metrics
+            "performance_metrics": performance_metrics,
         }
 
     def inspect_state(self, path: str | None = None) -> dict[str, Any]:
@@ -457,15 +479,19 @@ class ServerConfigurationManager(DebuggableComponent):
             return {"error": "Component not initialized"}
 
         full_state = {
-            "config": self._current_config.model_dump() if self._current_config else None,
+            "config": self._current_config.model_dump()
+            if self._current_config
+            else None,
             "sources": self._config_sources,
             "state": self._state.state_data if self._state else None,
             "metadata": {
                 "initialized": self._initialized,
                 "auto_reload": self._auto_reload,
                 "validation_strict": self._validation_strict,
-                "config_file_path": str(self._config_file_path) if self._config_file_path else None
-            }
+                "config_file_path": str(self._config_file_path)
+                if self._config_file_path
+                else None,
+            },
         }
 
         if path is None:
@@ -473,7 +499,7 @@ class ServerConfigurationManager(DebuggableComponent):
 
         # Navigate to specific path using dot notation
         try:
-            parts = path.split('.')
+            parts = path.split(".")
             current = full_state
             for part in parts:
                 if isinstance(current, dict) and part in current:
@@ -506,7 +532,7 @@ class ServerConfigurationManager(DebuggableComponent):
             "state": self.inspect_state(),
             "validation": self.validate_component(),
             "debug_info": self.get_debug_info("INFO"),
-            "dependencies": self.get_component_dependencies()
+            "dependencies": self.get_component_dependencies(),
         }
 
         return json.dumps(export_data, indent=2, default=str)
@@ -536,31 +562,33 @@ class ServerConfigurationManager(DebuggableComponent):
             "last_error": self._last_error,
             "error_count": self._error_count,
             "initialization_complete": self._initialized,
-            "configuration_loaded": self._current_config is not None
+            "configuration_loaded": self._current_config is not None,
         }
 
     # Public API
     def get_current_config(self) -> GitServerConfig:
         """
         Get current validated configuration.
-        
+
         Returns:
             Current GitServerConfig instance
-            
+
         Raises:
             ConfigurationError: If configuration not initialized
         """
         if not self._current_config:
-            raise ConfigurationError("Configuration not initialized. Call initialize() first.")
+            raise ConfigurationError(
+                "Configuration not initialized. Call initialize() first."
+            )
         return self._current_config
 
     async def update_config(self, updates: dict[str, Any]) -> None:
         """
         Update configuration with new values.
-        
+
         Args:
             updates: Dictionary of configuration updates
-            
+
         Raises:
             ConfigurationError: If updates are invalid or update fails
         """
@@ -592,13 +620,13 @@ class ServerConfigurationManager(DebuggableComponent):
         self._current_config = await self._validate_configuration(merged_config)
         self._update_state()
 
-    def export_configuration(self, format_type: str = 'dict') -> dict[str, Any] | str:
+    def export_configuration(self, format_type: str = "dict") -> dict[str, Any] | str:
         """
         Export current configuration.
-        
+
         Args:
             format_type: Export format ('dict', 'json', 'yaml')
-            
+
         Returns:
             Configuration in requested format
         """
@@ -607,11 +635,11 @@ class ServerConfigurationManager(DebuggableComponent):
 
         config_dict = self._current_config.model_dump()
 
-        if format_type == 'dict':
+        if format_type == "dict":
             return config_dict
-        elif format_type == 'json':
+        elif format_type == "json":
             return json.dumps(config_dict, indent=2, default=str)
-        elif format_type == 'yaml':
+        elif format_type == "yaml":
             if yaml is None:
                 raise ConfigurationError("YAML export requires 'PyYAML' package")
             return yaml.dump(config_dict, default_flow_style=False)

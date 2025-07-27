@@ -74,7 +74,11 @@ class PerformanceMetrics:
     @property
     def average_duration(self) -> float:
         """Calculate average operation duration."""
-        return self.total_duration / self.operation_count if self.operation_count > 0 else 0.0
+        return (
+            self.total_duration / self.operation_count
+            if self.operation_count > 0
+            else 0.0
+        )
 
     @property
     def success_rate(self) -> float:
@@ -90,7 +94,9 @@ class PerformanceMetrics:
         return {
             "operation_count": self.operation_count,
             "total_duration": self.total_duration,
-            "min_duration": self.min_duration if self.min_duration != float("inf") else 0.0,
+            "min_duration": self.min_duration
+            if self.min_duration != float("inf")
+            else 0.0,
             "max_duration": self.max_duration,
             "average_duration": self.average_duration,
             "error_count": self.error_count,
@@ -123,9 +129,7 @@ class SystemHealthMetrics:
             "active_connections": self.active_connections,
             "request_queue_size": self.request_queue_size,
             "last_health_check": (
-                self.last_health_check.isoformat()
-                if self.last_health_check
-                else None
+                self.last_health_check.isoformat() if self.last_health_check else None
             ),
         }
 
@@ -133,7 +137,7 @@ class SystemHealthMetrics:
 class MetricsService(DebuggableComponent):
     """
     Comprehensive metrics collection and monitoring service.
-    
+
     Provides performance tracking, usage statistics, and health monitoring
     for the MCP Git server with thread-safe operations and configurable
     retention policies.
@@ -147,7 +151,7 @@ class MetricsService(DebuggableComponent):
     ):
         """
         Initialize the metrics service.
-        
+
         Args:
             max_metric_history: Maximum number of metric points to retain
             health_check_interval: Interval for system health checks in seconds
@@ -160,7 +164,9 @@ class MetricsService(DebuggableComponent):
         # Thread-safe metric storage
         self._metrics_lock = Lock()
         self._metric_points: deque[MetricPoint] = deque(maxlen=max_metric_history)
-        self._performance_metrics: dict[str, PerformanceMetrics] = defaultdict(PerformanceMetrics)
+        self._performance_metrics: dict[str, PerformanceMetrics] = defaultdict(
+            PerformanceMetrics
+        )
         self._system_health = SystemHealthMetrics()
 
         # Service state
@@ -211,7 +217,7 @@ class MetricsService(DebuggableComponent):
     ) -> None:
         """
         Record a custom metric point.
-        
+
         Args:
             name: Metric name
             value: Metric value
@@ -235,7 +241,7 @@ class MetricsService(DebuggableComponent):
     ) -> None:
         """
         Record an operation performance metric.
-        
+
         Args:
             operation_name: Name of the operation
             duration: Operation duration in seconds
@@ -344,7 +350,9 @@ class MetricsService(DebuggableComponent):
                 timestamp=datetime.now(),
                 metadata={
                     "is_running": self._is_running,
-                    "uptime_seconds": (datetime.now() - self._start_time).total_seconds(),
+                    "uptime_seconds": (
+                        datetime.now() - self._start_time
+                    ).total_seconds(),
                     "total_metrics": len(self._metric_points),
                     "tracked_operations": len(self._performance_metrics),
                     "system_metrics_enabled": self._enable_system_metrics,
@@ -374,8 +382,12 @@ class MetricsService(DebuggableComponent):
         # Check system health if enabled
         if self._enable_system_metrics:
             if self._system_health.last_health_check:
-                time_since_check = datetime.now() - self._system_health.last_health_check
-                if time_since_check > timedelta(seconds=self._health_check_interval * 2):
+                time_since_check = (
+                    datetime.now() - self._system_health.last_health_check
+                )
+                if time_since_check > timedelta(
+                    seconds=self._health_check_interval * 2
+                ):
                     issues.append("System health checks are stale")
 
         return ValidationResult(
@@ -482,7 +494,9 @@ class MetricsService(DebuggableComponent):
                 healthy = False
                 status = "stale_health_checks"
                 error_count += 1
-                last_error = f"Health checks stale by {time_since_check.total_seconds():.1f}s"
+                last_error = (
+                    f"Health checks stale by {time_since_check.total_seconds():.1f}s"
+                )
 
         return {
             "healthy": healthy,
@@ -490,6 +504,6 @@ class MetricsService(DebuggableComponent):
             "uptime": uptime,
             "last_error": last_error,
             "error_count": error_count,
-            "storage_usage": storage_usage if 'storage_usage' in locals() else 0.0,
+            "storage_usage": storage_usage if "storage_usage" in locals() else 0.0,
             "system_metrics_enabled": self._enable_system_metrics,
         }

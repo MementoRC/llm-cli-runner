@@ -403,6 +403,7 @@ class TestMetricsService:
 
         # Mock psutil import failure
         with patch("builtins.__import__") as mock_import:
+
             def side_effect(module_name, *args, **kwargs):
                 if module_name == "psutil":
                     raise ImportError("No module named 'psutil'")

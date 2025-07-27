@@ -117,7 +117,7 @@ class TestMCPServerFramework:
             component,
             dependencies=["dep1", "dep2"],
             priority=50,
-            auto_start=False
+            auto_start=False,
         )
 
         assert "test_component" in framework._components
@@ -177,7 +177,9 @@ class TestMCPServerFramework:
         framework = MCPServerFramework()
         callback = MagicMock()
 
-        framework.subscribe_to_event("test_event", callback, "test_component", priority=50)
+        framework.subscribe_to_event(
+            "test_event", callback, "test_component", priority=50
+        )
 
         assert "test_event" in framework._event_subscriptions
         subscriptions = framework._event_subscriptions["test_event"]
@@ -196,9 +198,15 @@ class TestMCPServerFramework:
         callback2 = MagicMock()
         callback3 = MagicMock()
 
-        framework.subscribe_to_event("test_event", callback2, "component2", priority=200)
-        framework.subscribe_to_event("test_event", callback1, "component1", priority=100)
-        framework.subscribe_to_event("test_event", callback3, "component3", priority=150)
+        framework.subscribe_to_event(
+            "test_event", callback2, "component2", priority=200
+        )
+        framework.subscribe_to_event(
+            "test_event", callback1, "component1", priority=100
+        )
+        framework.subscribe_to_event(
+            "test_event", callback3, "component3", priority=150
+        )
 
         subscriptions = framework._event_subscriptions["test_event"]
         assert len(subscriptions) == 3
@@ -254,8 +262,12 @@ class TestMCPServerFramework:
 
         working_callback = MagicMock()
 
-        framework.subscribe_to_event("test_event", failing_callback, "failing_component")
-        framework.subscribe_to_event("test_event", working_callback, "working_component")
+        framework.subscribe_to_event(
+            "test_event", failing_callback, "failing_component"
+        )
+        framework.subscribe_to_event(
+            "test_event", working_callback, "working_component"
+        )
 
         # Should not raise exception, should continue with other callbacks
         await framework.emit_event("test_event", "test_data")
@@ -283,9 +295,15 @@ class TestMCPServerFramework:
         """Test dependency resolution with no dependencies."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), priority=200)
-        framework.register_component("component2", MockComponent("component2"), priority=100)
-        framework.register_component("component3", MockComponent("component3"), priority=150)
+        framework.register_component(
+            "component1", MockComponent("component1"), priority=200
+        )
+        framework.register_component(
+            "component2", MockComponent("component2"), priority=100
+        )
+        framework.register_component(
+            "component3", MockComponent("component3"), priority=150
+        )
 
         order = framework._resolve_initialization_order()
 
@@ -296,8 +314,12 @@ class TestMCPServerFramework:
         """Test dependency resolution with dependencies."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["component2"])
-        framework.register_component("component2", MockComponent("component2"), dependencies=["component3"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["component2"]
+        )
+        framework.register_component(
+            "component2", MockComponent("component2"), dependencies=["component3"]
+        )
         framework.register_component("component3", MockComponent("component3"))
 
         order = framework._resolve_initialization_order()
@@ -310,8 +332,12 @@ class TestMCPServerFramework:
         """Test dependency resolution with circular dependencies."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["component2"])
-        framework.register_component("component2", MockComponent("component2"), dependencies=["component1"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["component2"]
+        )
+        framework.register_component(
+            "component2", MockComponent("component2"), dependencies=["component1"]
+        )
 
         with pytest.raises(ValueError, match="Circular dependency detected"):
             framework._resolve_initialization_order()
@@ -320,7 +346,9 @@ class TestMCPServerFramework:
         """Test dependency resolution with missing dependencies."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["nonexistent"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["nonexistent"]
+        )
 
         with pytest.raises(ValueError, match="Dependency 'nonexistent' not found"):
             framework._resolve_initialization_order()
@@ -569,7 +597,9 @@ class TestMCPServerFrameworkDebuggable:
         """Test component validation success."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["component2"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["component2"]
+        )
         framework.register_component("component2", MockComponent("component2"))
 
         result = framework.validate_component()
@@ -582,7 +612,9 @@ class TestMCPServerFrameworkDebuggable:
         """Test component validation with missing dependency."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["nonexistent"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["nonexistent"]
+        )
 
         result = framework.validate_component()
 
@@ -594,8 +626,12 @@ class TestMCPServerFrameworkDebuggable:
         """Test component validation with circular dependency."""
         framework = MCPServerFramework()
 
-        framework.register_component("component1", MockComponent("component1"), dependencies=["component2"])
-        framework.register_component("component2", MockComponent("component2"), dependencies=["component1"])
+        framework.register_component(
+            "component1", MockComponent("component1"), dependencies=["component2"]
+        )
+        framework.register_component(
+            "component2", MockComponent("component2"), dependencies=["component1"]
+        )
 
         result = framework.validate_component()
 
@@ -687,7 +723,7 @@ class TestComponentRegistration:
             component=component,
             dependencies=["dep1", "dep2"],
             priority=50,
-            auto_start=False
+            auto_start=False,
         )
 
         assert registration.name == "test_component"
@@ -701,10 +737,7 @@ class TestComponentRegistration:
         """Test component registration with default values."""
         component = MockComponent("test_component")
 
-        registration = ComponentRegistration(
-            name="test_component",
-            component=component
-        )
+        registration = ComponentRegistration(name="test_component", component=component)
 
         assert registration.dependencies == []
         assert registration.priority == 100
@@ -722,7 +755,7 @@ class TestEventSubscription:
             event_type="test_event",
             callback=callback,
             component_name="test_component",
-            priority=50
+            priority=50,
         )
 
         assert subscription.event_type == "test_event"
@@ -735,9 +768,7 @@ class TestEventSubscription:
         callback = MagicMock()
 
         subscription = EventSubscription(
-            event_type="test_event",
-            callback=callback,
-            component_name="test_component"
+            event_type="test_event", callback=callback, component_name="test_component"
         )
 
         assert subscription.priority == 100

@@ -106,7 +106,9 @@ class NotificationOperations(DebuggableComponent):
             self.stats.last_activity = datetime.now()
             self._event_history.append(event)
 
-        logger.debug(f"Publishing event: {event.event_type} from {event.source_component}")
+        logger.debug(
+            f"Publishing event: {event.event_type} from {event.source_component}"
+        )
 
         # Find and notify subscribers
         matching_subscribers = self._find_matching_subscribers(event)
@@ -139,13 +141,13 @@ class NotificationOperations(DebuggableComponent):
 
         with self._lock:
             self._subscriptions[subscription_id] = SubscriptionRecord(
-                subscription_id=subscription_id,
-                subscriber=subscriber,
-                filters=filters
+                subscription_id=subscription_id, subscriber=subscriber, filters=filters
             )
             self.stats.active_subscriptions = len(self._subscriptions)
 
-        logger.info(f"Registered subscriber {subscriber.get_subscriber_id()} with ID {subscription_id}")
+        logger.info(
+            f"Registered subscriber {subscriber.get_subscriber_id()} with ID {subscription_id}"
+        )
         return subscription_id
 
     def unsubscribe(self, subscription_id: str) -> bool:
@@ -160,13 +162,19 @@ class NotificationOperations(DebuggableComponent):
         """
         with self._lock:
             if subscription_id in self._subscriptions:
-                subscriber_id = self._subscriptions[subscription_id].subscriber.get_subscriber_id()
+                subscriber_id = self._subscriptions[
+                    subscription_id
+                ].subscriber.get_subscriber_id()
                 del self._subscriptions[subscription_id]
                 self.stats.active_subscriptions = len(self._subscriptions)
-                logger.info(f"Unsubscribed subscriber {subscriber_id} ({subscription_id})")
+                logger.info(
+                    f"Unsubscribed subscriber {subscriber_id} ({subscription_id})"
+                )
                 return True
 
-        logger.warning(f"Attempted to unsubscribe unknown subscription ID: {subscription_id}")
+        logger.warning(
+            f"Attempted to unsubscribe unknown subscription ID: {subscription_id}"
+        )
         return False
 
     def get_active_subscriptions(self) -> list[str]:
@@ -192,7 +200,7 @@ class NotificationOperations(DebuggableComponent):
             "component_id": component_id,
             "metadata": metadata or {},
             "timestamp": datetime.now(),
-            "record_id": str(uuid.uuid4())
+            "record_id": str(uuid.uuid4()),
         }
 
         with self._lock:
@@ -211,7 +219,7 @@ class NotificationOperations(DebuggableComponent):
             timestamp=status_record["timestamp"],
             source_component=component_id,
             metadata=status_record["metadata"],
-            channels=[NotificationChannel.LOG]
+            channels=[NotificationChannel.LOG],
         )
 
         self.publish_event(event)
@@ -236,13 +244,13 @@ class NotificationOperations(DebuggableComponent):
             "progress": min(max(progress, 0.0), 1.0),  # Clamp to [0.0, 1.0]
             "operation": operation,
             "details": details or "",
-            "percentage": f"{progress * 100:.1f}%"
+            "percentage": f"{progress * 100:.1f}%",
         }
 
         self.report_status(
             f"Progress: {progress_metadata['percentage']} - {operation}",
             component_id,
-            progress_metadata
+            progress_metadata,
         )
 
     def report_completion(
@@ -282,7 +290,7 @@ class NotificationOperations(DebuggableComponent):
             timestamp=datetime.now(),
             source_component=component_id,
             metadata=completion_metadata,
-            channels=[NotificationChannel.LOG, NotificationChannel.CONSOLE]
+            channels=[NotificationChannel.LOG, NotificationChannel.CONSOLE],
         )
 
         self.publish_event(event)
@@ -318,7 +326,7 @@ class NotificationOperations(DebuggableComponent):
             "context": context or {},
             "timestamp": datetime.now(),
             "acknowledged": False,
-            "acknowledged_by": None
+            "acknowledged_by": None,
         }
 
         with self._lock:
@@ -337,7 +345,7 @@ class NotificationOperations(DebuggableComponent):
             timestamp=error_record["timestamp"],
             source_component=component_id,
             metadata=error_record,
-            channels=[NotificationChannel.LOG, NotificationChannel.CONSOLE]
+            channels=[NotificationChannel.LOG, NotificationChannel.CONSOLE],
         )
 
         self.publish_event(event)
@@ -363,7 +371,7 @@ class NotificationOperations(DebuggableComponent):
             "message": message,
             "component_id": component_id,
             "context": context or {},
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
 
         logger.warning(f"Warning from {component_id}: {message}")
@@ -377,7 +385,7 @@ class NotificationOperations(DebuggableComponent):
             timestamp=warning_record["timestamp"],
             source_component=component_id,
             metadata=warning_record,
-            channels=[NotificationChannel.LOG]
+            channels=[NotificationChannel.LOG],
         )
 
         self.publish_event(event)
@@ -496,7 +504,9 @@ class NotificationOperations(DebuggableComponent):
             delivery_id = str(uuid.uuid4())
             delivery_ids.append(delivery_id)
 
-            logger.info(f"Targeted message to {recipient} via {channel.value}: {message}")
+            logger.info(
+                f"Targeted message to {recipient} via {channel.value}: {message}"
+            )
             # Actual delivery implementation would go here
 
         return delivery_ids
@@ -533,7 +543,9 @@ class NotificationOperations(DebuggableComponent):
                 with self._lock:
                     self.stats.total_cancelled_notifications += 1
 
-                logger.info(f"Handled cancelled notification for request: {notification.params.requestId}")
+                logger.info(
+                    f"Handled cancelled notification for request: {notification.params.requestId}"
+                )
 
                 # Create cancellation event
                 event = NotificationEvent(
@@ -545,9 +557,9 @@ class NotificationOperations(DebuggableComponent):
                     source_component="client",
                     metadata={
                         "request_id": notification.params.requestId,
-                        "reason": notification.params.reason
+                        "reason": notification.params.reason,
                     },
-                    channels=[NotificationChannel.LOG]
+                    channels=[NotificationChannel.LOG],
                 )
 
                 self.publish_event(event)
@@ -568,7 +580,7 @@ class NotificationOperations(DebuggableComponent):
                     "subscriber_id": record.subscriber.get_subscriber_id(),
                     "filters": record.filters,
                     "created_at": record.created_at.isoformat(),
-                    "last_activity": record.last_activity.isoformat()
+                    "last_activity": record.last_activity.isoformat(),
                 }
                 for sub_id, record in self._subscriptions.items()
             }
@@ -586,15 +598,16 @@ class NotificationOperations(DebuggableComponent):
                 "total_cancelled_notifications": self.stats.total_cancelled_notifications,
                 "active_subscriptions": self.stats.active_subscriptions,
                 "intercepted_notifications": interceptor_stats["total_intercepted"],
-                "last_activity": self.stats.last_activity.isoformat()
+                "last_activity": self.stats.last_activity.isoformat(),
             },
             "subscriptions": subscriptions_info,
             "channel_configs": {
-                channel.value: config for channel, config in self._channel_configs.items()
+                channel.value: config
+                for channel, config in self._channel_configs.items()
             },
             "event_history_size": len(self._event_history),
             "error_history_size": len(self._error_history),
-            "status_history_size": len(self._status_history)
+            "status_history_size": len(self._status_history),
         }
 
     def validate_component(self) -> dict[str, Any]:
@@ -604,12 +617,15 @@ class NotificationOperations(DebuggableComponent):
         # Check if interceptor is working
         interceptor_stats = self.interceptor.get_stats()
         if interceptor_stats["total_intercepted"] == 0:
-            issues.append("No notifications have been intercepted - may indicate setup issue")
+            issues.append(
+                "No notifications have been intercepted - may indicate setup issue"
+            )
 
         # Check subscription health
         with self._lock:
             stale_subscriptions = [
-                sub_id for sub_id, record in self._subscriptions.items()
+                sub_id
+                for sub_id, record in self._subscriptions.items()
                 if (datetime.now() - record.last_activity).seconds > 3600  # 1 hour
             ]
 
@@ -622,8 +638,8 @@ class NotificationOperations(DebuggableComponent):
             "recommendations": [
                 "Monitor subscription activity regularly",
                 "Configure channel settings based on deployment environment",
-                "Set up proper logging levels for different notification types"
-            ]
+                "Set up proper logging levels for different notification types",
+            ],
         }
 
     def get_debug_info(self, detailed: bool = False) -> dict[str, Any]:
@@ -631,31 +647,35 @@ class NotificationOperations(DebuggableComponent):
         debug_info = {
             "component_type": "NotificationOperations",
             "state": self.get_component_state(),
-            "validation": self.validate_component()
+            "validation": self.validate_component(),
         }
 
         if detailed:
-            debug_info.update({
-                "recent_events": [
-                    {
-                        "event_id": event.event_id,
-                        "event_type": event.event_type,
-                        "level": event.level.value,
-                        "message": event.message,
-                        "timestamp": event.timestamp.isoformat(),
-                        "source": event.source_component
-                    }
-                    for event in list(self._event_history)[-10:]  # Last 10 events
-                ],
-                "recent_errors": self.get_error_history(limit=5),
-                "interceptor_stats": self.interceptor.get_stats()
-            })
+            debug_info.update(
+                {
+                    "recent_events": [
+                        {
+                            "event_id": event.event_id,
+                            "event_type": event.event_type,
+                            "level": event.level.value,
+                            "message": event.message,
+                            "timestamp": event.timestamp.isoformat(),
+                            "source": event.source_component,
+                        }
+                        for event in list(self._event_history)[-10:]  # Last 10 events
+                    ],
+                    "recent_errors": self.get_error_history(limit=5),
+                    "interceptor_stats": self.interceptor.get_stats(),
+                }
+            )
 
         return debug_info
 
     # Helper Methods
 
-    def _find_matching_subscribers(self, event: NotificationEvent) -> list[tuple[str, EventSubscriber]]:
+    def _find_matching_subscribers(
+        self, event: NotificationEvent
+    ) -> list[tuple[str, EventSubscriber]]:
         """Find subscribers that match the given event."""
         matching = []
 
@@ -666,7 +686,9 @@ class NotificationOperations(DebuggableComponent):
 
         return matching
 
-    def _event_matches_filters(self, event: NotificationEvent, filters: dict[str, Any]) -> bool:
+    def _event_matches_filters(
+        self, event: NotificationEvent, filters: dict[str, Any]
+    ) -> bool:
         """Check if an event matches subscription filters."""
         # Simple filter matching - can be enhanced
         if "event_type" in filters:
@@ -713,21 +735,24 @@ class NotificationOperations(DebuggableComponent):
 
     def _console_message(self, message: str, level: NotificationLevel) -> None:
         """Output message to console (if appropriate)."""
-        if level in [NotificationLevel.WARNING, NotificationLevel.ERROR, NotificationLevel.CRITICAL]:
+        if level in [
+            NotificationLevel.WARNING,
+            NotificationLevel.ERROR,
+            NotificationLevel.CRITICAL,
+        ]:
             print(f"[{level.value.upper()}] {message}")
 
-    def _report_subscriber_error(self, subscription_id: str, error: Exception, event: NotificationEvent) -> None:
+    def _report_subscriber_error(
+        self, subscription_id: str, error: Exception, event: NotificationEvent
+    ) -> None:
         """Report an error that occurred while notifying a subscriber."""
         error_context = {
             "subscription_id": subscription_id,
             "event_id": event.event_id,
             "event_type": event.event_type,
-            "subscriber_error": str(error)
+            "subscriber_error": str(error),
         }
 
         self.report_error(
-            error,
-            "notification_operations",
-            "notify_subscriber",
-            error_context
+            error, "notification_operations", "notify_subscriber", error_context
         )
