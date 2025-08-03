@@ -10,6 +10,11 @@ from ..utils.git_import import GitCommandError, Repo
 
 logger = logging.getLogger(__name__)
 
+# Constants for timeout and validation
+CLI_AUTH_TIMEOUT = 10  # seconds for GitHub CLI authentication
+PUSH_OPERATION_TIMEOUT = 300  # seconds (5 minutes) for push operations
+MIN_TOKEN_LENGTH = 10  # minimum length for a valid GitHub token
+
 
 def _apply_diff_size_limiting(
     diff_output: str,
@@ -510,10 +515,11 @@ def _get_github_token_from_cli() -> str | None:
             ["gh", "auth", "token"], 
             capture_output=True, 
             text=True,
-            timeout=10
+            timeout=CLI_AUTH_TIMEOUT
         )
         if result.returncode == 0:
-            return result.stdout.strip()
+            token = result.stdout.strip()
+            return token if token and len(token) >= MIN_TOKEN_LENGTH else None
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return None
@@ -545,13 +551,14 @@ def git_push(
         if force:
             push_args.insert(0, "--force")
 
-        # Get remote URL for GitHub authentication handling
+        # Get remote URL for GitHub authentication handling (cache for reuse)
         remote_url = ""
+        is_github = False
         try:
             remote_url = repo.remote(remote).url
             is_github = "github.com" in remote_url
         except Exception:
-            is_github = False
+            pass
 
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
@@ -570,7 +577,6 @@ def git_push(
                     )
 
                     # Temporarily set remote URL with token
-                    original_url = remote_url
                     repo.remote(remote).set_url(auth_url)
 
                     try:
@@ -588,7 +594,7 @@ def git_push(
                         return success_msg
                     finally:
                         # Restore original URL
-                        repo.remote(remote).set_url(original_url)
+                        repo.remote(remote).set_url(remote_url)
             else:
                 # Fallback to system git with credential helpers
                 logger.info("No GitHub token available, falling back to system git authentication")
@@ -602,7 +608,7 @@ def git_push(
                         cwd=repo.working_dir, 
                         capture_output=True, 
                         text=True,
-                        timeout=300  # 5-minute timeout for push operations
+                        timeout=PUSH_OPERATION_TIMEOUT
                     )
                     
                     if result.returncode == 0:
@@ -614,7 +620,10 @@ def git_push(
                     else:
                         error_output = result.stderr.strip()
                         if "Authentication failed" in error_output or "401" in error_output:
-                            return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
+                            return (
+                                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                                "or GitHub CLI authentication (gh auth login)"
+                            )
                         elif "403" in error_output or "Permission denied" in error_output:
                             return "❌ Permission denied. Check repository access permissions"
                         elif "non-fast-forward" in error_output:
@@ -638,7 +647,10 @@ def git_push(
             # If regular push fails and this is GitHub HTTPS, suggest auth options
             if is_github and remote_url.startswith("https://"):
                 if "Authentication failed" in str(e) or "401" in str(e):
-                    return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
+                    return (
+                        "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                        "or GitHub CLI authentication (gh auth login)"
+                    )
                 elif "403" in str(e) or "Permission denied" in str(e):
                     return "❌ Permission denied. Check repository access permissions"
             
@@ -650,7 +662,10 @@ def git_push(
 
     except GitCommandError as e:
         if "Authentication failed" in str(e) or "401" in str(e):
-            return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
+            return (
+                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                "or GitHub CLI authentication (gh auth login)"
+            )
         elif "403" in str(e):
             return "❌ Permission denied. Check repository access permissions"
         elif "non-fast-forward" in str(e):
