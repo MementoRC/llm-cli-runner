@@ -503,6 +503,22 @@ def git_init(repo_path: str) -> str:
         return f"❌ Init failed: {str(e)}"
 
 
+def _get_github_token_from_cli() -> str | None:
+    """Extract token from GitHub CLI if available"""
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"], 
+            capture_output=True, 
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 def git_push(
     repo: Repo,
     remote: str = "origin",
@@ -510,7 +526,7 @@ def git_push(
     set_upstream: bool = False,
     force: bool = False,
 ) -> str:
-    """Push with comprehensive HTTPS/GitHub token authentication"""
+    """Push with comprehensive authentication including fallback to system git credentials"""
     try:
         # Get current branch if not specified
         if not branch:
@@ -540,6 +556,11 @@ def git_push(
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
             github_token = os.getenv("GITHUB_TOKEN")
+            
+            # If no GITHUB_TOKEN, try to get token from GitHub CLI
+            if not github_token:
+                github_token = _get_github_token_from_cli()
+                
             if github_token:
                 # Inject token into URL
                 if "github.com" in remote_url:
@@ -558,28 +579,82 @@ def git_push(
                         success_msg = f"✅ Successfully pushed {branch} to {remote}"
                         if set_upstream:
                             success_msg += " (set upstream tracking)"
-                        success_msg += "\n🔐 Used GitHub token authentication"
+                        
+                        # Indicate which authentication method was used
+                        if os.getenv("GITHUB_TOKEN"):
+                            success_msg += "\n🔐 Used GITHUB_TOKEN authentication"
+                        else:
+                            success_msg += "\n🔐 Used GitHub CLI authentication"
                         return success_msg
                     finally:
                         # Restore original URL
                         repo.remote(remote).set_url(original_url)
             else:
-                return "❌ GitHub HTTPS push requires GITHUB_TOKEN environment variable"
+                # Fallback to system git with credential helpers
+                logger.info("No GitHub token available, falling back to system git authentication")
+                try:
+                    # Use subprocess to call system git with credential helpers
+                    cmd = ["git", "push"]
+                    cmd.extend(push_args)
+                    
+                    result = subprocess.run(
+                        cmd, 
+                        cwd=repo.working_dir, 
+                        capture_output=True, 
+                        text=True,
+                        timeout=300  # 5-minute timeout for push operations
+                    )
+                    
+                    if result.returncode == 0:
+                        success_msg = f"✅ Successfully pushed {branch} to {remote}"
+                        if set_upstream:
+                            success_msg += " (set upstream tracking)"
+                        success_msg += "\n🔐 Used system git authentication"
+                        return success_msg
+                    else:
+                        error_output = result.stderr.strip()
+                        if "Authentication failed" in error_output or "401" in error_output:
+                            return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
+                        elif "403" in error_output or "Permission denied" in error_output:
+                            return "❌ Permission denied. Check repository access permissions"
+                        elif "non-fast-forward" in error_output:
+                            return "❌ Push rejected (non-fast-forward). Use force=True if needed"
+                        else:
+                            return f"❌ Push failed: {error_output}"
+                            
+                except subprocess.TimeoutExpired:
+                    return "❌ Push operation timed out. Check network connection and repository access"
+                except Exception as e:
+                    return f"❌ System git push failed: {str(e)}"
 
         # Regular push (SSH or authenticated HTTPS)
-        repo.git.push(*push_args)
-        success_msg = f"✅ Successfully pushed {branch} to {remote}"
-        if set_upstream:
-            success_msg += " (set upstream tracking)"
-        return success_msg
+        try:
+            repo.git.push(*push_args)
+            success_msg = f"✅ Successfully pushed {branch} to {remote}"
+            if set_upstream:
+                success_msg += " (set upstream tracking)"
+            return success_msg
+        except GitCommandError as e:
+            # If regular push fails and this is GitHub HTTPS, suggest auth options
+            if is_github and remote_url.startswith("https://"):
+                if "Authentication failed" in str(e) or "401" in str(e):
+                    return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
+                elif "403" in str(e) or "Permission denied" in str(e):
+                    return "❌ Permission denied. Check repository access permissions"
+            
+            # Standard error handling for non-GitHub or non-auth issues
+            if "non-fast-forward" in str(e):
+                return "❌ Push rejected (non-fast-forward). Use force=True if needed"
+            else:
+                return f"❌ Push failed: {str(e)}"
 
     except GitCommandError as e:
         if "Authentication failed" in str(e) or "401" in str(e):
-            return "❌ Authentication failed. For GitHub HTTPS, set GITHUB_TOKEN environment variable"
+            return "❌ Authentication failed. Configure GITHUB_TOKEN environment variable or GitHub CLI authentication (gh auth login)"
         elif "403" in str(e):
             return "❌ Permission denied. Check repository access permissions"
         elif "non-fast-forward" in str(e):
-            return "❌ Push rejected (non-fast-forward). Use --force flag if needed"
+            return "❌ Push rejected (non-fast-forward). Use force=True if needed"
         else:
             return f"❌ Push failed: {str(e)}"
     except Exception as e:
