@@ -42,8 +42,8 @@ jobs:
       - name: Configure Copilot git identity
         run: |
           git config --local user.name "GitHub Copilot Bot"
-          git config --local user.email "copilot-bot@github.com"
-          git config --local user.signingkey "83D51CA17D7CE129"
+          git config --local user.email "ci.framework.bot@gmail.com"
+          git config --local user.signingkey "BC62A3CACE54E9A3"
 
       - name: Run basic quality checks
         run: |
