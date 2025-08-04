@@ -226,22 +226,41 @@ def git_commit(
 def git_add(repo: Repo, files: list[str]) -> str:
     """Add files to git staging area with robust error handling"""
     try:
-        # Validate files exist
+        # Validate files exist or are known to git as changes
         repo_path = Path(repo.working_dir)
         missing_files = []
         for file in files:
             file_path = repo_path / file
             if not file_path.exists() and not file_path.is_symlink():
-                missing_files.append(file)
+                # File doesn't exist on filesystem, check if it's a known change in git
+                status_output = repo.git.status("--porcelain")
+                file_in_status = False
+                for status_line in status_output.split('\n'):
+                    if status_line.strip() and file in status_line:
+                        file_in_status = True
+                        break
+                
+                if not file_in_status:
+                    missing_files.append(file)
 
         if missing_files:
             return f"❌ Files not found: {', '.join(missing_files)}"
 
         # Add files to staging area
-        repo.index.add(files)
+        repo.git.add(*files)
 
         # Verify files were added
-        staged_files = [item.a_path for item in repo.index.diff("HEAD")]
+        try:
+            # Use git diff --cached to get staged files (works in all cases)
+            staged_output = repo.git.diff("--cached", "--name-only")
+            staged_files = [f.strip() for f in staged_output.split('\n') if f.strip()]
+        except (GitCommandError, Exception):
+            # Fallback to traditional method
+            try:
+                staged_files = [item.a_path for item in repo.index.diff("HEAD")]
+            except (GitCommandError, Exception):
+                staged_files = []
+        
         added_files = [f for f in files if f in staged_files]
 
         if added_files:
