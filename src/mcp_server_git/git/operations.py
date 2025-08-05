@@ -228,7 +228,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
     try:
         # Validate files exist or are known to git as changes
         missing_files = []
-        
+
         # Get git status once and parse it for all files
         status_output = repo.git.status("--porcelain")
         status_files = set()
@@ -237,15 +237,15 @@ def git_add(repo: Repo, files: list[str]) -> str:
                 # Porcelain format: XY filename (where X is staged, Y is working tree)
                 status_file = status_line[3:].strip()
                 status_files.add(status_file)
-        
+
         # Check each file
         for file in files:
             file_exists = False
-            
+
             # Try to determine if file exists on filesystem
             try:
                 repo_path = Path(repo.working_dir)
-                
+
                 # Check if we're dealing with a mock (test environment)
                 if hasattr(repo_path, '_mock_name') or str(type(repo_path).__name__) == 'Mock':
                     # In test environment with mocks
@@ -265,11 +265,12 @@ def git_add(repo: Repo, files: list[str]) -> str:
                             file_path = path_class.side_effect(full_path)
                         else:
                             # Create a basic mock for file existence check
+                            from unittest.mock import Mock
                             file_path = Mock()
                             # Based on test logic: existing.py should exist, others might not
                             file_path.exists.return_value = "existing.py" in file
                             file_path.is_symlink.return_value = False
-                    
+
                     # Now check existence on the file_path mock
                     if hasattr(file_path, 'exists') and callable(file_path.exists):
                         file_exists = file_path.exists()
@@ -279,11 +280,11 @@ def git_add(repo: Repo, files: list[str]) -> str:
                     # Normal Path operation (production)
                     file_path = repo_path / file
                     file_exists = file_path.exists() or file_path.is_symlink()
-                    
+
             except Exception:
                 # Last resort fallback
                 file_exists = False
-            
+
             if not file_exists:
                 # File doesn't exist on filesystem, check if it's a known change in git
                 if file not in status_files:
@@ -306,7 +307,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
                 staged_files = [item.a_path for item in repo.index.diff("HEAD")]
             except (GitCommandError, Exception):
                 staged_files = []
-        
+
         added_files = [f for f in files if f in staged_files]
 
         if added_files:
@@ -318,7 +319,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
         # Handle GitCommandError string representation variations
         error_msg = str(e)
         if "Git command failed" in error_msg:
-            return f"❌ Git add failed: Git command failed"
+            return "❌ Git add failed: Git command failed"
         else:
             return f"❌ Git add failed: {error_msg}"
     except Exception as e:
@@ -582,8 +583,8 @@ def _get_github_token_from_cli() -> str | None:
     """Extract token from GitHub CLI if available"""
     try:
         result = subprocess.run(
-            ["gh", "auth", "token"], 
-            capture_output=True, 
+            ["gh", "auth", "token"],
+            capture_output=True,
             text=True,
             timeout=CLI_AUTH_TIMEOUT
         )
@@ -633,11 +634,11 @@ def git_push(
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
             github_token = os.getenv("GITHUB_TOKEN")
-            
+
             # If no GITHUB_TOKEN, try to get token from GitHub CLI
             if not github_token:
                 github_token = _get_github_token_from_cli()
-                
+
             if github_token:
                 # Inject token into URL
                 if "github.com" in remote_url:
@@ -655,7 +656,7 @@ def git_push(
                         success_msg = f"✅ Successfully pushed {branch} to {remote}"
                         if set_upstream:
                             success_msg += " (set upstream tracking)"
-                        
+
                         # Indicate which authentication method was used
                         if os.getenv("GITHUB_TOKEN"):
                             success_msg += "\n🔐 Used GITHUB_TOKEN authentication"
@@ -672,15 +673,15 @@ def git_push(
                     # Use subprocess to call system git with credential helpers
                     cmd = ["git", "push"]
                     cmd.extend(push_args)
-                    
+
                     result = subprocess.run(
-                        cmd, 
-                        cwd=repo.working_dir, 
-                        capture_output=True, 
+                        cmd,
+                        cwd=repo.working_dir,
+                        capture_output=True,
                         text=True,
                         timeout=PUSH_OPERATION_TIMEOUT
                     )
-                    
+
                     if result.returncode == 0:
                         success_msg = f"✅ Successfully pushed {branch} to {remote}"
                         if set_upstream:
@@ -700,7 +701,7 @@ def git_push(
                             return "❌ Push rejected (non-fast-forward). Use force=True if needed"
                         else:
                             return f"❌ Push failed: {error_output}"
-                            
+
                 except subprocess.TimeoutExpired:
                     return "❌ Push operation timed out. Check network connection and repository access"
                 except Exception as e:
@@ -723,7 +724,7 @@ def git_push(
                     )
                 elif "403" in str(e) or "Permission denied" in str(e):
                     return "❌ Permission denied. Check repository access permissions"
-            
+
             # Standard error handling for non-GitHub or non-auth issues
             if "non-fast-forward" in str(e):
                 return "❌ Push rejected (non-fast-forward). Use force=True if needed"
