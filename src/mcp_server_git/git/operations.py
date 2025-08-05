@@ -229,18 +229,22 @@ def git_add(repo: Repo, files: list[str]) -> str:
         # Validate files exist or are known to git as changes
         repo_path = Path(repo.working_dir)
         missing_files = []
+        
+        # Get git status once and parse it for all files
+        status_output = repo.git.status("--porcelain")
+        status_files = set()
+        for status_line in status_output.split('\n'):
+            if status_line.strip() and len(status_line) >= 3:
+                # Porcelain format: XY filename (where X is staged, Y is working tree)
+                status_file = status_line[3:].strip()
+                status_files.add(status_file)
+        
+        # Check each file
         for file in files:
             file_path = repo_path / file
             if not file_path.exists() and not file_path.is_symlink():
                 # File doesn't exist on filesystem, check if it's a known change in git
-                status_output = repo.git.status("--porcelain")
-                file_in_status = False
-                for status_line in status_output.split('\n'):
-                    if status_line.strip() and file in status_line:
-                        file_in_status = True
-                        break
-                
-                if not file_in_status:
+                if file not in status_files:
                     missing_files.append(file)
 
         if missing_files:
