@@ -114,18 +114,21 @@ class TestGitAdd:
         mock_repo.git.add = Mock()
         mock_repo.git.diff.return_value = "existing.py\ndeleted.py"
         
-        # Mock path behavior: existing.py exists, deleted.py doesn't
-        def mock_path_side_effect(path_str):
-            mock_path = Mock()
-            if "existing.py" in str(path_str):
-                mock_path.exists.return_value = True
-            else:  # deleted.py
-                mock_path.exists.return_value = False
-            mock_path.is_symlink.return_value = False
-            return mock_path
+        # Mock Path constructor and the / operator properly
+        mock_repo_path = Mock()
+        mock_path_class.return_value = mock_repo_path
         
-        mock_path_class.side_effect = lambda x: mock_path_side_effect(x)
-        mock_path_class.return_value.__truediv__.side_effect = mock_path_side_effect
+        # Mock the / operator to return different path objects
+        def mock_truediv(file):
+            mock_file_path = Mock()
+            if "existing.py" in str(file):
+                mock_file_path.exists.return_value = True
+            else:  # deleted.py
+                mock_file_path.exists.return_value = False
+            mock_file_path.is_symlink.return_value = False
+            return mock_file_path
+        
+        mock_repo_path.__truediv__ = mock_truediv
         
         files = ["existing.py", "deleted.py"]
 
@@ -141,6 +144,7 @@ class TestGitAdd:
         # Arrange
         mock_repo = Mock(spec=Repo)
         mock_repo.working_dir = "/test/repo"
+        # GitCommandError has complex string representation including cmdline
         mock_repo.git.status.side_effect = GitCommandError("Git command failed")
         
         files = ["test.py"]
@@ -149,7 +153,9 @@ class TestGitAdd:
         result = git_add(mock_repo, files)
 
         # Assert
-        assert "❌ Git add failed: Git command failed" in result
+        # GitCommandError format includes "Cmd('...') failed!" and "cmdline: ..."
+        assert "❌ Git add failed:" in result
+        assert "Git command failed" in result
 
     def test_git_add_handles_general_exception(self):
         """Should handle general exceptions gracefully."""
