@@ -231,6 +231,9 @@ mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging",
 # Auto-install and run MCP server (for ClaudeCode integration)
 mcp-server-git = { depends-on = ["install-editable"], cmd = "mcp-server-git" }
 
+# Production testing
+test-production = { depends-on = ["install-editable"], cmd = "pytest tests/test_e2e_server.py -v", env = { CLAUDECODE = "0" } }
+
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks - with Claude Code git bypass
