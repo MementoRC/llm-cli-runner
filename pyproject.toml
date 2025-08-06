@@ -228,6 +228,9 @@ serve-simple = "python -m mcp_server_git.server_simple"
 mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src", CLAUDECODE = "0" } }
 mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG", CLAUDECODE = "0" } }
 
+# Auto-install and run MCP server (for ClaudeCode integration)
+mcp-server-git = { depends-on = ["install-editable"], cmd = "mcp-server-git" }
+
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks - with Claude Code git bypass
