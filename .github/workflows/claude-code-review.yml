@@ -35,8 +35,8 @@ jobs:
       - name: Import GPG key for signing
         uses: crazy-max/ghaction-import-gpg@v6
         with:
-          gpg_private_key: ${{ secrets.CLAUDE_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CLAUDE_GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.CI_BOT_GPG_KEY }}
+          passphrase: ""
           git_user_signingkey: true
           git_commit_gpgsign: true
           git_tag_gpgsign: true
@@ -47,6 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
