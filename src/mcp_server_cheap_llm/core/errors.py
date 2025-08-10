@@ -81,8 +81,6 @@ class ConfigurationError(CheapLLMError):
         ... )
     """
 
-    pass
-
 
 class ProviderError(CheapLLMError):
     """Raised when provider operations fail.
@@ -135,8 +133,6 @@ class ValidationError(CheapLLMError):
         ...     context={"max_length": 10000, "actual_length": 15000}
         ... )
     """
-
-    pass
 
 
 class RateLimitError(ProviderError):
@@ -192,5 +188,3 @@ class SecurityError(CheapLLMError):
         ...     context={"command": "rm -rf /", "source": "user_input"}
         ... )
     """
-
-    pass

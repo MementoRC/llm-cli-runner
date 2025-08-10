@@ -65,7 +65,10 @@ def create_server(config_path: str | None = None, debug: bool = False) -> Server
 
 @click.command()
 @click.option(
-    "--config", "-c", type=click.Path(exists=True), help="Path to configuration file"
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Path to configuration file",
 )
 @click.option("--debug", "-d", is_flag=True, help="Enable debug logging")
 def main(config: str | None = None, debug: bool = False) -> None:

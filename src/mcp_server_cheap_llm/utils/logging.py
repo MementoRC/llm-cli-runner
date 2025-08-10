@@ -51,7 +51,8 @@ from ..utils.errors import CheapLLMError
 
 # Thread-local storage for correlation IDs
 _correlation_id_context: ContextVar[str | None] = ContextVar(
-    "correlation_id", default=None
+    "correlation_id",
+    default=None,
 )
 
 
@@ -372,7 +373,7 @@ def setup_logging(debug: bool = False, json_output: bool = False) -> None:
         processors.extend(
             [
                 structlog.dev.ConsoleRenderer(colors=True),
-            ]
+            ],
         )
 
     # Configure structlog
@@ -568,7 +569,8 @@ class SecurityLogger:
         "api_key": re.compile(r"sk-[a-zA-Z0-9]{32,}|[a-zA-Z0-9]{32,}"),
         "password": re.compile(r"password|passwd|pwd", re.IGNORECASE),
         "token": re.compile(
-            r"bearer[_\s]+[a-zA-Z0-9]+|token[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE
+            r"bearer[_\s]+[a-zA-Z0-9]+|token[_\s]*[:=][_\s]*[a-zA-Z0-9]+",
+            re.IGNORECASE,
         ),
         "secret": re.compile(r"secret[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE),
         "auth": re.compile(r"authorization[_\s]*[:=][_\s]*[a-zA-Z0-9]+", re.IGNORECASE),
@@ -724,7 +726,7 @@ class SecurityLogger:
 
             # Remove old timestamps outside the window
             cutoff_time = current_time - timedelta(
-                minutes=self.threshold_window_minutes
+                minutes=self.threshold_window_minutes,
             )
             while self._error_timestamps and self._error_timestamps[0] < cutoff_time:
                 self._error_timestamps.popleft()
@@ -754,12 +756,11 @@ class SecurityLogger:
 
         if isinstance(error, SecurityError):
             return "high"
-        elif isinstance(error, ValidationError | ProviderError):
+        if isinstance(error, ValidationError | ProviderError):
             return "medium"
-        elif isinstance(error, ConfigurationError | CheapLLMError):
+        if isinstance(error, ConfigurationError | CheapLLMError):
             return "low"
-        else:
-            return "low"
+        return "low"
 
     def is_threshold_exceeded(self) -> bool:
         """Check if error rate threshold has been exceeded.

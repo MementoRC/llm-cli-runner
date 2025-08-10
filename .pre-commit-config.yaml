@@ -65,7 +65,7 @@ repos:
     rev: 6.3.0
     hooks:
       - id: pydocstyle
-        args: ["--convention=google"]
+        args: ["--convention=google", "--add-ignore=D202"]
 
   # Local hooks (RESTORED - Quality gates must NOT be disabled to hide failures!)
   - repo: local

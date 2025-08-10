@@ -74,7 +74,7 @@ class ErrorSerializer:
         error_data = self._extract_error_data(error)
 
         return {
-            "error": {"code": error_code, "message": error_message, "data": error_data}
+            "error": {"code": error_code, "message": error_message, "data": error_data},
         }
 
     def deserialize(self, mcp_error: dict[str, Any]) -> CheapLLMError:
@@ -102,9 +102,12 @@ class ErrorSerializer:
         if error_type == "ProviderError":
             provider = error_data.get("provider", "unknown")
             return ProviderError(
-                error_message, provider=provider, error_code=error_code, context=context
+                error_message,
+                provider=provider,
+                error_code=error_code,
+                context=context,
             )
-        elif error_type == "RateLimitError":
+        if error_type == "RateLimitError":
             provider = error_data.get("provider", "unknown")
             retry_after = error_data.get("retry_after", 0)
             return RateLimitError(
@@ -114,8 +117,7 @@ class ErrorSerializer:
                 error_code=error_code,
                 context=context,
             )
-        else:
-            return error_class(error_message, error_code=error_code, context=context)
+        return error_class(error_message, error_code=error_code, context=context)
 
     def _get_error_code(self, error: CheapLLMError) -> str:
         """Extract or generate error code for the exception.

@@ -160,7 +160,7 @@ class OpenAIProvider(LLMProvider):
 
             # Create messages format for chat completion
             messages: list[ChatCompletionMessageParam] = [
-                {"role": "user", "content": request.prompt}
+                {"role": "user", "content": request.prompt},
             ]
 
             # Add system prompt if provided
