@@ -332,7 +332,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
         else:
             return f"❌ Git add failed: {error_msg}"
     except Exception as e:
-        return f"❌ Add error: {str(e)}"
+        return f"❌ Git add failed: {str(e)}"
 
 
 def git_reset(

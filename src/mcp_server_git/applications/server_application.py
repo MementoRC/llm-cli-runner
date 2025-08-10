@@ -1203,8 +1203,10 @@ class ServerApplication(DebuggableComponent):
             except Exception as e:
                 logger.error(f"Error executing tool {name}: {e}")
                 return [{"type": "text", "text": f"Error: {e}"}]
-            
-        async def _execute_tool_operation(self, name: str, arguments: dict):
+        
+        logger.info("MCP tools registered successfully")
+
+    async def _execute_tool_operation(self, name: str, arguments: dict):
             """Execute the actual tool logic without middleware."""
             # Get repository path from arguments
             repo_path = arguments.get("repo_path", ".")
@@ -1404,8 +1406,6 @@ class ServerApplication(DebuggableComponent):
                 raise ValueError(f"Unknown tool: {name}")
 
             return result
-
-        logger.info("MCP tools registered successfully")
 
 
 async def main(
