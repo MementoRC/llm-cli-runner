@@ -119,7 +119,7 @@ class TokenLimitMiddleware(BaseMiddleware):
 
                 # Keep only last 100 processing times for metrics
                 if len(self.processing_times) > 100:
-                    self.processing_times = self.processing_times[-100:]
+                    del self.processing_times[:-100]  # More memory efficient
 
                 self.processed_requests += 1
                 return processed_response
