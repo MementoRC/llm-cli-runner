@@ -83,10 +83,10 @@ python scripts/validate_mcp_behavior.py --report validation-report.json
 ### **Pre-commit Hooks** (`.pre-commit-config.yaml`)
 ```bash
 # Install pre-commit hooks
-uv run pre-commit install
+pixi run install-pre-commit
 
 # Run hooks on all files
-uv run pre-commit run --all-files
+pixi run pre-commit
 ```
 
 **Hook Categories**:

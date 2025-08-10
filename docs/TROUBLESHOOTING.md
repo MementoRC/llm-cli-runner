@@ -54,8 +54,8 @@ asyncio.run(test_startup())
 
 2. **Missing dependencies:**
    ```bash
-   pip install -e .
-   pip check
+   pixi install
+   pixi run dev-setup
    ```
 
 3. **Permission issues:**

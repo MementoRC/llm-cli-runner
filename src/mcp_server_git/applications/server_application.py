@@ -980,31 +980,31 @@ class ServerApplication(DebuggableComponent):
 
         # Import git operations
         from ..git.operations import (
-            git_status,
-            git_diff_unstaged,
-            git_diff_staged,
-            git_diff,
-            git_commit,
-            git_add,
-            git_reset,
-            git_log,
-            git_create_branch,
-            git_checkout,
-            git_show,
-            git_init,
-            git_push,
-            git_pull,
-            git_diff_branches,
-            git_rebase,
-            git_merge,
-            git_cherry_pick,
             git_abort,
+            git_add,
+            git_checkout,
+            git_cherry_pick,
+            git_commit,
             git_continue,
+            git_create_branch,
+            git_diff,
+            git_diff_branches,
+            git_diff_staged,
+            git_diff_unstaged,
             git_fetch,
+            git_init,
+            git_log,
+            git_merge,
+            git_pull,
+            git_push,
+            git_rebase,
             git_remote_add,
-            git_remote_remove,
-            git_remote_list,
             git_remote_get_url,
+            git_remote_list,
+            git_remote_remove,
+            git_reset,
+            git_show,
+            git_status,
         )
         from ..utils.git_import import Repo
 
@@ -1279,6 +1279,7 @@ class ServerApplication(DebuggableComponent):
                 # GitHub Tools
                 elif name == GitHubTools.CREATE_ISSUE:
                     from ..github.api import github_create_issue
+
                     result = await github_create_issue(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1290,6 +1291,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.LIST_ISSUES:
                     from ..github.api import github_list_issues
+
                     result = await github_list_issues(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1307,6 +1309,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.UPDATE_ISSUE:
                     from ..github.api import github_update_issue
+
                     result = await github_update_issue(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1320,6 +1323,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.GET_PR_CHECKS:
                     from ..github.api import github_get_pr_checks
+
                     result = await github_get_pr_checks(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1329,6 +1333,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.GET_PR_DETAILS:
                     from ..github.api import github_get_pr_details
+
                     result = await github_get_pr_details(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1338,6 +1343,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.LIST_PULL_REQUESTS:
                     from ..github.api import github_list_pull_requests
+
                     result = await github_list_pull_requests(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1351,6 +1357,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.GET_PR_STATUS:
                     from ..github.api import github_get_pr_status
+
                     result = await github_get_pr_status(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1358,6 +1365,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.GET_PR_FILES:
                     from ..github.api import github_get_pr_files
+
                     result = await github_get_pr_files(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],
@@ -1368,6 +1376,7 @@ class ServerApplication(DebuggableComponent):
                     )
                 elif name == GitHubTools.EDIT_PR_DESCRIPTION:
                     from ..github.api import github_edit_pr_description
+
                     result = await github_edit_pr_description(
                         repo_owner=arguments["repo_owner"],
                         repo_name=arguments["repo_name"],

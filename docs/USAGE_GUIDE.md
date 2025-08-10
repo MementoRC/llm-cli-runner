@@ -71,7 +71,7 @@ async def connect_to_server():
 
 ```bash
 # Install dependencies
-pip install -e .
+pixi install
 
 # Set environment variables
 export MCP_GIT_LOG_LEVEL=INFO
