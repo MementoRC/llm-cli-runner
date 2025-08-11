@@ -982,35 +982,6 @@ class ServerApplication(DebuggableComponent):
         server = self._server_core.server
         logger.info("Registering MCP tools...")
 
-        # Import git operations
-        from ..git.operations import (
-            git_abort,
-            git_add,
-            git_checkout,
-            git_cherry_pick,
-            git_commit,
-            git_continue,
-            git_create_branch,
-            git_diff,
-            git_diff_branches,
-            git_diff_staged,
-            git_diff_unstaged,
-            git_fetch,
-            git_init,
-            git_log,
-            git_merge,
-            git_pull,
-            git_push,
-            git_rebase,
-            git_remote_add,
-            git_remote_get_url,
-            git_remote_list,
-            git_remote_remove,
-            git_reset,
-            git_show,
-            git_status,
-        )
-        from ..utils.git_import import Repo
 
         @server.list_tools()
         async def list_tools() -> list[Tool]:
@@ -1207,207 +1178,235 @@ class ServerApplication(DebuggableComponent):
         logger.info("MCP tools registered successfully")
 
     async def _execute_tool_operation(self, name: str, arguments: dict):
-            """Execute the actual tool logic without middleware."""
-            # Get repository path from arguments
-            repo_path = arguments.get("repo_path", ".")
-            repo = Repo(repo_path)
+        """Execute the actual tool logic without middleware."""
+        # Import git operations (must be done here since they're not at module level)
+        from ..git.operations import (
+            git_abort,
+            git_add,
+            git_checkout,
+            git_cherry_pick,
+            git_commit,
+            git_continue,
+            git_create_branch,
+            git_diff,
+            git_diff_branches,
+            git_diff_staged,
+            git_diff_unstaged,
+            git_fetch,
+            git_init,
+            git_log,
+            git_merge,
+            git_pull,
+            git_push,
+            git_rebase,
+            git_remote_add,
+            git_remote_get_url,
+            git_remote_list,
+            git_remote_remove,
+            git_reset,
+            git_show,
+            git_status,
+        )
+        from ..utils.git_import import Repo
+        
+        # Get repository path from arguments
+        repo_path = arguments.get("repo_path", ".")
+        repo = Repo(repo_path)
 
-            # Route to appropriate git operation
-            if name == GitTools.STATUS:
-                result = git_status(repo)
-            elif name == GitTools.DIFF_UNSTAGED:
-                result = git_diff_unstaged(repo)
-            elif name == GitTools.DIFF_STAGED:
-                result = git_diff_staged(repo)
-            elif name == GitTools.DIFF:
-                result = git_diff(repo, arguments["target"])
-            elif name == GitTools.COMMIT:
-                result = git_commit(
-                    repo,
-                    arguments["message"],
-                    gpg_sign=arguments.get("gpg_sign", False),
-                    gpg_key_id=arguments.get("gpg_key_id"),
-                )
-            elif name == GitTools.ADD:
-                result = git_add(repo, arguments["files"])
-            elif name == GitTools.RESET:
-                result = git_reset(
-                    repo,
-                    mode=arguments.get("mode", "mixed"),
-                    target=arguments.get("target"),
-                )
-            elif name == GitTools.LOG:
-                result = git_log(repo, max_count=arguments.get("max_count", 10))
-            elif name == GitTools.CREATE_BRANCH:
-                result = git_create_branch(
-                    repo,
-                    arguments["branch_name"],
-                    start_point=arguments.get("start_point"),
-                )
-            elif name == GitTools.CHECKOUT:
-                result = git_checkout(repo, arguments["branch_name"])
-            elif name == GitTools.SHOW:
-                result = git_show(repo, arguments["revision"])
-            elif name == GitTools.INIT:
-                result = git_init(repo)
-            elif name == GitTools.PUSH:
-                result = git_push(
-                    repo,
-                    remote=arguments.get("remote", "origin"),
-                    branch=arguments.get("branch"),
-                    force=arguments.get("force", False),
-                )
-            elif name == GitTools.PULL:
-                result = git_pull(
-                        repo,
-                        remote=arguments.get("remote", "origin"),
-                        branch=arguments.get("branch"),
-                    )
-            elif name == GitTools.DIFF_BRANCHES:
-                result = git_diff_branches(
-                    repo, arguments["base_branch"], arguments["target_branch"]
-                )
-            elif name == GitTools.REBASE:
-                result = git_rebase(
-                        repo,
-                        arguments["base_branch"],
-                        interactive=arguments.get("interactive", False),
-                    )
-            elif name == GitTools.MERGE:
-                result = git_merge(
-                    repo,
-                    arguments["branch_name"],
-                    no_ff=arguments.get("no_ff", False),
-                )
-            elif name == GitTools.CHERRY_PICK:
-                result = git_cherry_pick(repo, arguments["commit_hash"])
-            elif name == GitTools.ABORT:
-                result = git_abort(repo)
-            elif name == GitTools.CONTINUE:
-                result = git_continue(repo)
-            elif name == GitTools.FETCH:
-                result = git_fetch(repo, remote=arguments.get("remote", "origin"))
-            elif name == GitTools.REMOTE_ADD:
-                result = git_remote_add(repo, arguments["name"], arguments["url"])
-            elif name == GitTools.REMOTE_REMOVE:
-                result = git_remote_remove(repo, arguments["name"])
-            elif name == GitTools.REMOTE_LIST:
-                result = git_remote_list(repo)
-            elif name == GitTools.REMOTE_GET_URL:
-                result = git_remote_get_url(repo, arguments["name"])
-            # GitHub Tools
-            elif name == GitHubTools.CREATE_ISSUE:
-                from ..github.api import github_create_issue
+        # Route to appropriate git operation
+        if name == GitTools.STATUS:
+            result = git_status(repo)
+        elif name == GitTools.DIFF_UNSTAGED:
+            result = git_diff_unstaged(repo)
+        elif name == GitTools.DIFF_STAGED:
+            result = git_diff_staged(repo)
+        elif name == GitTools.DIFF:
+            result = git_diff(repo, arguments["target"])
+        elif name == GitTools.COMMIT:
+            result = git_commit(
+                repo,
+                arguments["message"],
+                gpg_sign=arguments.get("gpg_sign", False),
+                gpg_key_id=arguments.get("gpg_key_id"),
+            )
+        elif name == GitTools.ADD:
+            result = git_add(repo, arguments["files"])
+        elif name == GitTools.RESET:
+            result = git_reset(
+                repo,
+                mode=arguments.get("mode", "mixed"),
+                target=arguments.get("target"),
+            )
+        elif name == GitTools.LOG:
+            result = git_log(repo, max_count=arguments.get("max_count", 10))
+        elif name == GitTools.CREATE_BRANCH:
+            result = git_create_branch(
+                repo,
+                arguments["branch_name"],
+                start_point=arguments.get("start_point"),
+            )
+        elif name == GitTools.CHECKOUT:
+            result = git_checkout(repo, arguments["branch_name"])
+        elif name == GitTools.SHOW:
+            result = git_show(repo, arguments["revision"])
+        elif name == GitTools.INIT:
+            result = git_init(repo)
+        elif name == GitTools.PUSH:
+            result = git_push(
+                repo,
+                remote=arguments.get("remote", "origin"),
+                branch=arguments.get("branch"),
+                force=arguments.get("force", False),
+            )
+        elif name == GitTools.PULL:
+            result = git_pull(
+                repo,
+                remote=arguments.get("remote", "origin"),
+                branch=arguments.get("branch"),
+            )
+        elif name == GitTools.DIFF_BRANCHES:
+            result = git_diff_branches(
+                repo, arguments["base_branch"], arguments["target_branch"]
+            )
+        elif name == GitTools.REBASE:
+            result = git_rebase(
+                repo,
+                arguments["base_branch"],
+                interactive=arguments.get("interactive", False),
+            )
+        elif name == GitTools.MERGE:
+            result = git_merge(
+                repo,
+                arguments["branch_name"],
+                no_ff=arguments.get("no_ff", False),
+            )
+        elif name == GitTools.CHERRY_PICK:
+            result = git_cherry_pick(repo, arguments["commit_hash"])
+        elif name == GitTools.ABORT:
+            result = git_abort(repo)
+        elif name == GitTools.CONTINUE:
+            result = git_continue(repo)
+        elif name == GitTools.FETCH:
+            result = git_fetch(repo, remote=arguments.get("remote", "origin"))
+        elif name == GitTools.REMOTE_ADD:
+            result = git_remote_add(repo, arguments["name"], arguments["url"])
+        elif name == GitTools.REMOTE_REMOVE:
+            result = git_remote_remove(repo, arguments["name"])
+        elif name == GitTools.REMOTE_LIST:
+            result = git_remote_list(repo)
+        elif name == GitTools.REMOTE_GET_URL:
+            result = git_remote_get_url(repo, arguments["name"])
+        # GitHub Tools
+        elif name == GitHubTools.CREATE_ISSUE:
+            from ..github.api import github_create_issue
 
-                result = await github_create_issue(
-                    repo_owner=arguments["repo_owner"],
-                    repo_name=arguments["repo_name"],
-                    title=arguments["title"],
-                    body=arguments.get("body"),
-                    labels=arguments.get("labels"),
-                    assignees=arguments.get("assignees"),
-                    milestone=arguments.get("milestone"),
-                )
-            elif name == GitHubTools.LIST_ISSUES:
-                from ..github.api import github_list_issues
+            result = await github_create_issue(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                title=arguments["title"],
+                body=arguments.get("body"),
+                labels=arguments.get("labels"),
+                assignees=arguments.get("assignees"),
+                milestone=arguments.get("milestone"),
+            )
+        elif name == GitHubTools.LIST_ISSUES:
+            from ..github.api import github_list_issues
 
-                result = await github_list_issues(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        state=arguments.get("state", "open"),
-                        labels=arguments.get("labels"),
-                        assignee=arguments.get("assignee"),
-                        creator=arguments.get("creator"),
-                        mentioned=arguments.get("mentioned"),
-                        milestone=arguments.get("milestone"),
-                        sort=arguments.get("sort", "created"),
-                        direction=arguments.get("direction", "desc"),
-                        since=arguments.get("since"),
-                        per_page=arguments.get("per_page", 30),
-                        page=arguments.get("page", 1),
-                    )
-            elif name == GitHubTools.UPDATE_ISSUE:
-                from ..github.api import github_update_issue
+            result = await github_list_issues(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                state=arguments.get("state", "open"),
+                labels=arguments.get("labels"),
+                assignee=arguments.get("assignee"),
+                creator=arguments.get("creator"),
+                mentioned=arguments.get("mentioned"),
+                milestone=arguments.get("milestone"),
+                sort=arguments.get("sort", "created"),
+                direction=arguments.get("direction", "desc"),
+                since=arguments.get("since"),
+                per_page=arguments.get("per_page", 30),
+                page=arguments.get("page", 1),
+            )
+        elif name == GitHubTools.UPDATE_ISSUE:
+            from ..github.api import github_update_issue
 
-                result = await github_update_issue(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        issue_number=arguments["issue_number"],
-                        title=arguments.get("title"),
-                        body=arguments.get("body"),
-                        state=arguments.get("state"),
-                        labels=arguments.get("labels"),
-                        assignees=arguments.get("assignees"),
-                        milestone=arguments.get("milestone"),
-                    )
-            elif name == GitHubTools.GET_PR_CHECKS:
-                from ..github.api import github_get_pr_checks
+            result = await github_update_issue(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                issue_number=arguments["issue_number"],
+                title=arguments.get("title"),
+                body=arguments.get("body"),
+                state=arguments.get("state"),
+                labels=arguments.get("labels"),
+                assignees=arguments.get("assignees"),
+                milestone=arguments.get("milestone"),
+            )
+        elif name == GitHubTools.GET_PR_CHECKS:
+            from ..github.api import github_get_pr_checks
 
-                result = await github_get_pr_checks(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        pr_number=arguments["pr_number"],
-                        status=arguments.get("status"),
-                        conclusion=arguments.get("conclusion"),
-                    )
-            elif name == GitHubTools.GET_PR_DETAILS:
-                from ..github.api import github_get_pr_details
+            result = await github_get_pr_checks(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                status=arguments.get("status"),
+                conclusion=arguments.get("conclusion"),
+            )
+        elif name == GitHubTools.GET_PR_DETAILS:
+            from ..github.api import github_get_pr_details
 
-                result = await github_get_pr_details(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        pr_number=arguments["pr_number"],
-                        include_files=arguments.get("include_files", False),
-                        include_reviews=arguments.get("include_reviews", False),
-                    )
-            elif name == GitHubTools.LIST_PULL_REQUESTS:
-                from ..github.api import github_list_pull_requests
+            result = await github_get_pr_details(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                include_files=arguments.get("include_files", False),
+                include_reviews=arguments.get("include_reviews", False),
+            )
+        elif name == GitHubTools.LIST_PULL_REQUESTS:
+            from ..github.api import github_list_pull_requests
 
-                result = await github_list_pull_requests(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        state=arguments.get("state", "open"),
-                        head=arguments.get("head"),
-                        base=arguments.get("base"),
-                        sort=arguments.get("sort", "created"),
-                        direction=arguments.get("direction", "desc"),
-                        per_page=arguments.get("per_page", 30),
-                        page=arguments.get("page", 1),
-                    )
-            elif name == GitHubTools.GET_PR_STATUS:
-                from ..github.api import github_get_pr_status
+            result = await github_list_pull_requests(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                state=arguments.get("state", "open"),
+                head=arguments.get("head"),
+                base=arguments.get("base"),
+                sort=arguments.get("sort", "created"),
+                direction=arguments.get("direction", "desc"),
+                per_page=arguments.get("per_page", 30),
+                page=arguments.get("page", 1),
+            )
+        elif name == GitHubTools.GET_PR_STATUS:
+            from ..github.api import github_get_pr_status
 
-                result = await github_get_pr_status(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        pr_number=arguments["pr_number"],
-                    )
-            elif name == GitHubTools.GET_PR_FILES:
-                from ..github.api import github_get_pr_files
+            result = await github_get_pr_status(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+            )
+        elif name == GitHubTools.GET_PR_FILES:
+            from ..github.api import github_get_pr_files
 
-                result = await github_get_pr_files(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        pr_number=arguments["pr_number"],
-                        per_page=arguments.get("per_page", 30),
-                        page=arguments.get("page", 1),
-                        include_patch=arguments.get("include_patch", False),
-                    )
-            elif name == GitHubTools.EDIT_PR_DESCRIPTION:
-                from ..github.api import github_edit_pr_description
+            result = await github_get_pr_files(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                per_page=arguments.get("per_page", 30),
+                page=arguments.get("page", 1),
+                include_patch=arguments.get("include_patch", False),
+            )
+        elif name == GitHubTools.EDIT_PR_DESCRIPTION:
+            from ..github.api import github_edit_pr_description
 
-                result = await github_edit_pr_description(
-                        repo_owner=arguments["repo_owner"],
-                        repo_name=arguments["repo_name"],
-                        pr_number=arguments["pr_number"],
-                        description=arguments["description"],
-                    )
-            else:
-                raise ValueError(f"Unknown tool: {name}")
+            result = await github_edit_pr_description(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                description=arguments["description"],
+            )
+        else:
+            raise ValueError(f"Unknown tool: {name}")
 
-            return result
-
-
+        return result
 async def main(
     repository_path: Path | None = None,
     test_mode: bool = False,
