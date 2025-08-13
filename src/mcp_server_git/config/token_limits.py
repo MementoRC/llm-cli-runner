@@ -8,6 +8,7 @@ variables, configuration files, or set programmatically.
 
 import logging
 import os
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -123,6 +124,7 @@ class TokenLimitConfigManager:
         self.logger = logging.getLogger(f"{__name__}.TokenLimitConfigManager")
         self._settings: TokenLimitSettings = None
         self._config_file_path: Path = None
+        self._lock = threading.Lock()
 
     def load_configuration(
         self, config_file: str = None, profile: TokenLimitProfile = None, **overrides
@@ -297,9 +299,13 @@ class TokenLimitConfigManager:
             )
 
     def get_current_settings(self) -> TokenLimitSettings:
-        """Get the currently loaded settings."""
+        """Get the currently loaded settings with thread safety."""
+        # Double-checked locking pattern for thread safety
         if self._settings is None:
-            self._settings = self.load_configuration()
+            with self._lock:
+                # Check again after acquiring lock
+                if self._settings is None:
+                    self._settings = self.load_configuration()
         return self._settings
 
     def update_setting(self, key: str, value: Any) -> bool:

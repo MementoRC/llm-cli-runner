@@ -7,6 +7,7 @@ to prevent overwhelming LLM clients while preserving semantic meaning.
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -126,9 +127,17 @@ class TokenLimitMiddleware(BaseMiddleware):
 
             return response
 
+        except (ImportError, AttributeError) as e:
+            # Specific exceptions for dependency issues
+            self.logger.error(f"Token limit component error: {e}")
+            return await next_handler(context)
         except Exception as e:
-            self.logger.error(f"Error in TokenLimitMiddleware: {e}")
-            # Return original response on error
+            self.logger.error(f"Unexpected error in TokenLimitMiddleware: {e}")
+            # Consider re-raising in development mode
+            if os.getenv("MCP_DEBUG") or os.getenv("DEVELOPMENT_MODE"):
+                self.logger.exception("Full traceback for debugging:")
+                raise
+            # Return original response on error in production
             return await next_handler(context)
 
     def _should_process_response(

@@ -33,15 +33,35 @@ class ContentType(Enum):
     LOG = "log"
 
 
+class TokenizerType(Enum):
+    """Different tokenizer types with varying accuracy characteristics."""
+    
+    GENERIC = "generic"  # Generic estimation (current approach)
+    OPENAI = "openai"    # OpenAI GPT tokenizers (cl100k_base)
+    ANTHROPIC = "anthropic"  # Anthropic Claude tokenizers
+    HUGGINGFACE = "huggingface"  # HuggingFace transformers tokenizers
+
+
 @dataclass
 class TokenEstimate:
-    """Token estimation result with metadata."""
+    """Token estimation result with metadata and confidence intervals."""
 
     estimated_tokens: int
     confidence: float
     content_type: ContentType
     char_count: int
     line_count: int
+    tokenizer_type: TokenizerType = TokenizerType.GENERIC
+    min_tokens: int = 0  # Lower bound of confidence interval
+    max_tokens: int = 0  # Upper bound of confidence interval
+    
+    def __post_init__(self):
+        """Calculate confidence intervals after initialization."""
+        if self.min_tokens == 0 and self.max_tokens == 0:
+            # Calculate confidence interval based on confidence level
+            margin = int(self.estimated_tokens * (1 - self.confidence) * 0.5)
+            self.min_tokens = max(0, self.estimated_tokens - margin)
+            self.max_tokens = self.estimated_tokens + margin
 
 
 @dataclass
@@ -56,19 +76,43 @@ class TruncationResult:
 
 
 class TokenEstimator:
-    """Estimates token usage for different types of content."""
+    """Estimates token usage for different types of content with tokenizer-specific ratios."""
 
-    # Token estimation ratios (characters per token)
+    # Token estimation ratios (characters per token) by tokenizer type
     RATIOS = {
-        ContentType.TEXT: 4.0,  # Regular text ~4 chars/token
-        ContentType.CODE: 3.0,  # Code is more dense ~3 chars/token
-        ContentType.STRUCTURED: 5.0,  # JSON/structured ~5 chars/token
-        ContentType.DIFF: 2.5,  # Diffs are very dense ~2.5 chars/token
-        ContentType.LOG: 3.5,  # Git logs ~3.5 chars/token
+        TokenizerType.GENERIC: {
+            ContentType.TEXT: 4.0,  # Regular text ~4 chars/token
+            ContentType.CODE: 3.0,  # Code is more dense ~3 chars/token
+            ContentType.STRUCTURED: 5.0,  # JSON/structured ~5 chars/token
+            ContentType.DIFF: 2.5,  # Diffs are very dense ~2.5 chars/token
+            ContentType.LOG: 3.5,  # Git logs ~3.5 chars/token
+        },
+        TokenizerType.OPENAI: {
+            ContentType.TEXT: 3.8,  # OpenAI tokenizers are slightly more efficient
+            ContentType.CODE: 2.8,
+            ContentType.STRUCTURED: 4.5,
+            ContentType.DIFF: 2.2,
+            ContentType.LOG: 3.2,
+        },
+        TokenizerType.ANTHROPIC: {
+            ContentType.TEXT: 4.2,  # Claude tokenizers handle text well
+            ContentType.CODE: 3.2,
+            ContentType.STRUCTURED: 5.2,
+            ContentType.DIFF: 2.7,
+            ContentType.LOG: 3.7,
+        },
+        TokenizerType.HUGGINGFACE: {
+            ContentType.TEXT: 4.1,  # HuggingFace varies by model
+            ContentType.CODE: 3.1,
+            ContentType.STRUCTURED: 4.8,
+            ContentType.DIFF: 2.6,
+            ContentType.LOG: 3.6,
+        },
     }
 
-    def __init__(self):
+    def __init__(self, tokenizer_type: TokenizerType = TokenizerType.GENERIC):
         self.logger = logging.getLogger(f"{__name__}.TokenEstimator")
+        self.tokenizer_type = tokenizer_type
 
     def estimate_tokens(
         self, content: str, content_type: ContentType = ContentType.TEXT
@@ -84,13 +128,16 @@ class TokenEstimator:
             TokenEstimate with metadata
         """
         if not content:
-            return TokenEstimate(0, 1.0, content_type, 0, 0)
+            return TokenEstimate(
+                0, 1.0, content_type, 0, 0, 
+                tokenizer_type=self.tokenizer_type
+            )
 
         char_count = len(content)
         line_count = content.count("\n") + 1
 
-        # Base estimation using character ratio
-        ratio = self.RATIOS[content_type]
+        # Base estimation using tokenizer-specific character ratio
+        ratio = self.RATIOS[self.tokenizer_type][content_type]
         base_tokens = char_count / ratio
 
         # Confidence adjustment based on content characteristics
@@ -107,6 +154,7 @@ class TokenEstimator:
             content_type=content_type,
             char_count=char_count,
             line_count=line_count,
+            tokenizer_type=self.tokenizer_type,
         )
 
     def _calculate_confidence(self, content: str, content_type: ContentType) -> float:
