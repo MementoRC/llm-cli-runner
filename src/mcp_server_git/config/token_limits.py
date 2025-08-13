@@ -60,6 +60,37 @@ class TokenLimitSettings:
     add_structure_markers: bool = False
     include_content_summaries: bool = False
 
+    def __post_init__(self):
+        """Validate token limit settings after initialization."""
+        # Validate core token limits
+        if self.llm_token_limit < 0:
+            raise ValueError("LLM token limit must be non-negative")
+        if self.llm_token_limit > 1000000:  # Reasonable upper bound
+            logger.warning(f"Very large LLM token limit: {self.llm_token_limit}")
+        
+        if self.human_token_limit < 0:
+            raise ValueError("Human token limit must be non-negative")
+        if self.human_token_limit > 1000000 and self.human_token_limit != 0:  # 0 = unlimited
+            logger.warning(f"Very large human token limit: {self.human_token_limit}")
+            
+        if self.unknown_token_limit < 0:
+            raise ValueError("Unknown client token limit must be non-negative")
+        if self.unknown_token_limit > 1000000:
+            logger.warning(f"Very large unknown client token limit: {self.unknown_token_limit}")
+        
+        # Validate performance settings
+        if self.max_processing_time_ms < 0:
+            raise ValueError("Max processing time must be non-negative")
+        if self.max_processing_time_ms > 10000:  # 10 seconds seems excessive
+            logger.warning(f"Very large max processing time: {self.max_processing_time_ms}ms")
+        
+        # Validate operation-specific limits
+        for operation, limit in self.operation_limits.items():
+            if limit < 0:
+                raise ValueError(f"Operation limit for '{operation}' must be non-negative")
+            if limit > 1000000:
+                logger.warning(f"Very large operation limit for '{operation}': {limit}")
+
     @classmethod
     def from_profile(cls, profile: TokenLimitProfile) -> "TokenLimitSettings":
         """Create settings from a predefined profile."""
