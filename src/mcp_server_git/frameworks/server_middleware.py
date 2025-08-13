@@ -559,3 +559,36 @@ def create_default_middleware_chain() -> MiddlewareChainManager:
     chain.add_middleware(RequestTrackingMiddleware(max_history=1000))
 
     return chain
+
+
+def create_enhanced_middleware_chain(
+    enable_token_limits: bool = True,
+) -> MiddlewareChainManager:
+    """Create an enhanced middleware chain with token limit protection."""
+    chain = MiddlewareChainManager()
+
+    # Add middleware in order (most critical first)
+    chain.add_middleware(ErrorHandlingMiddleware(mask_sensitive_data=True))
+    chain.add_middleware(LoggingMiddleware(log_requests=True, log_responses=True))
+    chain.add_middleware(AuthenticationMiddleware())
+    chain.add_middleware(RequestTrackingMiddleware(max_history=1000))
+
+    # Add token limit middleware if enabled
+    if enable_token_limits:
+        try:
+            from ..middlewares.token_limit import create_token_limit_middleware
+
+            token_middleware = create_token_limit_middleware(
+                llm_token_limit=20000,  # Conservative limit for LLMs
+                enable_optimization=True,
+                enable_truncation=True,
+            )
+            chain.add_middleware(token_middleware)
+        except ImportError as e:
+            # Log warning but continue without token limits
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Token limit middleware not available: {e}")
+
+    return chain

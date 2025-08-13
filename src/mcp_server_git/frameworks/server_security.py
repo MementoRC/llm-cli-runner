@@ -735,7 +735,7 @@ class SecurityFramework(DebuggableComponent):
 
         # Keep only recent events (last 1000)
         if len(self.security_events) > 1000:
-            self.security_events = self.security_events[-1000:]
+            del self.security_events[:-1000]  # More memory efficient
 
         # Log to standard logger as well
         logger.info(f"Security event [{event_type}]: {details}")

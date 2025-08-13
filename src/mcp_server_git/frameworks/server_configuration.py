@@ -231,7 +231,9 @@ class ServerConfigurationManager(DebuggableComponent):
 
                     return tomli.loads(content) or {}
                 except ImportError:
-                    raise ConfigurationError("TOML support requires 'tomli' package")
+                    raise ConfigurationError(
+                        "TOML support requires 'tomli' package"
+                    ) from None
             else:
                 # Try JSON first, then YAML as fallback
                 try:
@@ -240,7 +242,7 @@ class ServerConfigurationManager(DebuggableComponent):
                     if yaml is None:
                         raise ConfigurationError(
                             "Cannot parse file: JSON parsing failed and YAML not available"
-                        )
+                        ) from None
                     return yaml.safe_load(content) or {}
 
         except Exception as e:

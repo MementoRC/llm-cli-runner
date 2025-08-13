@@ -654,7 +654,7 @@ class GitHubService(DebuggableComponent):
 
             # Keep only recent history
             if len(self.state.operation_history) > 100:
-                self.state.operation_history = self.state.operation_history[-50:]
+                del self.state.operation_history[:-50]  # More memory efficient
 
     async def _record_error(self, error: Exception) -> None:
         """Record an error in service state."""
@@ -667,7 +667,7 @@ class GitHubService(DebuggableComponent):
 
             # Keep only recent errors
             if len(self.state.errors) > 50:
-                self.state.errors = self.state.errors[-25:]
+                del self.state.errors[:-25]  # More memory efficient
 
     def _is_approaching_rate_limit(self) -> bool:
         """Check if approaching GitHub API rate limit."""

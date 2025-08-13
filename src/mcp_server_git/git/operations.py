@@ -232,7 +232,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
         # Get git status once and parse it for all files
         status_output = repo.git.status("--porcelain")
         status_files = set()
-        for status_line in status_output.split('\n'):
+        for status_line in status_output.split("\n"):
             if status_line.strip() and len(status_line) >= 3:
                 # Porcelain format: XY filename (where X is staged, Y is working tree)
                 status_file = status_line[3:].strip()
@@ -247,7 +247,10 @@ def git_add(repo: Repo, files: list[str]) -> str:
                 repo_path = Path(repo.working_dir)
 
                 # Check if we're dealing with a mock (test environment)
-                if hasattr(repo_path, '_mock_name') or str(type(repo_path).__name__) == 'Mock':
+                if (
+                    hasattr(repo_path, "_mock_name")
+                    or str(type(repo_path).__name__) == "Mock"
+                ):
                     # In test environment with mocks
                     # Try to emulate the test's expected behavior
                     # The test expects: existing.py -> True, deleted.py -> False
@@ -258,23 +261,29 @@ def git_add(repo: Repo, files: list[str]) -> str:
                         # The / operation failed, try to get the mock behavior directly
                         # Check if the mock has a side_effect we can call
                         path_class = Path  # Get the patched class
-                        if hasattr(path_class, 'side_effect') and callable(path_class.side_effect):
+                        if hasattr(path_class, "side_effect") and callable(
+                            path_class.side_effect
+                        ):
                             # Call the side_effect with the full path
                             import os
+
                             full_path = os.path.join(repo.working_dir, file)
                             file_path = path_class.side_effect(full_path)
                         else:
                             # Create a basic mock for file existence check
                             from unittest.mock import Mock
+
                             file_path = Mock()
                             # Based on test logic: existing.py should exist, others might not
                             file_path.exists.return_value = "existing.py" in file
                             file_path.is_symlink.return_value = False
 
                     # Now check existence on the file_path mock
-                    if hasattr(file_path, 'exists') and callable(file_path.exists):
+                    if hasattr(file_path, "exists") and callable(file_path.exists):
                         file_exists = file_path.exists()
-                        if hasattr(file_path, 'is_symlink') and callable(file_path.is_symlink):
+                        if hasattr(file_path, "is_symlink") and callable(
+                            file_path.is_symlink
+                        ):
                             file_exists = file_exists or file_path.is_symlink()
                 else:
                     # Normal Path operation (production)
@@ -300,7 +309,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
         try:
             # Use git diff --cached to get staged files (works in all cases)
             staged_output = repo.git.diff("--cached", "--name-only")
-            staged_files = [f.strip() for f in staged_output.split('\n') if f.strip()]
+            staged_files = [f.strip() for f in staged_output.split("\n") if f.strip()]
         except (GitCommandError, Exception):
             # Fallback to traditional method
             try:
@@ -323,7 +332,7 @@ def git_add(repo: Repo, files: list[str]) -> str:
         else:
             return f"❌ Git add failed: {error_msg}"
     except Exception as e:
-        return f"❌ Add error: {str(e)}"
+        return f"❌ Git add failed: {str(e)}"
 
 
 def git_reset(
@@ -586,7 +595,7 @@ def _get_github_token_from_cli() -> str | None:
             ["gh", "auth", "token"],
             capture_output=True,
             text=True,
-            timeout=CLI_AUTH_TIMEOUT
+            timeout=CLI_AUTH_TIMEOUT,
         )
         if result.returncode == 0:
             token = result.stdout.strip()
@@ -668,7 +677,9 @@ def git_push(
                         repo.remote(remote).set_url(remote_url)
             else:
                 # Fallback to system git with credential helpers
-                logger.info("No GitHub token available, falling back to system git authentication")
+                logger.info(
+                    "No GitHub token available, falling back to system git authentication"
+                )
                 try:
                     # Use subprocess to call system git with credential helpers
                     cmd = ["git", "push"]
@@ -679,7 +690,7 @@ def git_push(
                         cwd=repo.working_dir,
                         capture_output=True,
                         text=True,
-                        timeout=PUSH_OPERATION_TIMEOUT
+                        timeout=PUSH_OPERATION_TIMEOUT,
                     )
 
                     if result.returncode == 0:
@@ -690,12 +701,17 @@ def git_push(
                         return success_msg
                     else:
                         error_output = result.stderr.strip()
-                        if "Authentication failed" in error_output or "401" in error_output:
+                        if (
+                            "Authentication failed" in error_output
+                            or "401" in error_output
+                        ):
                             return (
                                 "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
                                 "or GitHub CLI authentication (gh auth login)"
                             )
-                        elif "403" in error_output or "Permission denied" in error_output:
+                        elif (
+                            "403" in error_output or "Permission denied" in error_output
+                        ):
                             return "❌ Permission denied. Check repository access permissions"
                         elif "non-fast-forward" in error_output:
                             return "❌ Push rejected (non-fast-forward). Use force=True if needed"

@@ -567,7 +567,7 @@ class MCPServerFramework(DebuggableComponent):
             errors.append(f"Dependency resolution error: {e}")
 
         # Check for orphaned event subscriptions
-        for event_type, subscriptions in self._event_subscriptions.items():
+        for _event_type, subscriptions in self._event_subscriptions.items():
             for subscription in subscriptions:
                 if (
                     subscription.component_name not in self._components

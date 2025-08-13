@@ -54,8 +54,8 @@ asyncio.run(test_startup())
 
 2. **Missing dependencies:**
    ```bash
-   pip install -e .
-   pip check
+   pixi install
+   pixi run dev-setup
    ```
 
 3. **Permission issues:**
@@ -688,7 +688,7 @@ async def memory_monitoring_loop():
         if len(leak_detector.snapshots) > 10:
             leak_detector.analyze_leaks()
             # Keep only last 5 snapshots
-            leak_detector.snapshots = leak_detector.snapshots[-5:]
+            del leak_detector.snapshots[:-5]  # More memory efficient
 
         await asyncio.sleep(600)  # Every 10 minutes
 ```

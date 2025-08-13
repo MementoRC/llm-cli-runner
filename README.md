@@ -100,6 +100,8 @@ Alternatively you can install `mcp-server-git` via pip:
 pip install mcp-server-git
 ```
 
+Note: For development, use `pixi install` instead of pip for proper dependency management.
+
 After installation, you can run it as a script using:
 
 ```
