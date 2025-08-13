@@ -1,0 +1,3 @@
+Test file 1 for comprehensive MCP Git testing
+Line 2: Testing file operations
+Line 3: Add, commit, reset operations

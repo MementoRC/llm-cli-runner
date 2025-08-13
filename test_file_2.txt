@@ -1,0 +1,3 @@
+Test file 2 for MCP Git server validation
+Different content for testing multiple file operations
+This will test batch operations
