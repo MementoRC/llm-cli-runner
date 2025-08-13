@@ -117,7 +117,7 @@ class GitLog(BaseModel):
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    start_point: str | None = None
+    base_branch: str | None = None
 
 
 class GitCheckout(BaseModel):
@@ -155,14 +155,14 @@ class GitDiffBranches(BaseModel):
 
 class GitRebase(BaseModel):
     repo_path: str
-    base_branch: str
-    interactive: bool = False
+    target_branch: str
 
 
 class GitMerge(BaseModel):
     repo_path: str
-    branch_name: str
-    no_ff: bool = False
+    source_branch: str
+    strategy: str = "merge"
+    message: str | None = None
 
 
 class GitCherryPick(BaseModel):
@@ -1243,7 +1243,7 @@ class ServerApplication(DebuggableComponent):
             result = git_create_branch(
                 repo,
                 arguments["branch_name"],
-                start_point=arguments.get("start_point"),
+                base_branch=arguments.get("base_branch"),
             )
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
@@ -1271,14 +1271,14 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.REBASE:
             result = git_rebase(
                 repo,
-                arguments["base_branch"],
-                interactive=arguments.get("interactive", False),
+                arguments["target_branch"],
             )
         elif name == GitTools.MERGE:
             result = git_merge(
                 repo,
-                arguments["branch_name"],
-                no_ff=arguments.get("no_ff", False),
+                arguments["source_branch"],
+                strategy=arguments.get("strategy", "merge"),
+                message=arguments.get("message"),
             )
         elif name == GitTools.CHERRY_PICK:
             result = git_cherry_pick(repo, arguments["commit_hash"])
