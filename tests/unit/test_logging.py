@@ -87,7 +87,7 @@ class TestStructuredLogger:
         """Test that StructuredLogger can log messages."""
         logger = StructuredLogger("test_logger")
 
-        with patch.object(logger._logger, "info") as mock_info:
+        with patch.object(logger.logger, "info") as mock_info:
             logger.info("Test message", extra_field="test_value")
 
             # Should call the underlying logger
@@ -133,7 +133,7 @@ class TestStructuredLogger:
         """Test that StructuredLogger supports custom fields."""
         logger = StructuredLogger("test_logger")
 
-        with patch.object(logger._logger, "info") as mock_info:
+        with patch.object(logger.logger, "info") as mock_info:
             logger.info(
                 "Test message",
                 user_id="user123",
@@ -223,7 +223,7 @@ class TestLoggingIntegration:
         """Test LogContext integration with StructuredLogger."""
         logger = StructuredLogger("integration_test")
 
-        with patch.object(logger._logger, "info") as mock_info:
+        with patch.object(logger.logger, "info") as mock_info:
             with LogContext() as context:
                 logger.info("Integration test message")
 

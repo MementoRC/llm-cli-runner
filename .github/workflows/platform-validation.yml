@@ -84,7 +84,9 @@ jobs:
 
         # Create a temporary pyproject.toml with single platform
         cp pyproject.toml pyproject.toml.backup
-        sed -i 's/platforms = \["linux-64"\]/platforms = ["${{ matrix.platform }}"]/' pyproject.toml
+
+        # Fix the sed command to handle the comment
+        sed -i 's/platforms = \[.*\].*$/platforms = ["${{ matrix.platform }}"]/' pyproject.toml
 
         echo "📋 Platform configuration:"
         grep -A5 -B5 "platforms.*=" pyproject.toml

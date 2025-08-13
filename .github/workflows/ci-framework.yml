@@ -1,0 +1,61 @@
+name: CI Framework
+
+# Required permissions for organization-wide automation
+permissions:
+  contents: write        # Allow commits and branches
+  pull-requests: write   # Allow PR creation/management
+  issues: write         # Required for PR creation
+
+on:
+  push:
+    branches: [main, master, development]
+  pull_request:
+    branches: [main, master, development]
+  schedule:
+    - cron: '0 2 * * *'  # Daily maintenance
+  workflow_dispatch:
+
+jobs:
+  # Intelligent CI optimization
+  change-detection:
+    uses: Claire-s-Monster/ci-framework/.github/workflows/change-detection.yml@v1.0.0
+    secrets: inherit
+
+  # Quality gates (essential tier)
+  quality-gates:
+    needs: change-detection
+    if: needs.change-detection.outputs.skip-tests != 'true'
+    uses: Claire-s-Monster/ci-framework/.github/workflows/quality-gates.yml@v1.0.0
+    with:
+      tier: 'essential'
+    secrets: inherit
+
+  # Performance benchmarking
+  performance:
+    needs: change-detection
+    if: needs.change-detection.outputs.skip-tests != 'true'
+    uses: Claire-s-Monster/ci-framework/.github/workflows/performance-benchmark.yml@v1.0.0
+    with:
+      suite: 'quick'
+    secrets: inherit
+
+  # Security scanning
+  security:
+    needs: change-detection
+    if: needs.change-detection.outputs.skip-security != 'true'
+    uses: Claire-s-Monster/ci-framework/.github/workflows/security-scan.yml@v1.0.0
+    with:
+      security-level: 'medium'
+    secrets: inherit
+
+  # Cross-platform validation
+  cross-platform:
+    needs: change-detection
+    if: needs.change-detection.outputs.skip-tests != 'true'
+    uses: Claire-s-Monster/ci-framework/.github/workflows/cross-platform-validation.yml@v1.0.0
+    secrets: inherit
+
+  # Automated cleanup
+  cleanup:
+    uses: Claire-s-Monster/ci-framework/.github/workflows/cleanup-dev-files.yml@v1.0.0
+    secrets: inherit

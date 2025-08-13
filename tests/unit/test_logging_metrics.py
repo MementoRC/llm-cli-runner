@@ -377,7 +377,7 @@ class TestLoggingMetricsIntegration:
 
     def test_performance_and_audit_integration(self):
         """Test integration between PerformanceLogger and AuditLogger."""
-        perf_logger = PerformanceLogger("integration_perf")
+        perf_logger = PerformanceLogger()
         audit_logger = AuditLogger("integration_audit")
 
         @perf_logger.time_function

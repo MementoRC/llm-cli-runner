@@ -120,7 +120,7 @@ convention = "google"
 add-ignore = "D202"  # Ignore blank line after docstring (conflicts with ruff format)
 
 [tool.pixi.project]
-channels = ["conda-forge"]
+channels = ["conda-forge", "dnachun"]
 platforms = ["linux-64"]  # Linux-only development, CI handles cross-platform validation
 channel-priority = "disabled"  # Faster dependency resolution for single platform
 
@@ -148,6 +148,7 @@ tomli = ">=2.0.1"
 [tool.pixi.feature.quality.dependencies]
 # Core Testing Framework
 pytest = ">=8.0.0"
+pytest-benchmark = "*"
 pytest-cov = ">=4.0.0"
 pytest-timeout = ">=2.1.0"
 pytest-asyncio = ">=0.21.0"
@@ -170,6 +171,7 @@ toml = ">=0.10.2"  # For test fixtures
 # Security Scanning
 bandit = ">=1.7.0"
 safety = ">=2.3.0,<3.0"
+# semgrep = "*"  # Requires Python 3.11, we're using 3.13
 
 # Code Quality Analysis
 hypothesis = ">=6.0.0"
@@ -200,11 +202,20 @@ toml = "*"
 # Runtime-only environment (minimal footprint)
 default = {solve-group = "default"}
 
+# CRITICAL: Quality environment for CI workflows (REQUIRED)
+quality = {features = ["quality"], solve-group = "default"}
+
 # Development environment (essential tools only)
 dev = {features = ["quality"], solve-group = "default"}
 
 # Full development with security scanning
 dev-full = {features = ["quality", "quality-extended"], solve-group = "default"}
+
+# Extended quality environment for security workflows
+quality-extended = {features = ["quality", "quality-extended"], solve-group = "default"}
+
+# Full quality environment for build workflows (REQUIRED by ci.yml)
+quality-full = {features = ["quality", "quality-extended"], solve-group = "default"}
 
 # CI environment (optimized for GitHub Actions)
 ci = {features = ["ci-minimal"], solve-group = "default"}
@@ -250,6 +261,7 @@ ci-quality = "ruff check src/ tests/ --output-format=github && ruff format --che
 # Security & Compliance (optional, not in critical path)
 security-scan = "bandit -r src/ --severity-level high"
 safety-check = "safety check --ignore=70929 --ignore=70912"
+static-analysis = { depends-on = ["security-scan", "safety-check"] }
 
 # Complete validation (for releases)
 validate-all = { depends-on = ["quality", "security-scan", "build"] }

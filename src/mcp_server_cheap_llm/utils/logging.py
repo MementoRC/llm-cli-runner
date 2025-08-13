@@ -1021,6 +1021,7 @@ class PerformanceLogger:
 
     def time_function(self, func: Callable) -> Callable:
         """TDD Placeholder: Time function decorator."""
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
@@ -1040,11 +1041,12 @@ class PerformanceLogger:
                     "duration_ms": duration_ms,
                     "success": success,
                     "error": error,
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
                 if not hasattr(self, "_timing_metrics"):
                     self._timing_metrics = []
                 self._timing_metrics.append(timing_data)
+
         return wrapper
 
     def get_timing_metrics(self) -> list:
@@ -1056,17 +1058,13 @@ class PerformanceLogger:
         metrics = self.get_timing_metrics()
         if not metrics:
             return {}
-        
+
         stats = {}
         for metric in metrics:
             func_name = metric["function_name"]
             if func_name not in stats:
-                stats[func_name] = {
-                    "call_count": 0,
-                    "durations": [],
-                    "successes": 0
-                }
-            
+                stats[func_name] = {"call_count": 0, "durations": [], "successes": 0}
+
             stats[func_name]["call_count"] += 1
             stats[func_name]["durations"].append(metric["duration_ms"])
             if metric["success"]:
@@ -1081,9 +1079,13 @@ class PerformanceLogger:
                 "min_duration_ms": min(durations),
                 "max_duration_ms": max(durations),
                 "success_rate": data["successes"] / data["call_count"],
-                "std_deviation_ms": (sum((d - sum(durations) / len(durations)) ** 2 for d in durations) / len(durations)) ** 0.5
+                "std_deviation_ms": (
+                    sum((d - sum(durations) / len(durations)) ** 2 for d in durations)
+                    / len(durations)
+                )
+                ** 0.5,
             }
-        
+
         return stats
 
 
@@ -1196,13 +1198,13 @@ class StructuredLogger:
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
             "correlation_id": str(uuid.uuid4()),
-            **kwargs
+            **kwargs,
         }
-        
+
         # Extract error_code from error object if present
         if "error" in kwargs and hasattr(kwargs["error"], "error_code"):
             event["error_code"] = kwargs["error"].error_code
-            
+
         if not hasattr(self, "_events"):
             self._events = []
         self._events.append(event)
@@ -1220,18 +1222,18 @@ class StructuredLogger:
     def log_error_with_filtering(self, error) -> None:
         """TDD Placeholder: Log error with sensitive data filtering."""
         filtered_context = {}
-        if hasattr(error, 'context') and error.context:
+        if hasattr(error, "context") and error.context:
             for key, value in error.context.items():
-                if key in ['api_key', 'password', 'token']:
-                    filtered_context[key] = '[FILTERED]'
+                if key in ["api_key", "password", "token"]:
+                    filtered_context[key] = "[FILTERED]"
                 else:
                     filtered_context[key] = value
-        
+
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
             "error_context": filtered_context,
             "error_type": type(error).__name__,
-            "message": str(error)
+            "message": str(error),
         }
         if not hasattr(self, "_events"):
             self._events = []
