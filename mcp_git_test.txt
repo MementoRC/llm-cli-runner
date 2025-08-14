@@ -1,3 +1,0 @@
-This is a test file for MCP Git tools server testing.
-Testing git add and commit operations.
-Generated at: 2025-01-13
