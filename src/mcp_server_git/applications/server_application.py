@@ -867,7 +867,7 @@ class ServerApplication(DebuggableComponent):
                     "git_service": self._git_service is not None,
                     "github_service": self._github_service is not None,
                     "security_framework": self._security_framework is not None,
-                    "notifications": self._notifications is not None,
+                    "notifications": self._notification_operations is not None,
                 },
                 "configuration": {
                     "repository_path": str(self._config.repository_path)

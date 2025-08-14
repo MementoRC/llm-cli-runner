@@ -61,9 +61,6 @@ def git_status(repo: Repo, porcelain: bool = False) -> str:
     Returns:
         Status output string
     """
-    # Test debug logging to file
-    with open("/tmp/git_operations_debug.log", "a") as f:
-        f.write(f"DEBUG: git_status called with porcelain={porcelain}\n")
     if porcelain:
         return repo.git.status("--porcelain")
     else:
