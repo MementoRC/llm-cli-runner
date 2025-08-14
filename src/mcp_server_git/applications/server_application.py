@@ -117,7 +117,7 @@ class GitLog(BaseModel):
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    start_point: str | None = None
+    base_branch: str | None = None
 
 
 class GitCheckout(BaseModel):
@@ -1163,15 +1163,23 @@ class ServerApplication(DebuggableComponent):
         @server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[dict]:
             """Handle tool calls with middleware processing."""
+            # COMPREHENSIVE INTEGRATED LOGGING - USING ERROR LEVEL TO ENSURE VISIBILITY
+            logger.error(f"[CALL_TOOL] name={name}, arguments={arguments}")
+            
             try:
                 # Execute the tool and get the result
+                logger.info(f"[CALL_TOOL] About to call _execute_tool_operation")
+                
                 result = await self._execute_tool_operation(name, arguments)
+                
+                logger.info(f"[CALL_TOOL] _execute_tool_operation returned: {str(result)[:200]}")
                 
                 # TODO: Process through middleware chain for token limits
                 # For now, return result directly to ensure basic functionality works
                 return [{"type": "text", "text": str(result)}]
 
             except Exception as e:
+                logger.error(f"[CALL_TOOL] ERROR: {e}")
                 logger.error(f"Error executing tool {name}: {e}")
                 return [{"type": "text", "text": f"Error: {e}"}]
         
@@ -1179,7 +1187,12 @@ class ServerApplication(DebuggableComponent):
 
     async def _execute_tool_operation(self, name: str, arguments: dict):
         """Execute the actual tool logic without middleware."""
+        # COMPREHENSIVE INTEGRATED LOGGING
+        logger.info(f"[EXECUTE_TOOL] Starting execution for name={name}, arguments={arguments}")
+        
         # Import git operations (must be done here since they're not at module level)
+        logger.info(f"[EXECUTE_TOOL] About to import from git.operations")
+        
         from ..git.operations import (
             git_abort,
             git_add,
@@ -1240,11 +1253,20 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.LOG:
             result = git_log(repo, max_count=arguments.get("max_count", 10))
         elif name == GitTools.CREATE_BRANCH:
-            result = git_create_branch(
-                repo,
-                arguments["branch_name"],
-                base_branch=arguments.get("start_point"),
-            )
+            logger.error(f"[EXECUTE_TOOL] Matched CREATE_BRANCH case")
+            logger.error(f"[EXECUTE_TOOL] About to call git_create_branch with repo={repo}, branch_name={arguments['branch_name']}, base_branch={arguments.get('base_branch')}")
+            
+            base_branch_value = arguments.get("base_branch")
+            logger.info(f"[EXECUTE_TOOL] base_branch_value={base_branch_value}")
+            
+            if base_branch_value is not None:
+                logger.info(f"[EXECUTE_TOOL] Calling git_create_branch with base_branch")
+                result = git_create_branch(repo, arguments["branch_name"], base_branch_value)
+            else:
+                logger.info(f"[EXECUTE_TOOL] Calling git_create_branch without base_branch")
+                result = git_create_branch(repo, arguments["branch_name"])
+            
+            logger.info(f"[EXECUTE_TOOL] git_create_branch returned: {result}")
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
         elif name == GitTools.SHOW:

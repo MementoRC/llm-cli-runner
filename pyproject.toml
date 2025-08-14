@@ -23,7 +23,6 @@ dependencies = [
 
 [project.scripts]
 mcp-server-git = "mcp_server_git:main"
-mcp-server-git-simple = "mcp_server_git.server_simple:main_cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -224,9 +223,8 @@ clean = "rm -rf __pycache__ .pytest_cache .coverage htmlcov .ruff_cache dist bui
 # ===== APPLICATION TASKS =====
 # Server execution
 serve = "python -m mcp_server_git"
-serve-simple = "python -m mcp_server_git.server_simple"
-mcp-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src", CLAUDECODE = "0" } }
-mcp-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG", CLAUDECODE = "0" } }
+pixi-git-server = { cmd = "python -m mcp_server_git", env = { PYTHONPATH = "src", CLAUDECODE = "0" } }
+pixi-git-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logging", env = { PYTHONPATH = "src", LOG_LEVEL = "DEBUG", CLAUDECODE = "0" } }
 
 
 # ===== LEGACY/SPECIALIZED TASKS =====
