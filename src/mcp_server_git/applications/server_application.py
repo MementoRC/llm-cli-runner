@@ -870,11 +870,11 @@ class ServerApplication(DebuggableComponent):
                     "notifications": self._notification_operations is not None,
                 },
                 "configuration": {
-                    "repository_path": str(self._config.repository_path)
-                    if self._config.repository_path
+                    "repository_path": str(self.config.repository_path)
+                    if self.config.repository_path
                     else None,
-                    "test_mode": self._config.test_mode,
-                    "debug_mode": self._config.debug_mode,
+                    "test_mode": self.config.test_mode,
+                    "debug_mode": self.config.debug_mode,
                 },
             }
 
