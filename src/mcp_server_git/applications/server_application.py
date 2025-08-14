@@ -1166,13 +1166,9 @@ class ServerApplication(DebuggableComponent):
 
             try:
                 # Execute the tool and get the result
-                logger.info("[CALL_TOOL] About to call _execute_tool_operation")
+                # Execute tool operation
 
                 result = await self._execute_tool_operation(name, arguments)
-
-                logger.info(
-                    f"[CALL_TOOL] _execute_tool_operation returned: {str(result)[:200]}"
-                )
 
                 # TODO: Process through middleware chain for token limits
                 # For now, return result directly to ensure basic functionality works
@@ -1188,12 +1184,9 @@ class ServerApplication(DebuggableComponent):
     async def _execute_tool_operation(self, name: str, arguments: dict):
         """Execute the actual tool logic without middleware."""
         # COMPREHENSIVE INTEGRATED LOGGING
-        logger.info(
-            f"[EXECUTE_TOOL] Starting execution for name={name}, arguments={arguments}"
-        )
+        logger.debug(f"Executing tool: {name}")
 
         # Import git operations (must be done here since they're not at module level)
-        logger.info("[EXECUTE_TOOL] About to import from git.operations")
 
         from ..git.operations import (
             git_abort,
