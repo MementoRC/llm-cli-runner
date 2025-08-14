@@ -80,6 +80,8 @@ ai_docs/
 !SECURITY.md
 test_*.txt
 test_*.py
+mcp_git_test.txt
+*_test.txt
 .commit-marker
 .cursor/
 .serena/
