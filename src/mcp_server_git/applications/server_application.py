@@ -478,7 +478,7 @@ class ServerApplication(DebuggableComponent):
 
         # Initialize middleware management with enhanced token limit middleware
         from ..frameworks.server_middleware import create_enhanced_middleware_chain
-        
+
         self._middleware_manager = create_enhanced_middleware_chain(
             enable_token_limits=True
         )
@@ -982,7 +982,6 @@ class ServerApplication(DebuggableComponent):
         server = self._server_core.server
         logger.info("Registering MCP tools...")
 
-
         @server.list_tools()
         async def list_tools() -> list[Tool]:
             """Return available git tools."""
@@ -1165,15 +1164,17 @@ class ServerApplication(DebuggableComponent):
             """Handle tool calls with middleware processing."""
             # COMPREHENSIVE INTEGRATED LOGGING - USING ERROR LEVEL TO ENSURE VISIBILITY
             logger.error(f"[CALL_TOOL] name={name}, arguments={arguments}")
-            
+
             try:
                 # Execute the tool and get the result
-                logger.info(f"[CALL_TOOL] About to call _execute_tool_operation")
-                
+                logger.info("[CALL_TOOL] About to call _execute_tool_operation")
+
                 result = await self._execute_tool_operation(name, arguments)
-                
-                logger.info(f"[CALL_TOOL] _execute_tool_operation returned: {str(result)[:200]}")
-                
+
+                logger.info(
+                    f"[CALL_TOOL] _execute_tool_operation returned: {str(result)[:200]}"
+                )
+
                 # TODO: Process through middleware chain for token limits
                 # For now, return result directly to ensure basic functionality works
                 return [{"type": "text", "text": str(result)}]
@@ -1182,17 +1183,19 @@ class ServerApplication(DebuggableComponent):
                 logger.error(f"[CALL_TOOL] ERROR: {e}")
                 logger.error(f"Error executing tool {name}: {e}")
                 return [{"type": "text", "text": f"Error: {e}"}]
-        
+
         logger.info("MCP tools registered successfully")
 
     async def _execute_tool_operation(self, name: str, arguments: dict):
         """Execute the actual tool logic without middleware."""
         # COMPREHENSIVE INTEGRATED LOGGING
-        logger.info(f"[EXECUTE_TOOL] Starting execution for name={name}, arguments={arguments}")
-        
+        logger.info(
+            f"[EXECUTE_TOOL] Starting execution for name={name}, arguments={arguments}"
+        )
+
         # Import git operations (must be done here since they're not at module level)
-        logger.info(f"[EXECUTE_TOOL] About to import from git.operations")
-        
+        logger.info("[EXECUTE_TOOL] About to import from git.operations")
+
         from ..git.operations import (
             git_abort,
             git_add,
@@ -1221,7 +1224,7 @@ class ServerApplication(DebuggableComponent):
             git_status,
         )
         from ..utils.git_import import Repo
-        
+
         # Get repository path from arguments
         repo_path = arguments.get("repo_path", ".")
         repo = Repo(repo_path)
@@ -1253,19 +1256,25 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.LOG:
             result = git_log(repo, max_count=arguments.get("max_count", 10))
         elif name == GitTools.CREATE_BRANCH:
-            logger.error(f"[EXECUTE_TOOL] Matched CREATE_BRANCH case")
-            logger.error(f"[EXECUTE_TOOL] About to call git_create_branch with repo={repo}, branch_name={arguments['branch_name']}, base_branch={arguments.get('base_branch')}")
-            
+            logger.error("[EXECUTE_TOOL] Matched CREATE_BRANCH case")
+            logger.error(
+                f"[EXECUTE_TOOL] About to call git_create_branch with repo={repo}, branch_name={arguments['branch_name']}, base_branch={arguments.get('base_branch')}"
+            )
+
             base_branch_value = arguments.get("base_branch")
             logger.info(f"[EXECUTE_TOOL] base_branch_value={base_branch_value}")
-            
+
             if base_branch_value is not None:
-                logger.info(f"[EXECUTE_TOOL] Calling git_create_branch with base_branch")
-                result = git_create_branch(repo, arguments["branch_name"], base_branch_value)
+                logger.info("[EXECUTE_TOOL] Calling git_create_branch with base_branch")
+                result = git_create_branch(
+                    repo, arguments["branch_name"], base_branch_value
+                )
             else:
-                logger.info(f"[EXECUTE_TOOL] Calling git_create_branch without base_branch")
+                logger.info(
+                    "[EXECUTE_TOOL] Calling git_create_branch without base_branch"
+                )
                 result = git_create_branch(repo, arguments["branch_name"])
-            
+
             logger.info(f"[EXECUTE_TOOL] git_create_branch returned: {result}")
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
@@ -1429,6 +1438,8 @@ class ServerApplication(DebuggableComponent):
             raise ValueError(f"Unknown tool: {name}")
 
         return result
+
+
 async def main(
     repository_path: Path | None = None,
     test_mode: bool = False,

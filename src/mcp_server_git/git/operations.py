@@ -477,17 +477,22 @@ def git_log(
 
 
 def git_create_branch(
-    repo: Repo, branch_name: str, base_branch: str | None = None, start_point: str | None = None
+    repo: Repo,
+    branch_name: str,
+    base_branch: str | None = None,
+    start_point: str | None = None,
 ) -> str:
     """Create new branch from base - UPDATED VERSION 2024"""
     try:
         # INTEGRATED DEBUG LOGGING
-        logger.info(f"[GIT_CREATE_BRANCH] Called with branch_name={branch_name}, base_branch={base_branch}, start_point={start_point}")
-        
+        logger.info(
+            f"[GIT_CREATE_BRANCH] Called with branch_name={branch_name}, base_branch={base_branch}, start_point={start_point}"
+        )
+
         # Use start_point if provided, otherwise fall back to base_branch
         effective_base = start_point if start_point is not None else base_branch
         logger.info(f"[GIT_CREATE_BRANCH] effective_base={effective_base}")
-        
+
         # Check if branch already exists
         existing_branches = [branch.name for branch in repo.branches]
         if branch_name in existing_branches:

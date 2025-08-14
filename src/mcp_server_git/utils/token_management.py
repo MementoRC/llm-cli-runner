@@ -35,9 +35,9 @@ class ContentType(Enum):
 
 class TokenizerType(Enum):
     """Different tokenizer types with varying accuracy characteristics."""
-    
+
     GENERIC = "generic"  # Generic estimation (current approach)
-    OPENAI = "openai"    # OpenAI GPT tokenizers (cl100k_base)
+    OPENAI = "openai"  # OpenAI GPT tokenizers (cl100k_base)
     ANTHROPIC = "anthropic"  # Anthropic Claude tokenizers
     HUGGINGFACE = "huggingface"  # HuggingFace transformers tokenizers
 
@@ -54,7 +54,7 @@ class TokenEstimate:
     tokenizer_type: TokenizerType = TokenizerType.GENERIC
     min_tokens: int = 0  # Lower bound of confidence interval
     max_tokens: int = 0  # Upper bound of confidence interval
-    
+
     def __post_init__(self):
         """Calculate confidence intervals after initialization."""
         if self.min_tokens == 0 and self.max_tokens == 0:
@@ -129,8 +129,7 @@ class TokenEstimator:
         """
         if not content:
             return TokenEstimate(
-                0, 1.0, content_type, 0, 0, 
-                tokenizer_type=self.tokenizer_type
+                0, 1.0, content_type, 0, 0, tokenizer_type=self.tokenizer_type
             )
 
         char_count = len(content)
