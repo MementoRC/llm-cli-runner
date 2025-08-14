@@ -78,8 +78,6 @@ ai_docs/
 *.md
 !README.md
 !SECURITY.md
-!BUG_FIX_SUMMARY.md
-!CHERRY_PICK_LIST.md
 test_*.txt
 test_*.py
 .commit-marker
@@ -87,4 +85,5 @@ test_*.py
 .serena/
 *_SUMMARY.md
 *_PLAN.md
+*_LIST.md
 quality-*.md 
