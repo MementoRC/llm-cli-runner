@@ -1,3 +1,0 @@
-# DEPRECATED TEST FILE - SCHEDULED FOR REMOVAL
-# This file should not exist in production builds
-# Auto-emptied by CI cleanup process

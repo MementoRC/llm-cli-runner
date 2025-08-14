@@ -90,8 +90,16 @@ mcp_git_test.txt
 *_LIST.md
 quality-*.md
 
+# Development artifacts and debug files
+live_test_validation.txt
+live_*.txt
+*_validation.txt
+debug_mcp_test.py
+mcp-server-git-simple
+security_test.txt
+
 # Remove existing tracked development files
-# Note: These files need to be manually removed from git tracking
+# Note: These files need to be manually removed from git tracking  
 BUG_FIX_SUMMARY.md
 CHERRY_PICK_LIST.md
 TASK_2_IMPLEMENTATION_SUMMARY.md
