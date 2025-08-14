@@ -1162,8 +1162,7 @@ class ServerApplication(DebuggableComponent):
         @server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[dict]:
             """Handle tool calls with middleware processing."""
-            # COMPREHENSIVE INTEGRATED LOGGING - USING ERROR LEVEL TO ENSURE VISIBILITY
-            logger.error(f"[CALL_TOOL] name={name}, arguments={arguments}")
+            logger.debug(f"[CALL_TOOL] name={name}, arguments={arguments}")
 
             try:
                 # Execute the tool and get the result
@@ -1256,26 +1255,13 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.LOG:
             result = git_log(repo, max_count=arguments.get("max_count", 10))
         elif name == GitTools.CREATE_BRANCH:
-            logger.error("[EXECUTE_TOOL] Matched CREATE_BRANCH case")
-            logger.error(
-                f"[EXECUTE_TOOL] About to call git_create_branch with repo={repo}, branch_name={arguments['branch_name']}, base_branch={arguments.get('base_branch')}"
-            )
-
             base_branch_value = arguments.get("base_branch")
-            logger.info(f"[EXECUTE_TOOL] base_branch_value={base_branch_value}")
-
             if base_branch_value is not None:
-                logger.info("[EXECUTE_TOOL] Calling git_create_branch with base_branch")
                 result = git_create_branch(
                     repo, arguments["branch_name"], base_branch_value
                 )
             else:
-                logger.info(
-                    "[EXECUTE_TOOL] Calling git_create_branch without base_branch"
-                )
                 result = git_create_branch(repo, arguments["branch_name"])
-
-            logger.info(f"[EXECUTE_TOOL] git_create_branch returned: {result}")
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
         elif name == GitTools.SHOW:
