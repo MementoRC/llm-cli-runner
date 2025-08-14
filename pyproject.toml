@@ -3,9 +3,9 @@ name = "mcp-server-git"
 version = "0.6.3"
 description = "A Model Context Protocol server providing tools to read, search, and manipulate Git repositories programmatically via LLMs"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{ name = "Anthropic, PBC." }]
-maintainers = [{ name = "David Soria Parra", email = "davidsp@anthropic.com" }]
+maintainers = [{ name = "Memento 'RC' Mori" }]
 keywords = ["git", "mcp", "llm", "automation"]
 license = { text = "MIT" }
 classifiers = [
@@ -13,7 +13,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     # Core dependencies now managed by pixi
@@ -52,7 +52,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
@@ -79,7 +79,7 @@ platforms = ["linux-64"]  # CI-optimized: single platform for reliability
 
 [tool.pixi.dependencies]
 # Core runtime dependencies
-python = ">=3.10"
+python = ">=3.12"
 aiohttp = ">=3.8.0"
 click = ">=8.1.7"
 gitpython = ">=3.1.43"
