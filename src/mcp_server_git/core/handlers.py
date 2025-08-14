@@ -451,6 +451,9 @@ class CallToolHandler:
                             args.append(kwargs.get(arg, "origin"))
                         elif arg in ["strategy"]:
                             args.append(kwargs.get(arg, "merge"))
+                        elif arg == "base_branch":
+                            # Map start_point to base_branch for git_create_branch compatibility
+                            args.append(kwargs.get("start_point", kwargs.get(arg)))
                         else:
                             args.append(kwargs.get(arg))
 
