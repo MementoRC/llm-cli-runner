@@ -117,7 +117,7 @@ class GitLog(BaseModel):
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    base_branch: str | None = None
+    start_point: str | None = None
 
 
 class GitCheckout(BaseModel):
@@ -1243,7 +1243,7 @@ class ServerApplication(DebuggableComponent):
             result = git_create_branch(
                 repo,
                 arguments["branch_name"],
-                base_branch=arguments.get("base_branch"),
+                base_branch=arguments.get("start_point"),
             )
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
