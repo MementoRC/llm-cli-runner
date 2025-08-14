@@ -451,6 +451,9 @@ class CallToolHandler:
                             args.append(kwargs.get(arg, "origin"))
                         elif arg in ["strategy"]:
                             args.append(kwargs.get(arg, "merge"))
+                        elif arg == "base_branch":
+                            # Use base_branch parameter directly for git operations
+                            args.append(kwargs.get(arg))
                         else:
                             args.append(kwargs.get(arg))
 

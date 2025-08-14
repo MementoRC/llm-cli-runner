@@ -474,24 +474,31 @@ def git_log(
 
 
 def git_create_branch(
-    repo: Repo, branch_name: str, base_branch: str | None = None
+    repo: Repo,
+    branch_name: str,
+    base_branch: str | None = None,
+    start_point: str | None = None,
 ) -> str:
-    """Create new branch from base"""
+    """Create new branch from base - UPDATED VERSION 2024"""
     try:
+        # INTEGRATED DEBUG LOGGING
+        # Use start_point if provided, otherwise fall back to base_branch
+        effective_base = start_point if start_point is not None else base_branch
+
         # Check if branch already exists
         existing_branches = [branch.name for branch in repo.branches]
         if branch_name in existing_branches:
             return f"❌ Branch '{branch_name}' already exists"
 
         # Create new branch
-        if base_branch:
+        if effective_base:
             # Verify base branch exists
-            if base_branch not in existing_branches and base_branch not in [
+            if effective_base not in existing_branches and effective_base not in [
                 branch.name for branch in repo.remote().refs
             ]:
-                return f"❌ Base branch '{base_branch}' not found"
+                return f"❌ Base branch '{effective_base}' not found"
 
-            repo.create_head(branch_name, base_branch)
+            repo.create_head(branch_name, effective_base)
         else:
             repo.create_head(branch_name)
 

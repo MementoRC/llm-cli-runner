@@ -117,7 +117,7 @@ class GitLog(BaseModel):
 class GitCreateBranch(BaseModel):
     repo_path: str
     branch_name: str
-    start_point: str | None = None
+    base_branch: str | None = None
 
 
 class GitCheckout(BaseModel):
@@ -155,14 +155,14 @@ class GitDiffBranches(BaseModel):
 
 class GitRebase(BaseModel):
     repo_path: str
-    base_branch: str
-    interactive: bool = False
+    target_branch: str
 
 
 class GitMerge(BaseModel):
     repo_path: str
-    branch_name: str
-    no_ff: bool = False
+    source_branch: str
+    strategy: str = "merge"
+    message: str | None = None
 
 
 class GitCherryPick(BaseModel):
@@ -478,7 +478,7 @@ class ServerApplication(DebuggableComponent):
 
         # Initialize middleware management with enhanced token limit middleware
         from ..frameworks.server_middleware import create_enhanced_middleware_chain
-        
+
         self._middleware_manager = create_enhanced_middleware_chain(
             enable_token_limits=True
         )
@@ -867,14 +867,14 @@ class ServerApplication(DebuggableComponent):
                     "git_service": self._git_service is not None,
                     "github_service": self._github_service is not None,
                     "security_framework": self._security_framework is not None,
-                    "notifications": self._notifications is not None,
+                    "notifications": self._notification_operations is not None,
                 },
                 "configuration": {
-                    "repository_path": str(self._config.repository_path)
-                    if self._config.repository_path
+                    "repository_path": str(self.config.repository_path)
+                    if self.config.repository_path
                     else None,
-                    "test_mode": self._config.test_mode,
-                    "debug_mode": self._config.debug_mode,
+                    "test_mode": self.config.test_mode,
+                    "debug_mode": self.config.debug_mode,
                 },
             }
 
@@ -981,7 +981,6 @@ class ServerApplication(DebuggableComponent):
 
         server = self._server_core.server
         logger.info("Registering MCP tools...")
-
 
         @server.list_tools()
         async def list_tools() -> list[Tool]:
@@ -1163,23 +1162,32 @@ class ServerApplication(DebuggableComponent):
         @server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[dict]:
             """Handle tool calls with middleware processing."""
+            logger.debug(f"[CALL_TOOL] name={name}, arguments={arguments}")
+
             try:
                 # Execute the tool and get the result
+                # Execute tool operation
+
                 result = await self._execute_tool_operation(name, arguments)
-                
+
                 # TODO: Process through middleware chain for token limits
                 # For now, return result directly to ensure basic functionality works
                 return [{"type": "text", "text": str(result)}]
 
             except Exception as e:
+                logger.error(f"[CALL_TOOL] ERROR: {e}")
                 logger.error(f"Error executing tool {name}: {e}")
                 return [{"type": "text", "text": f"Error: {e}"}]
-        
+
         logger.info("MCP tools registered successfully")
 
     async def _execute_tool_operation(self, name: str, arguments: dict):
         """Execute the actual tool logic without middleware."""
+        # COMPREHENSIVE INTEGRATED LOGGING
+        logger.debug(f"Executing tool: {name}")
+
         # Import git operations (must be done here since they're not at module level)
+
         from ..git.operations import (
             git_abort,
             git_add,
@@ -1208,7 +1216,7 @@ class ServerApplication(DebuggableComponent):
             git_status,
         )
         from ..utils.git_import import Repo
-        
+
         # Get repository path from arguments
         repo_path = arguments.get("repo_path", ".")
         repo = Repo(repo_path)
@@ -1240,11 +1248,13 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.LOG:
             result = git_log(repo, max_count=arguments.get("max_count", 10))
         elif name == GitTools.CREATE_BRANCH:
-            result = git_create_branch(
-                repo,
-                arguments["branch_name"],
-                start_point=arguments.get("start_point"),
-            )
+            base_branch_value = arguments.get("base_branch")
+            if base_branch_value is not None:
+                result = git_create_branch(
+                    repo, arguments["branch_name"], base_branch_value
+                )
+            else:
+                result = git_create_branch(repo, arguments["branch_name"])
         elif name == GitTools.CHECKOUT:
             result = git_checkout(repo, arguments["branch_name"])
         elif name == GitTools.SHOW:
@@ -1271,14 +1281,14 @@ class ServerApplication(DebuggableComponent):
         elif name == GitTools.REBASE:
             result = git_rebase(
                 repo,
-                arguments["base_branch"],
-                interactive=arguments.get("interactive", False),
+                arguments["target_branch"],
             )
         elif name == GitTools.MERGE:
             result = git_merge(
                 repo,
-                arguments["branch_name"],
-                no_ff=arguments.get("no_ff", False),
+                arguments["source_branch"],
+                strategy=arguments.get("strategy", "merge"),
+                message=arguments.get("message"),
             )
         elif name == GitTools.CHERRY_PICK:
             result = git_cherry_pick(repo, arguments["commit_hash"])
@@ -1407,6 +1417,8 @@ class ServerApplication(DebuggableComponent):
             raise ValueError(f"Unknown tool: {name}")
 
         return result
+
+
 async def main(
     repository_path: Path | None = None,
     test_mode: bool = False,
