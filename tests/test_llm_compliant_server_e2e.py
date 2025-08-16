@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import pytest
+from .conftest import _run_git_isolated
 
 
 class LLMComplianceTestClient:
@@ -104,7 +105,7 @@ async def llm_compliant_server():
     import shutil
 
     if shutil.which("pixi") and not env.get("PYTEST_CI"):
-        server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
+        server_cmd = ["pixi", "run", "-e", "quality", "mcp-server-git"]
     else:
         server_cmd = ["python", "-m", "mcp_server_git"]
 
@@ -184,11 +185,11 @@ async def test_git_status_method_found(llm_compliant_server):
         repo_path = Path(tmp_dir)
 
         # Initialize git repo
-        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-        subprocess.run(
+        _run_git_isolated(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        _run_git_isolated(
             ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
         )
-        subprocess.run(
+        _run_git_isolated(
             ["git", "config", "user.email", "test@example.com"],
             cwd=repo_path,
             check=True,
@@ -229,11 +230,11 @@ async def test_llm_compliant_architecture_validation(llm_compliant_server):
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         repo_path = Path(tmp_dir)
-        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-        subprocess.run(
+        _run_git_isolated(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        _run_git_isolated(
             ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
         )
-        subprocess.run(
+        _run_git_isolated(
             ["git", "config", "user.email", "test@example.com"],
             cwd=repo_path,
             check=True,
@@ -265,7 +266,7 @@ async def test_server_component_health(llm_compliant_server):
     # Test tool execution (tests handlers and operations)
     with tempfile.TemporaryDirectory() as tmp_dir:
         repo_path = Path(tmp_dir)
-        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        _run_git_isolated(["git", "init"], cwd=repo_path, check=True, capture_output=True)
 
         status_response = await client.call_tool(
             "git_status", {"repo_path": str(repo_path)}

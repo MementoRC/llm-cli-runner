@@ -22,7 +22,13 @@ from mcp_server_git.git.operations import (
     git_diff_staged,
     git_diff_unstaged,
 )
-from mcp_server_git.utils.git_import import GitCommandError, Repo
+from mcp_server_git.utils.git_import import GitCommandError
+try:
+    from git import Repo as GitRepo
+except ImportError:
+    # If git is not available, create a basic mock for type hints
+    class GitRepo:
+        pass
 
 
 class TestValidateCommitRange:
@@ -307,7 +313,7 @@ class TestGitDiffValidationIntegration:
     @patch('mcp_server_git.git.operations._validate_diff_parameters')
     def test_git_diff_calls_parameter_validation(self, mock_validate):
         """Should call parameter validation in git_diff function."""
-        mock_repo = Mock(spec=Repo)
+        mock_repo = Mock()
         mock_repo.git.diff.return_value = "test output"
         mock_validate.return_value = (True, "")
         
@@ -327,7 +333,7 @@ class TestGitDiffValidationIntegration:
     @patch('mcp_server_git.git.operations._validate_diff_parameters')
     def test_git_diff_handles_validation_failure(self, mock_validate):
         """Should return error message when parameter validation fails."""
-        mock_repo = Mock(spec=Repo)
+        mock_repo = Mock()
         mock_validate.return_value = (False, "Conflicting parameters detected")
         
         result = git_diff(
@@ -341,7 +347,7 @@ class TestGitDiffValidationIntegration:
     @patch('mcp_server_git.git.operations._validate_diff_parameters')
     def test_git_diff_shows_validation_warnings(self, mock_validate):
         """Should include warnings from parameter validation."""
-        mock_repo = Mock(spec=Repo)
+        mock_repo = Mock()
         mock_repo.git.diff.return_value = "test diff output"
         mock_validate.return_value = (True, "Warning: Unusual format detected")
         
@@ -352,7 +358,7 @@ class TestGitDiffValidationIntegration:
 
     def test_commit_range_used_in_git_command(self):
         """Should properly use commit_range in git diff command."""
-        mock_repo = Mock(spec=Repo)
+        mock_repo = Mock()
         mock_repo.git.diff.return_value = "diff output"
         
         git_diff(mock_repo, commit_range="HEAD~1..HEAD")

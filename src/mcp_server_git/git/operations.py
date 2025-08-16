@@ -37,20 +37,22 @@ def _validate_commit_range(commit_range: str) -> tuple[bool, str]:
         # HEAD references with optional tilde notation
         r'^HEAD~?\d*\.{2,3}HEAD~?\d*$',
         
-        # Branch name patterns (common formats without dashes)
-        r'^[a-zA-Z][a-zA-Z0-9_]*\.{2,3}[a-zA-Z][a-zA-Z0-9_]*$',
+        # Branch name patterns (common patterns only - conservative)
+        r'^[a-zA-Z][a-zA-Z0-9_]{1,}\.{2,3}[a-zA-Z][a-zA-Z0-9_]{1,}$',
+        r'^(main|master|develop|dev|production|prod|staging|stage|test|release-v\d+\.\d+)\.{2,3}[a-zA-Z][a-zA-Z0-9_\-\.]{1,}$',
+        r'^[a-zA-Z][a-zA-Z0-9_\-\.]{1,}\.{2,3}(main|master|develop|dev|production|prod|staging|stage|test)$',
         
         # Feature/release branch patterns with slashes
-        r'^(feature|bugfix|hotfix|release)/[a-zA-Z0-9\-_]+\.{2,3}[a-zA-Z][a-zA-Z0-9_/]*$',
-        r'^[a-zA-Z][a-zA-Z0-9_/]*\.{2,3}(feature|bugfix|hotfix|release)/[a-zA-Z0-9\-_]+$',
+        r'^(feature|bugfix|hotfix|release)/[a-zA-Z0-9\-_\.]+\.{2,3}[a-zA-Z][a-zA-Z0-9_/\-\.]*$',
+        r'^[a-zA-Z][a-zA-Z0-9_/\-\.]*\.{2,3}(feature|bugfix|hotfix|release)/[a-zA-Z0-9\-_\.]+$',
         
-        # Mixed patterns - hash with branches
-        r'^[a-fA-F0-9]{6,40}\.{2,3}[a-zA-Z][a-zA-Z0-9_/]*$',
-        r'^[a-zA-Z][a-zA-Z0-9_/]*\.{2,3}[a-fA-F0-9]{6,40}$',
+        # Mixed patterns - hash with branches (minimum reasonable lengths)
+        r'^[a-fA-F0-9]{6,40}\.{2,3}[a-zA-Z][a-zA-Z0-9_/\-\.]{1,}$',
+        r'^[a-zA-Z][a-zA-Z0-9_/\-\.]{1,}\.{2,3}[a-fA-F0-9]{6,40}$',
         
-        # HEAD with branches/hashes
-        r'^HEAD~?\d*\.{2,3}[a-zA-Z][a-zA-Z0-9_/]*$',
-        r'^[a-zA-Z][a-zA-Z0-9_/]*\.{2,3}HEAD~?\d*$',
+        # HEAD with branches/hashes (minimum reasonable lengths)
+        r'^HEAD~?\d*\.{2,3}[a-zA-Z][a-zA-Z0-9_/\-\.]{1,}$',
+        r'^[a-zA-Z][a-zA-Z0-9_/\-\.]{1,}\.{2,3}HEAD~?\d*$',
         r'^HEAD~?\d*\.{2,3}[a-fA-F0-9]{6,40}$',
         r'^[a-fA-F0-9]{6,40}\.{2,3}HEAD~?\d*$',
     ]
@@ -297,7 +299,12 @@ def git_diff(
         Returns error message if parameters are conflicting or invalid
     """
     # Validate parameters for conflicts and security
-    is_valid, validation_msg = _validate_diff_parameters(target, commit_range, base_commit, target_commit)
+    is_valid, validation_msg = _validate_diff_parameters(
+        target=target, 
+        commit_range=commit_range, 
+        base_commit=base_commit, 
+        target_commit=target_commit
+    )
     if not is_valid:
         return f"❌ Parameter validation failed: {validation_msg}"
     
@@ -348,7 +355,7 @@ def git_diff(
                 else f"No changes {diff_description}"
             )
             if validation_warning:
-                result = f"⚠️  {validation_warning}\n\n{result}"
+                result = f"⚠️ {validation_warning}\n\n{result}"
             return result
         
         # Handle stat-only output
@@ -359,7 +366,7 @@ def git_diff(
                 else f"No differences {diff_description}"
             )
             if validation_warning:
-                result = f"⚠️  {validation_warning}\n\n{result}"
+                result = f"⚠️ {validation_warning}\n\n{result}"
             return result
 
         # Apply size limiting for full diff output
@@ -367,7 +374,7 @@ def git_diff(
             diff_output, f"diff {diff_description}", stat_only, max_lines
         )
         if validation_warning:
-            result = f"⚠️  {validation_warning}\n\n{result}"
+            result = f"⚠️ {validation_warning}\n\n{result}"
         return result
 
     except GitCommandError as e:
