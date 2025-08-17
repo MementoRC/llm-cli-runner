@@ -621,6 +621,7 @@ class GitTools(str, Enum):
     GITHUB_GET_PR_CHECKS = "github_get_pr_checks"
     GITHUB_GET_FAILING_JOBS = "github_get_failing_jobs"
     GITHUB_GET_WORKFLOW_RUN = "github_get_workflow_run"
+    GITHUB_LIST_WORKFLOW_RUNS = "github_list_workflow_runs"
     GITHUB_GET_PR_DETAILS = "github_get_pr_details"
     GITHUB_LIST_PULL_REQUESTS = "github_list_pull_requests"
     GITHUB_GET_PR_STATUS = "github_get_pr_status"
@@ -859,6 +860,42 @@ async def github_get_workflow_run(
 
     except Exception as e:
         return f"Error getting workflow run: {str(e)}"
+
+
+async def github_list_workflow_runs(
+    repo_owner: str,
+    repo_name: str,
+    workflow_id: str | None = None,
+    actor: str | None = None,
+    branch: str | None = None,
+    event: str | None = None,
+    status: str | None = None,
+    conclusion: str | None = None,
+    per_page: int = 30,
+    page: int = 1,
+    created: str | None = None,
+    exclude_pull_requests: bool = False,
+    check_suite_id: int | None = None,
+    head_sha: str | None = None,
+) -> str:
+    """List workflow runs for a repository with comprehensive filtering"""
+    from .github.api import github_list_workflow_runs as api_github_list_workflow_runs
+    return await api_github_list_workflow_runs(
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        workflow_id=workflow_id,
+        actor=actor,
+        branch=branch,
+        event=event,
+        status=status,
+        conclusion=conclusion,
+        per_page=per_page,
+        page=page,
+        created=created,
+        exclude_pull_requests=exclude_pull_requests,
+        check_suite_id=check_suite_id,
+        head_sha=head_sha,
+    )
 
 
 async def github_get_pr_details(

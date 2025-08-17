@@ -26,6 +26,23 @@ class GitHubGetWorkflowRun(BaseModel):
     include_logs: bool = False
 
 
+class GitHubListWorkflowRuns(BaseModel):
+    repo_owner: str
+    repo_name: str
+    workflow_id: str | None = None
+    actor: str | None = None
+    branch: str | None = None
+    event: str | None = None
+    status: str | None = None
+    conclusion: str | None = None
+    per_page: int = 30
+    page: int = 1
+    created: str | None = None
+    exclude_pull_requests: bool = False
+    check_suite_id: int | None = None
+    head_sha: str | None = None
+
+
 class GitHubGetPRDetails(BaseModel):
     repo_owner: str
     repo_name: str

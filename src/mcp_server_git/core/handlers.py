@@ -182,6 +182,7 @@ class CallToolHandler:
                 github_get_workflow_run,
                 github_list_issues,
                 github_list_pull_requests,
+                github_list_workflow_runs,
                 github_update_issue,
             )
 
@@ -190,6 +191,7 @@ class CallToolHandler:
                     "github_get_pr_checks": github_get_pr_checks,
                     "github_get_failing_jobs": github_get_failing_jobs,
                     "github_get_workflow_run": github_get_workflow_run,
+                    "github_list_workflow_runs": github_list_workflow_runs,
                     "github_get_pr_details": github_get_pr_details,
                     "github_list_pull_requests": github_list_pull_requests,
                     "github_get_pr_status": github_get_pr_status,
@@ -211,6 +213,7 @@ class CallToolHandler:
                     github_get_pr_status,
                     github_get_workflow_run,
                     github_list_pull_requests,
+                    github_list_workflow_runs,
                 )
 
                 # Import available server functions
@@ -219,6 +222,7 @@ class CallToolHandler:
                         "github_get_pr_checks": github_get_pr_checks,
                         "github_get_failing_jobs": github_get_failing_jobs,
                         "github_get_workflow_run": github_get_workflow_run,
+                        "github_list_workflow_runs": github_list_workflow_runs,
                         "github_get_pr_details": github_get_pr_details,
                         "github_list_pull_requests": github_list_pull_requests,
                         "github_get_pr_status": github_get_pr_status,
@@ -264,6 +268,9 @@ class CallToolHandler:
         handler_get_workflow_run: Any = github_functions.get(
             "github_get_workflow_run", fallback_github_function
         )
+        handler_list_workflow_runs: Any = github_functions.get(
+            "github_list_workflow_runs", fallback_github_function
+        )
         handler_get_pr_details: Any = github_functions.get(
             "github_get_pr_details", fallback_github_function
         )
@@ -307,6 +314,25 @@ class CallToolHandler:
             "github_get_workflow_run": self._create_github_handler(
                 handler_get_workflow_run,
                 ["repo_owner", "repo_name", "run_id", "include_logs"],
+            ),
+            "github_list_workflow_runs": self._create_github_handler(
+                handler_list_workflow_runs,
+                [
+                    "repo_owner",
+                    "repo_name", 
+                    "workflow_id",
+                    "actor",
+                    "branch",
+                    "event",
+                    "status",
+                    "conclusion",
+                    "per_page",
+                    "page",
+                    "created",
+                    "exclude_pull_requests",
+                    "check_suite_id",
+                    "head_sha",
+                ],
             ),
             "github_get_pr_details": self._create_github_handler(
                 handler_get_pr_details,

@@ -11,6 +11,7 @@ from .api import (
     github_get_pr_status,
     github_get_workflow_run,
     github_list_pull_requests,
+    github_list_workflow_runs,
     github_merge_pr,
     github_reopen_pr,
     github_update_pr,
@@ -24,6 +25,7 @@ from .models import (
     GitHubGetPRStatus,
     GitHubGetWorkflowRun,
     GitHubListPullRequests,
+    GitHubListWorkflowRuns,
 )
 
 __all__ = [
@@ -33,6 +35,7 @@ __all__ = [
     "github_get_pr_checks",
     "github_get_failing_jobs",
     "github_get_workflow_run",
+    "github_list_workflow_runs",
     "github_get_pr_details",
     "github_list_pull_requests",
     "github_get_pr_status",
@@ -52,4 +55,5 @@ __all__ = [
     "GitHubGetPRStatus",
     "GitHubGetWorkflowRun",
     "GitHubListPullRequests",
+    "GitHubListWorkflowRuns",
 ]
