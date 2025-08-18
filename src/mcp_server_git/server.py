@@ -880,6 +880,7 @@ async def github_list_workflow_runs(
 ) -> str:
     """List workflow runs for a repository with comprehensive filtering"""
     from .github.api import github_list_workflow_runs as api_github_list_workflow_runs
+
     return await api_github_list_workflow_runs(
         repo_owner=repo_owner,
         repo_name=repo_name,
