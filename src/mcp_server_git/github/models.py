@@ -1,6 +1,6 @@
 """Pydantic models for GitHub API tools"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class GitHubGetPRChecks(BaseModel):
@@ -138,8 +138,26 @@ class GitHubCreateIssue(BaseModel):
     assignees: list[str] | None = None
     milestone: int | None = None
 
+    @field_validator("milestone")
+    @classmethod
+    def validate_milestone(cls, v: int | None) -> int | None:
+        """Validate milestone ID is positive (GitHub API expects positive integers)"""
+        if v is None:
+            return v
+        return v if v > 0 else None
+
 
 class GitHubListIssues(BaseModel):
+    """Model for GitHub List Issues API with comprehensive filtering options.
+
+    Complex filtering parameters:
+    - since: ISO 8601 timestamp format (e.g., '2023-01-01T00:00:00Z') to filter
+      issues updated after this time
+    - milestone: Use milestone number as string, '*' for any milestone, 'none'
+      for issues without milestone (e.g., '1', '*', 'none')
+    - labels: List of label names for AND filtering (e.g., ['bug', 'frontend'])
+    """
+
     repo_owner: str
     repo_name: str
     state: str = "open"  # open, closed, all
@@ -165,6 +183,14 @@ class GitHubUpdateIssue(BaseModel):
     labels: list[str] | None = None
     assignees: list[str] | None = None
     milestone: int | None = None
+
+    @field_validator("milestone")
+    @classmethod
+    def validate_milestone(cls, v: int | None) -> int | None:
+        """Validate milestone ID is positive (GitHub API expects positive integers)"""
+        if v is None:
+            return v
+        return v if v > 0 else None
 
 
 class GitHubEditPRDescription(BaseModel):
