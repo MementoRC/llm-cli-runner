@@ -90,17 +90,28 @@ class CallToolHandler:
         return {
             "git_status": self._create_git_handler(git_status, requires_repo=True),
             "git_diff_unstaged": self._create_git_handler(
-                git_diff_unstaged, requires_repo=True, 
-                extra_args=["stat_only", "max_lines", "name_only", "paths"]
+                git_diff_unstaged,
+                requires_repo=True,
+                extra_args=["stat_only", "max_lines", "name_only", "paths"],
             ),
             "git_diff_staged": self._create_git_handler(
-                git_diff_staged, requires_repo=True,
-                extra_args=["stat_only", "max_lines", "name_only", "paths"]
+                git_diff_staged,
+                requires_repo=True,
+                extra_args=["stat_only", "max_lines", "name_only", "paths"],
             ),
             "git_diff": self._create_git_handler(
-                git_diff, requires_repo=True, 
-                extra_args=["target", "stat_only", "max_lines", "name_only", 
-                           "commit_range", "base_commit", "target_commit", "paths"]
+                git_diff,
+                requires_repo=True,
+                extra_args=[
+                    "target",
+                    "stat_only",
+                    "max_lines",
+                    "name_only",
+                    "commit_range",
+                    "base_commit",
+                    "target_commit",
+                    "paths",
+                ],
             ),
             "git_commit": self._create_git_handler(
                 git_commit,
@@ -182,6 +193,7 @@ class CallToolHandler:
                 github_get_workflow_run,
                 github_list_issues,
                 github_list_pull_requests,
+                github_list_workflow_runs,
                 github_update_issue,
             )
 
@@ -190,6 +202,7 @@ class CallToolHandler:
                     "github_get_pr_checks": github_get_pr_checks,
                     "github_get_failing_jobs": github_get_failing_jobs,
                     "github_get_workflow_run": github_get_workflow_run,
+                    "github_list_workflow_runs": github_list_workflow_runs,
                     "github_get_pr_details": github_get_pr_details,
                     "github_list_pull_requests": github_list_pull_requests,
                     "github_get_pr_status": github_get_pr_status,
@@ -211,6 +224,7 @@ class CallToolHandler:
                     github_get_pr_status,
                     github_get_workflow_run,
                     github_list_pull_requests,
+                    github_list_workflow_runs,
                 )
 
                 # Import available server functions
@@ -219,6 +233,7 @@ class CallToolHandler:
                         "github_get_pr_checks": github_get_pr_checks,
                         "github_get_failing_jobs": github_get_failing_jobs,
                         "github_get_workflow_run": github_get_workflow_run,
+                        "github_list_workflow_runs": github_list_workflow_runs,
                         "github_get_pr_details": github_get_pr_details,
                         "github_list_pull_requests": github_list_pull_requests,
                         "github_get_pr_status": github_get_pr_status,
@@ -264,6 +279,9 @@ class CallToolHandler:
         handler_get_workflow_run: Any = github_functions.get(
             "github_get_workflow_run", fallback_github_function
         )
+        handler_list_workflow_runs: Any = github_functions.get(
+            "github_list_workflow_runs", fallback_github_function
+        )
         handler_get_pr_details: Any = github_functions.get(
             "github_get_pr_details", fallback_github_function
         )
@@ -307,6 +325,25 @@ class CallToolHandler:
             "github_get_workflow_run": self._create_github_handler(
                 handler_get_workflow_run,
                 ["repo_owner", "repo_name", "run_id", "include_logs"],
+            ),
+            "github_list_workflow_runs": self._create_github_handler(
+                handler_list_workflow_runs,
+                [
+                    "repo_owner",
+                    "repo_name",
+                    "workflow_id",
+                    "actor",
+                    "branch",
+                    "event",
+                    "status",
+                    "conclusion",
+                    "per_page",
+                    "page",
+                    "created",
+                    "exclude_pull_requests",
+                    "check_suite_id",
+                    "head_sha",
+                ],
             ),
             "github_get_pr_details": self._create_github_handler(
                 handler_get_pr_details,
