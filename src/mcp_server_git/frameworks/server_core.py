@@ -1,15 +1,19 @@
 """
-Core server logic for the MCP Git Server.
+Core server logic for the MCP Git Server with Repository Binding.
 
 This module contains the core server initialization, event loop, and request
 processing logic extracted from the monolithic server.py file. It implements
 the DebuggableComponent protocol for state inspection and debugging.
+
+Enhanced with repository binding architecture to prevent cross-session contamination
+as documented in CRITICAL_INCIDENT_REPORT.md.
 
 As specified in the PRD, this module focuses on:
 - Server initialization and lifecycle management
 - Core request/response processing
 - Event loop management
 - State inspection capabilities
+- Repository binding and remote protection
 """
 
 import asyncio
@@ -19,7 +23,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -31,6 +35,12 @@ from ..protocols.debugging_protocol import (
     DebugInfo,
     ValidationResult,
 )
+from ..repository_binding import (
+    RepositoryBindingManager,
+    RepositoryBindingError,
+    RemoteContaminationError,
+)
+from ..protected_git_operations import ProtectedGitOperations
 
 logger = logging.getLogger(__name__)
 
@@ -67,16 +77,22 @@ class ServerDebugInfo:
 
 class MCPGitServerCore(DebuggableComponent):
     """
-    Core server implementation for MCP Git Server.
+    Enhanced MCP Git Server Core with Repository Binding.
 
     This class encapsulates the core server logic including initialization,
-    lifecycle management, and request processing. It follows the single
-    responsibility principle by focusing only on core server functionality.
+    lifecycle management, and request processing. Enhanced with repository binding
+    architecture to prevent cross-session contamination.
+
+    Key features:
+    - Repository binding with remote protection
+    - Protected git operations
+    - Cross-session contamination prevention
+    - Explicit remote change operations
     """
 
     def __init__(self, server_name: str = "mcp-git"):
         """
-        Initialize the server core.
+        Initialize the server core with repository binding.
 
         Args:
             server_name: Name identifier for the server
@@ -91,11 +107,15 @@ class MCPGitServerCore(DebuggableComponent):
         self.request_count = 0
         self.client_capabilities: ClientCapabilities | None = None
 
+        # Repository binding components
+        self.binding_manager = RepositoryBindingManager(server_name)
+        self.protected_ops: Optional[ProtectedGitOperations] = None
+
         # State tracking
         self._state_history: list[ComponentState] = []
         self._max_state_history = 100
 
-        logger.info(f"Initialized MCPGitServerCore with name: {server_name}")
+        logger.info(f"Initialized MCPGitServerCore with repository binding: {server_name}")
 
     def initialize_server(self, repository_path: Path | None = None) -> Server:
         """
@@ -115,6 +135,9 @@ class MCPGitServerCore(DebuggableComponent):
         self.server = Server(self.server_name)
         self.start_time = datetime.now()
 
+        # Initialize protected operations
+        self.protected_ops = ProtectedGitOperations(self.binding_manager)
+
         logger.info(
             f"Server initialized: {self.server_name} "
             f"(repository: {repository_path or 'None'})"
@@ -124,6 +147,44 @@ class MCPGitServerCore(DebuggableComponent):
         self._update_state_history()
 
         return self.server
+
+    async def initialize_with_binding(
+        self, 
+        repository_path: Path, 
+        expected_remote_url: str,
+        auto_bind: bool = True
+    ) -> Server:
+        """
+        Initialize server with repository binding.
+        
+        Args:
+            repository_path: Path to git repository
+            expected_remote_url: Expected remote URL
+            auto_bind: Automatically bind to repository
+            
+        Returns:
+            Initialized Server instance
+        """
+        # Initialize the basic server first
+        server = self.initialize_server(repository_path)
+        
+        if auto_bind:
+            try:
+                await self.binding_manager.bind_repository(
+                    repository_path, 
+                    expected_remote_url,
+                    verify_remote=True
+                )
+                
+                logger.info(
+                    f"Server {self.server_name} initialized and bound to {repository_path}"
+                )
+            except (RepositoryBindingError, RemoteContaminationError) as e:
+                logger.error(f"Failed to bind repository: {e}")
+                # Don't fail server initialization, but log the issue
+                logger.warning("Server initialized without repository binding")
+        
+        return server
 
     async def start_server(self, test_mode: bool = False) -> None:
         """
@@ -217,10 +278,82 @@ class MCPGitServerCore(DebuggableComponent):
         self.client_capabilities = capabilities
         self._update_state_history()
 
+    # Repository Binding Methods
+
+    async def bind_repository(
+        self, 
+        repository_path: Path, 
+        expected_remote_url: str,
+        verify_remote: bool = True,
+        force: bool = False
+    ) -> dict:
+        """
+        Bind server to repository with remote protection.
+        
+        Args:
+            repository_path: Path to git repository
+            expected_remote_url: Expected remote URL for validation
+            verify_remote: Verify remote URL matches expectation
+            force: Force binding even if already bound
+            
+        Returns:
+            Binding status information
+        """
+        try:
+            binding = await self.binding_manager.bind_repository(
+                repository_path, expected_remote_url, verify_remote, force
+            )
+            self._update_state_history()
+            return {
+                "status": "bound", 
+                "binding": self.binding_manager.get_binding_info()
+            }
+        except (RepositoryBindingError, RemoteContaminationError) as e:
+            self.error_count += 1
+            self.last_error = str(e)
+            raise
+
+    async def unbind_repository(self, force: bool = False) -> dict:
+        """
+        Unbind server from repository.
+        
+        Args:
+            force: Force unbind even if operations are in progress
+            
+        Returns:
+            Unbinding status
+        """
+        try:
+            await self.binding_manager.unbind_repository(force)
+            self._update_state_history()
+            return {"status": "unbound"}
+        except RepositoryBindingError as e:
+            self.error_count += 1
+            self.last_error = str(e)
+            raise
+
+    def get_repository_status(self) -> dict:
+        """
+        Get repository binding status.
+        
+        Returns:
+            Current binding information
+        """
+        return self.binding_manager.get_binding_info()
+
+    def get_protected_operations(self) -> Optional[ProtectedGitOperations]:
+        """
+        Get protected git operations instance.
+        
+        Returns:
+            ProtectedGitOperations instance if available
+        """
+        return self.protected_ops
+
     # DebuggableComponent implementation
 
     def get_component_state(self) -> ComponentState:
-        """Get the current state of the server core."""
+        """Get the current state of the server core with repository binding info."""
         state_data = {
             "server_name": self.server_name,
             "repository_path": str(self.repository_path)
@@ -237,6 +370,8 @@ class MCPGitServerCore(DebuggableComponent):
                 else None
             ),
             "server_initialized": self.server is not None,
+            "repository_binding": self.binding_manager.get_binding_info(),
+            "protected_operations_available": self.protected_ops is not None,
         }
 
         return ServerComponentState(
@@ -258,6 +393,17 @@ class MCPGitServerCore(DebuggableComponent):
         # Check repository path if specified
         if self.repository_path and not self.repository_path.exists():
             errors.append(f"Repository path does not exist: {self.repository_path}")
+
+        # Check repository binding validation
+        binding_info = self.binding_manager.get_binding_info()
+        if binding_info["state"] == "corrupted":
+            errors.append("Repository binding corrupted - potential tampering detected")
+        elif binding_info["state"] == "unbound" and self.repository_path:
+            warnings.append("Repository specified but not bound - operations may be unprotected")
+
+        # Check protected operations availability
+        if self.protected_ops is None and binding_info["state"] == "bound":
+            errors.append("Repository bound but protected operations not available")
 
         # Check error rate
         if self.error_count > 100:
