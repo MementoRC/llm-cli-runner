@@ -901,9 +901,19 @@ def git_push(
 
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
+            # Try to load .env from current repository first
+            from dotenv import load_dotenv
+            from pathlib import Path
+            
+            repo_env = Path(repo.working_dir) / ".env"
+            if repo_env.exists():
+                logger.info(f"🔍 DEBUG: Loading .env from repository: {repo_env}")
+                load_dotenv(repo_env, override=True)
+            
             github_token = os.getenv("GITHUB_TOKEN")
-            logger.debug(f"🔍 DEBUG: GITHUB_TOKEN from env: {'SET' if github_token else 'NOT SET'}")
-            logger.debug(f"🔍 DEBUG: All env vars: {list(os.environ.keys())}")
+            logger.info(f"🔍 DEBUG: GITHUB_TOKEN from env: {'SET' if github_token else 'NOT SET'}")
+            logger.info(f"🔍 DEBUG: Repository working dir: {repo.working_dir}")
+            logger.info(f"🔍 DEBUG: .env file exists: {repo_env.exists()}")
 
             # If no GITHUB_TOKEN, try to get token from GitHub CLI
             if not github_token:
