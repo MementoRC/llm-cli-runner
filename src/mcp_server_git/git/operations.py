@@ -986,9 +986,16 @@ def git_push(
                             "Authentication failed" in error_output
                             or "401" in error_output
                         ):
+                            # Add debug info directly to error message
+                            repo_env = Path(repo.working_dir) / ".env"
+                            token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
                             return (
-                                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                                "or GitHub CLI authentication (gh auth login)"
+                                f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                                f"or GitHub CLI authentication (gh auth login)\n"
+                                f"🔍 DEBUG: GITHUB_TOKEN: {token_status}, "
+                                f".env exists: {repo_env.exists()}, "
+                                f"working_dir: {repo.working_dir}\n"
+                                f"🔍 System git error: {error_output}"
                             )
                         elif (
                             "403" in error_output or "Permission denied" in error_output
