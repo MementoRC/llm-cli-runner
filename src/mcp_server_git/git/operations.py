@@ -1022,9 +1022,16 @@ def git_push(
             # If regular push fails and this is GitHub HTTPS, suggest auth options
             if is_github and remote_url.startswith("https://"):
                 if "Authentication failed" in str(e) or "401" in str(e):
+                    # Add debug info directly to error message - REGULAR PUSH PATH
+                    repo_env = Path(repo.working_dir) / ".env"
+                    token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
                     return (
-                        "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                        "or GitHub CLI authentication (gh auth login)"
+                        f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                        f"or GitHub CLI authentication (gh auth login)\n"
+                        f"🔍 DEBUG [REGULAR_PUSH]: GITHUB_TOKEN: {token_status}, "
+                        f".env exists: {repo_env.exists()}, "
+                        f"working_dir: {repo.working_dir}\n"
+                        f"🔍 GitPython error: {str(e)}"
                     )
                 elif "403" in str(e) or "Permission denied" in str(e):
                     return "❌ Permission denied. Check repository access permissions"
@@ -1037,9 +1044,16 @@ def git_push(
 
     except GitCommandError as e:
         if "Authentication failed" in str(e) or "401" in str(e):
+            # Add debug info directly to error message - OUTER EXCEPTION PATH
+            repo_env = Path(repo.working_dir) / ".env"
+            token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
             return (
-                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                "or GitHub CLI authentication (gh auth login)"
+                f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                f"or GitHub CLI authentication (gh auth login)\n"
+                f"🔍 DEBUG [OUTER_EXCEPTION]: GITHUB_TOKEN: {token_status}, "
+                f".env exists: {repo_env.exists()}, "
+                f"working_dir: {repo.working_dir}\n"
+                f"🔍 Outer GitPython error: {str(e)}"
             )
         elif "403" in str(e):
             return "❌ Permission denied. Check repository access permissions"
