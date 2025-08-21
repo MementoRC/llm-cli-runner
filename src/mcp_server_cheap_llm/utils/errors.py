@@ -68,6 +68,7 @@ class ErrorSerializer:
 
         Returns:
             Dictionary in MCP protocol format
+
         """
         error_code = self._get_error_code(error)
         error_message = str(error)
@@ -85,6 +86,7 @@ class ErrorSerializer:
 
         Returns:
             Exception object reconstructed from MCP format
+
         """
         error_info = mcp_error.get("error", {})
         error_code = error_info.get("code")
@@ -127,6 +129,7 @@ class ErrorSerializer:
 
         Returns:
             Error code string
+
         """
         # If error has explicit error_code, use it
         if hasattr(error, "error_code") and error.error_code:
@@ -147,6 +150,7 @@ class ErrorSerializer:
 
         Returns:
             Dictionary containing error metadata
+
         """
         error_data: dict[str, Any] = {
             "error_type": error.__class__.__name__,
@@ -169,7 +173,7 @@ class ErrorSerializer:
         # Add error chaining information
         if error.__cause__:
             error_data["cause"] = (
-                f"{error.__cause__.__class__.__name__}: {str(error.__cause__)}"
+                f"{error.__cause__.__class__.__name__}: {error.__cause__!s}"
             )
 
         return error_data
@@ -182,6 +186,7 @@ class ErrorSerializer:
 
         Returns:
             JSON-serializable context dictionary
+
         """
         serialized = {}
 
@@ -210,6 +215,7 @@ class ErrorSerializer:
 
         Returns:
             JSON string in MCP protocol format
+
         """
         return json.dumps(self.serialize(error), indent=2)
 
@@ -221,6 +227,7 @@ class ErrorSerializer:
 
         Returns:
             Exception object reconstructed from JSON
+
         """
         mcp_error = json.loads(json_str)
         return self.deserialize(mcp_error)

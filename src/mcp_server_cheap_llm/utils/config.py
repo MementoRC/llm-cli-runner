@@ -1,4 +1,22 @@
-"""Configuration management for the MCP server."""
+"""Configuration management for MCP Server.
+
+This module provides centralized configuration management for the MCP server,
+supporting TOML configuration files with validation and type safety.
+
+Classes:
+    CacheConfig: Cache configuration settings
+    LoggingConfig: Logging configuration settings
+    ProviderConfig: Provider configuration settings
+    ServerConfig: Main server configuration
+    ConfigManager: Configuration loading and validation
+    SecurityConfig: API key encryption and security management
+
+Example:
+    >>> from mcp_server_cheap_llm.utils.config import ConfigManager
+    >>> config = ConfigManager.load_config("config.toml")
+    >>> print(config.server.port)
+
+"""
 
 This module handles configuration loading, validation, and provider management.
 Follows atomic design with configuration-driven approach (200-300 lines).
@@ -18,41 +36,32 @@ Example:
 
 import base64
 import json
-import logging
 import os
+import re
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
+import structlog
 import tomli
 from cryptography.fernet import Fernet
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
-from ..types.config_types import ProviderConfig, ProviderType, ServerConfig
-from .errors import ConfigurationError, ValidationError
+from mcp_server_cheap_llm.utils.errors import ConfigurationError
 
-logger = logging.getLogger(__name__)
+# Import core models for type annotations
+if TYPE_CHECKING:
+    from mcp_server_cheap_llm.core.models import ProviderConfig
 
-T = TypeVar("T")
+__all__ = [
+    "CacheConfig",
+    "ConfigManager",
+    "LoggingConfig",
+    "ProviderConfig",
+    "SecurityConfig",
+    "ServerConfig",
+]
 
-
-class SimpleKeyManager:
-    """Minimal key manager for TDD GREEN phase."""
-
-    def __init__(self) -> None:
-        """Initialize key storage."""
-        self._keys: dict[str, str] = {}
-
-    def key_exists(self, provider: str) -> bool:
-        """Check if key exists for provider."""
-        return provider in self._keys
-
-    def store_key(self, provider: str, key: str) -> None:
-        """Store API key for provider."""
-        self._keys[provider] = key
-
-    def get_key(self, provider: str) -> str | None:
-        """Get API key for provider."""
-        return self._keys.get(provider)
+logger = structlog.get_logger(__name__)
 
 
 class CacheConfig(BaseModel):
@@ -123,163 +132,334 @@ class CacheConfig(BaseModel):
 class ConfigModel(BaseModel):
     """Basic configuration model for the MCP server.
 
-    enabled: bool = True
     type: str = "memory"
-    memory_config: dict[str, Any] = Field(default_factory=dict)
-    redis_config: dict[str, Any] = Field(default_factory=dict)
-    ttl_default: int = 3600
-    ttl_completion: int = 1800
-    ttl_embedding: int = 7200
+    ttl: int = 3600
+    redis_url: str | None = None
     max_size: int = 1000
 
     model_config = ConfigDict(extra="forbid")
 
     @field_validator("type")
+    @classmethod
     def validate_cache_type(cls, v: str) -> str:
         """Validate cache type."""
         if v not in ["memory", "redis"]:
-            raise ValueError("Cache type must be 'memory' or 'redis'")
+            msg = "Cache type must be 'memory' or 'redis'"
+            raise ValueError(msg)
         return v
 
 
 class LoggingConfig(BaseModel):
-    """Logging configuration settings."""
+    """Logging configuration settings.
+
+    Attributes:
+        level: Logging level (DEBUG, INFO, WARNING, ERROR)
+        format: Log format (json, console)
+        file: Optional log file path
+        max_size: Maximum log file size in MB
+        backup_count: Number of backup files to keep
+
+    """
 
     level: str = "INFO"
-    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format: str = "json"
     file: str | None = None
-    max_bytes: int = 10485760  # 10MB
+    max_size: int = 10
     backup_count: int = 5
 
     model_config = ConfigDict(extra="forbid")
 
     @field_validator("level")
+    @classmethod
     def validate_log_level(cls, v: str) -> str:
-        """Validate log level."""
+        """Validate logging level."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
-            raise ValueError(f"Log level must be one of {valid_levels}")
+            msg = f"Log level must be one of: {', '.join(valid_levels)}"
+            raise ValueError(msg)
         return v.upper()
 
+    @field_validator("format")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """Validate log format."""
+        if v not in ["json", "console"]:
+            msg = "Log format must be 'json' or 'console'"
+            raise ValueError(msg)
+        return v
 
-class SecurityConfig(BaseModel):
-    """Security configuration settings with encryption support."""
 
-    enable_auth: bool = False
-    api_keys: list[str] = Field(default_factory=list)
-    rate_limit: dict[str, Any] | None = None
-    cors_enabled: bool = True
-    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+class ProviderConfig(BaseModel):
+    """Provider configuration settings.
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    Attributes:
+        enabled: Whether the provider is enabled
+        api_key: API key for the provider
+        base_url: Base URL for API requests
+        max_tokens: Maximum tokens per request
+        temperature: Sampling temperature
+        timeout: Request timeout in seconds
 
-    def __init__(self, encryption_key: bytes | None = None, **data: Any):
-        """Initialize SecurityConfig with optional encryption key."""
-        super().__init__(**data)
-        # Set encryption key after model initialization
-        if encryption_key:
-            self._encryption_key = encryption_key
-        else:
-            self._encryption_key = Fernet.generate_key()
+    """
+
+    enabled: bool = True
+    api_key: str | None = None
+    base_url: str | None = None
+    max_tokens: int = 4096
+    temperature: float = 0.7
+    timeout: int = 30
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("temperature")
+    @classmethod
+    def validate_temperature(cls, v: float) -> float:
+        """Validate temperature value."""
+        if not 0.0 <= v <= 2.0:
+            msg = "Temperature must be between 0.0 and 2.0"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("max_tokens")
+    @classmethod
+    def validate_max_tokens(cls, v: int) -> int:
+        """Validate max tokens value."""
+        if v <= 0:
+            msg = "Max tokens must be positive"
+            raise ValueError(msg)
+        return v
+
+
+class ServerConfig(BaseModel):
+    """Main server configuration.
+
+    Attributes:
+        debug: Enable debug mode
+        host: Server host
+        port: Server port
+        max_connections: Maximum concurrent connections
+        cache: Cache configuration
+        logging: Logging configuration
+        providers: Provider configurations
+
+    """
+
+    debug: bool = False
+    host: str = "0.0.0.0"
+    port: int = 8000
+    max_connections: int = 100
+
+    # Nested configurations
+    cache: CacheConfig = CacheConfig()
+    logging: LoggingConfig = LoggingConfig()
+    providers: dict[str, ProviderConfig] = {}
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("port")
+    @classmethod
+    def validate_port(cls, v: int) -> int:
+        """Validate port number."""
+        if not 1 <= v <= 65535:
+            msg = "Port must be between 1 and 65535"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("max_connections")
+    @classmethod
+    def validate_max_connections(cls, v: int) -> int:
+        """Validate max connections."""
+        if v <= 0:
+            msg = "Max connections must be positive"
+            raise ValueError(msg)
+        return v
+
+
+class SecurityConfig:
+    """API key encryption and security management.
+
+    Provides methods for encrypting, decrypting, validating, and managing
+    API keys for various providers with secure storage and key rotation.
+    """
+
+    API_KEY_PATTERNS = {
+        "openai": re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
+        "google": re.compile(r"^AIzaSy[a-zA-Z0-9_-]{33}$"),
+        "anthropic": re.compile(r"^sk-ant-api03-[a-zA-Z0-9_-]{95}$"),
+    }
+
+    def __init__(self, encryption_key: bytes | None = None) -> None:
+        """Initialize security manager with optional encryption key.
+
+        Args:
+            encryption_key: Custom encryption key, generates new one if None
+
+        """
+        self._encryption_key = encryption_key or Fernet.generate_key()
         self._fernet = Fernet(self._encryption_key)
         self._encrypted_keys: dict[str, str] = {}
 
     @staticmethod
     def generate_encryption_key() -> bytes:
-        """Generate a new encryption key."""
+        """Generate a new encryption key.
+
+        Returns:
+            bytes: Base64-encoded Fernet encryption key
+
+        """
         return Fernet.generate_key()
 
     def encrypt_key(self, api_key: str) -> str:
-        """Encrypt an API key."""
-        encrypted = self._fernet.encrypt(api_key.encode())
-        return base64.b64encode(encrypted).decode()
+        """Encrypt an API key.
+
+        Args:
+            api_key: The API key to encrypt
+
+        Returns:
+            str: Base64-encoded encrypted API key
+
+        Raises:
+            ConfigurationError: If encryption fails
+
+        """
+        try:
+            encrypted_bytes = self._fernet.encrypt(api_key.encode())
+            return base64.b64encode(encrypted_bytes).decode()
+        except Exception as e:
+            msg = f"Failed to encrypt API key: {e}"
+            raise ConfigurationError(msg) from e
 
     def decrypt_key(self, encrypted_key: str) -> str:
-        """Decrypt an encrypted API key."""
+        """Decrypt an encrypted API key.
+
+        Args:
+            encrypted_key: Base64-encoded encrypted API key
+
+        Returns:
+            str: Decrypted API key
+
+        Raises:
+            ConfigurationError: If decryption fails
+
+        """
         try:
             encrypted_bytes = base64.b64decode(encrypted_key.encode())
-            decrypted = self._fernet.decrypt(encrypted_bytes)
-            return decrypted.decode()
+            decrypted_bytes = self._fernet.decrypt(encrypted_bytes)
+            return decrypted_bytes.decode()
         except Exception as e:
-            raise ConfigurationError(f"Failed to decrypt key: {e}") from e
+            msg = f"Failed to decrypt API key: {e}"
+            raise ConfigurationError(msg) from e
 
-    def validate_api_key(self, key: str, provider: str) -> bool:
-        """Validate API key format for a provider."""
-        if provider == "openai":
-            # OpenAI keys start with sk- and have minimum length
-            return key.startswith("sk-") and len(key) > 10
-        elif provider == "google":
-            # Google/Gemini keys start with AIza
-            return key.startswith("AIza") and len(key) > 10
-        elif provider == "anthropic":
-            # Anthropic keys start with sk-ant-api03-
-            return key.startswith("sk-ant-api03-") and len(key) > 20
-        else:
-            raise ValueError(f"Unsupported provider: {provider}")
+    def validate_api_key(self, api_key: str, provider: str) -> bool:
+        """Validate API key format for a provider.
+
+        Args:
+            api_key: The API key to validate
+            provider: Provider name (openai, google, anthropic)
+
+        Returns:
+            bool: True if key format is valid
+
+        Raises:
+            ValueError: If provider is not supported
+
+        """
+        if provider not in self.API_KEY_PATTERNS:
+            msg = f"Unsupported provider: {provider}"
+            raise ValueError(msg)
+
+        pattern = self.API_KEY_PATTERNS[provider]
+        return bool(pattern.match(api_key))
 
     def store_encrypted_key(self, provider: str, api_key: str) -> None:
-        """Store an encrypted API key for a provider."""
+        """Store an encrypted API key for a provider.
+
+        Args:
+            provider: Provider name
+            api_key: API key to encrypt and store
+
+        Raises:
+            ConfigurationError: If API key is invalid
+
+        """
         if not self.validate_api_key(api_key, provider):
-            raise ConfigurationError(f"Invalid API key for {provider}")
-        encrypted = self.encrypt_key(api_key)
-        self._encrypted_keys[provider] = encrypted
+            msg = f"Invalid API key format for provider: {provider}"
+            raise ConfigurationError(msg)
+
+        encrypted_key = self.encrypt_key(api_key)
+        self._encrypted_keys[provider] = encrypted_key
 
     def get_decrypted_key(self, provider: str) -> str | None:
-        """Get and decrypt a stored API key."""
-        if provider not in self._encrypted_keys:
+        """Get decrypted API key for a provider.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            str | None: Decrypted API key or None if not found
+
+        """
+        encrypted_key = self._encrypted_keys.get(provider)
+        if encrypted_key is None:
             return None
-        return self.decrypt_key(self._encrypted_keys[provider])
 
-    def rotate_encryption_key(self) -> None:
-        """Rotate the encryption key and re-encrypt all stored keys."""
-        # Decrypt all keys with old key
-        decrypted_keys = {}
-        for provider, encrypted in self._encrypted_keys.items():
-            decrypted_keys[provider] = self.decrypt_key(encrypted)
+        return self.decrypt_key(encrypted_key)
 
-        # Generate new key
-        self._encryption_key = Fernet.generate_key()
-        self._fernet = Fernet(self._encryption_key)
+    def key_exists(self, provider: str) -> bool:
+        """Check if a key exists for a provider.
 
-        # Re-encrypt with new key
-        for provider, api_key in decrypted_keys.items():
-            self._encrypted_keys[provider] = self.encrypt_key(api_key)
+        Args:
+            provider: Provider name
+
+        Returns:
+            bool: True if key exists
+
+        """
+        return provider in self._encrypted_keys
 
     def list_stored_providers(self) -> list[str]:
-        """List providers with stored encrypted keys."""
+        """List providers with stored keys.
+
+        Returns:
+            list[str]: List of provider names
+
+        """
         return list(self._encrypted_keys.keys())
 
     def remove_stored_key(self, provider: str) -> bool:
-        """Remove a stored encrypted key."""
-        if provider in self._encrypted_keys:
-            del self._encrypted_keys[provider]
-            return True
-        return False
+        """Remove stored key for a provider.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            bool: True if key was removed, False if not found
+
+        """
+        return self._encrypted_keys.pop(provider, None) is not None
 
     def clear_all_keys(self) -> None:
         """Clear all stored encrypted keys."""
         self._encrypted_keys.clear()
 
-    def key_exists(self, provider: str) -> bool:
-        """Check if a key exists for a provider."""
-        return provider in self._encrypted_keys
+    def rotate_encryption_key(self) -> None:
+        """Rotate the encryption key and re-encrypt all stored keys.
 
-    def save_encryption_key(self, file_path: str) -> None:
-        """Save encryption key to file."""
-        with open(file_path, "wb") as f:
-            f.write(self._encryption_key)
+        This creates a new encryption key and re-encrypts all stored API keys.
+        """
+        # Decrypt all existing keys with old key
+        decrypted_keys = {}
+        for provider, encrypted_key in self._encrypted_keys.items():
+            decrypted_keys[provider] = self.decrypt_key(encrypted_key)
 
-    def load_encryption_key(self, file_path: str) -> None:
-        """Load encryption key from file."""
-        with open(file_path, "rb") as f:
-            self._encryption_key = f.read()
+        # Generate new encryption key
+        self._encryption_key = Fernet.generate_key()
         self._fernet = Fernet(self._encryption_key)
 
-    def load_from_environment(self, provider: str) -> str | None:
-        """Load encrypted key from environment variables."""
-        # Check for encrypted key in environment
-        env_var = f"{provider.upper()}_API_KEY_ENCRYPTED"
-        encrypted_key = os.getenv(env_var)
+        # Re-encrypt all keys with new key
+        self._encrypted_keys.clear()
+        for provider, decrypted_key in decrypted_keys.items():
+            self._encrypted_keys[provider] = self.encrypt_key(decrypted_key)
 
         if encrypted_key:
             # Check if encryption key is also in environment
@@ -324,162 +504,292 @@ class ConfigLoader:
         """Load configuration from file with environment variable override support.
 
         Args:
-            config_path: Path to configuration file. If None, uses default paths.
-            reload: Force reload configuration even if cached.
-
-        Returns:
-            ServerConfig: The loaded configuration.
+            file_path: Path to save the key
 
         Raises:
-            FileNotFoundError: If configuration file is not found.
-            ValueError: If configuration is invalid.
+            OSError: If unable to write file
+
         """
-        if not reload and self._config_cache is not None:
-            return self._config_cache
-
-        # Determine config file path
-        if config_path:
-            config_file = Path(config_path)
-        else:
-            config_file = self._find_config_file()
-
-        if not config_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_file}")
-
-        # Load and parse configuration
         try:
-            with open(config_file, encoding="utf-8") as f:
-                config_data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in config file {config_file}: {e}") from e
+            Path(file_path).write_bytes(self._encryption_key)
+        except OSError as e:
+            msg = f"Failed to save encryption key: {e}"
+            raise OSError(msg) from e
 
-        # Apply environment variable overrides
-        config_data = self._apply_env_overrides(config_data)
+    def load_encryption_key(self, file_path: str) -> None:
+        """Load encryption key from file.
+
+        Args:
+            file_path: Path to load the key from
+
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            OSError: If unable to read file
+            ValueError: If key format is invalid
+
+        """
+        key_file = Path(file_path)
+        if not key_file.exists():
+            msg = f"Encryption key file not found: {file_path}"
+            raise FileNotFoundError(msg)
+
+        try:
+            self._encryption_key = key_file.read_bytes()
+            self._fernet = Fernet(self._encryption_key)
+        except Exception as e:
+            msg = f"Failed to load encryption key: {e}"
+            raise ValueError(msg) from e
+
+    def load_from_environment(self, provider: str) -> str | None:
+        """Load API key from environment variables.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            str | None: Decrypted API key or None if not found
+
+        """
+        env_var = f"{provider.upper()}_API_KEY_ENCRYPTED"
+        encrypted_key = os.environ.get(env_var)
+
+        if encrypted_key is None:
+            return None
+
+        # Load encryption key from environment if available
+        encryption_key_env = os.environ.get("MCP_ENCRYPTION_KEY")
+        if encryption_key_env:
+            self._encryption_key = encryption_key_env.encode()
+            self._fernet = Fernet(self._encryption_key)
+
+        return self.decrypt_key(encrypted_key)
+
+
+class ConfigManager:
+    """Configuration management utilities.
+
+    Provides methods for loading and validating configuration from TOML files
+    with environment variable support and default values.
+    """
+
+    DEFAULT_CONFIG_PATHS: ClassVar[list[str]] = [
+        "config.toml",
+        "~/.config/mcp-server-cheap-llm/config.toml",
+        "/etc/mcp-server-cheap-llm/config.toml",
+    ]
+
+    def __init__(self, config_path: str | None = None) -> None:
+        """Initialize ConfigManager.
+
+        Args:
+            config_path: Optional path to configuration file
+        """
+        self.config: ServerConfig | None = None
+        self._config_cache: dict[str, Any] = {}
+        self._config_path: str | None = config_path
+
+    def load_configuration(self, config_path: str | None = None) -> ServerConfig:
+        """Load configuration from file or defaults.
+
+        Args:
+            config_path: Path to configuration file, or None for auto-discovery
+
+        Returns:
+            ServerConfig: Validated configuration object
+
+        Raises:
+            ConfigurationError: If configuration loading fails
+
+        """
+        try:
+            # Use provided path, or instance path, or auto-discovery
+            path_to_use = config_path or self._config_path
+            self.config = self.load_config(path_to_use)
+            self._config_path = path_to_use
+            return self.config
+        except Exception as e:
+            msg = f"Failed to load configuration: {e}"
+            raise ConfigurationError(msg) from e
+
+    def reload_configuration(self) -> ServerConfig:
+        """Reload configuration from last used path.
+
+        Returns:
+            ServerConfig: Reloaded configuration
+
+        Raises:
+            ConfigurationError: If no configuration was previously loaded
+
+        """
+        if self._config_path is None and self.config is None:
+            msg = "No configuration has been loaded yet"
+            raise ConfigurationError(msg)
+        return self.load_configuration(self._config_path)
+
+    def get_cached_config(self, key: str) -> Any:
+        """Get cached configuration value.
+
+        Args:
+            key: Configuration key
+
+        Returns:
+            Cached value or None
+
+        """
+        return self._config_cache.get(key)
+
+    def set_cached_config(self, key: str, value: Any) -> None:
+        """Set cached configuration value.
+
+        Args:
+            key: Configuration key
+            value: Value to cache
+
+        """
+        self._config_cache[key] = value
+
+    @classmethod
+    def load_config(cls, config_path: str | None = None) -> ServerConfig:
+        """Load configuration from file or defaults.
+
+        Args:
+            config_path: Path to configuration file, or None for auto-discovery
+
+        Returns:
+            ServerConfig: Validated configuration object
+
+        Raises:
+            FileNotFoundError: If specified config file doesn't exist
+            ValueError: If configuration is invalid
+            OSError: If unable to read config file
+
+        """
+        if config_path:
+            return cls._load_config_file(config_path)
+
+        # Try default locations
+        for path in cls.DEFAULT_CONFIG_PATHS:
+            expanded_path = Path(path).expanduser()
+            if expanded_path.exists():
+                logger.info(
+                    "Loading configuration from default location",
+                    path=str(expanded_path),
+                )
+                return cls._load_config_file(str(expanded_path))
+
+        # No config file found, use defaults
+        logger.info("No configuration file found, using defaults")
+        return cls._apply_env_overrides(ServerConfig())
+
+    @classmethod
+    def _load_config_file(cls, config_path: str) -> ServerConfig:
+        """Load configuration from a specific file.
+
+        Args:
+            config_path: Path to configuration file
+
+        Returns:
+            ServerConfig: Validated configuration object
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            ValueError: If configuration is invalid
+            OSError: If unable to read config file
+
+        """
+        config_file = Path(config_path)
+        if not config_file.exists():
+            msg = f"Configuration file not found: {config_path}"
+            raise FileNotFoundError(msg)
+
+        try:
+            # Check file extension to determine format
+            if config_file.suffix.lower() == ".json":
+                with config_file.open("r") as f:
+                    config_data = json.load(f)
+            else:
+                # Default to TOML
+                with config_file.open("rb") as f:
+                    config_data = tomli.load(f)
+        except (tomli.TOMLDecodeError, json.JSONDecodeError) as e:
+            msg = f"Invalid configuration syntax in {config_path}: {e}"
+            raise ValueError(msg) from e
+        except OSError as e:
+            msg = f"Unable to read configuration file {config_path}: {e}"
+            raise OSError(msg) from e
+
+        logger.info("Configuration loaded from file", path=config_path)
 
         # Validate and create config object
         try:
             config = ServerConfig(**config_data)
         except Exception as e:
-            raise ValueError(f"Invalid configuration: {e}") from e
+            msg = f"Invalid configuration in {config_path}: {e}"
+            raise ValueError(msg) from e
 
-        self._config_cache = config
-        self._config_file_path = config_file
+        return cls._apply_env_overrides(config)
 
-        logger.info("Configuration loaded from %s", config_file)
-        return config
-
-    def _find_config_file(self) -> Path:
-        """Find configuration file in standard locations."""
-        search_paths = [
-            Path.cwd() / "config.json",
-            Path.cwd() / "config" / "config.json",
-            Path.home() / ".mcp_server" / "config.json",
-            Path("/etc/mcp_server/config.json"),
-        ]
-
-        for path in search_paths:
-            if path.exists():
-                return path
-
-        # Return default path if none found (will cause FileNotFoundError later)
-        return search_paths[0]
-
-    def _apply_env_overrides(self, config_data: dict[str, Any]) -> dict[str, Any]:
-        """Apply environment variable overrides to configuration."""
-        env_mapping = {
-            "MCP_SERVER_HOST": ["server", "host"],
-            "MCP_SERVER_PORT": ["server", "port"],
-            "MCP_LOG_LEVEL": ["logging", "level"],
-            "MCP_LOG_FILE": ["logging", "file"],
-            "MCP_CACHE_ENABLED": ["cache", "enabled"],
-            "MCP_CACHE_TYPE": ["cache", "type"],
-            "MCP_CACHE_TTL": ["cache", "ttl_default"],
-            "MCP_REDIS_URL": ["cache", "redis_config", "url"],
-            "MCP_SECURITY_AUTH": ["security", "enable_auth"],
-            "MCP_MONITORING_ENABLED": ["monitoring", "enabled"],
-        }
-
-        for env_var, config_path in env_mapping.items():
-            env_value = os.getenv(env_var)
-            if env_value is not None:
-                self._set_nested_value(config_data, config_path, env_value)
-
-        return config_data
-
-    def _set_nested_value(
-        self, data: dict[str, Any], path: list[str], value: str
-    ) -> None:
-        """Set nested dictionary value from dot-separated path."""
-        current = data
-        for key in path[:-1]:
-            if key not in current:
-                current[key] = {}
-            current = current[key]
-
-        final_key = path[-1]
-        # Convert value to appropriate type based on existing value or reasonable defaults
-        if final_key in current:
-            existing_value = current[final_key]
-            current[final_key] = self._convert_env_value(value, type(existing_value))
-        else:
-            current[final_key] = self._infer_and_convert_value(value)
-
-    def _convert_env_value(self, value: str, target_type: type) -> Any:
-        """Convert environment variable string to target type.
+    @classmethod
+    def _apply_env_overrides(cls, config: ServerConfig) -> ServerConfig:
+        """Apply environment variable overrides to configuration.
 
         Args:
-            value: String value from environment variable.
-            target_type: Target type to convert to.
+            config: Base configuration object
 
         Returns:
-            Converted value.
+            ServerConfig: Configuration with environment overrides
 
-        Examples:
-            >>> loader = ConfigLoader()
-            >>> loader._convert_env_value("123", int)
-            123
-            >>> loader._convert_env_value("true", bool)
-            True
-            >>> loader._convert_env_value("localhost", str)
-            'localhost'
         """
-        if target_type is str:
-            return value
+        # Server-level overrides
+        if host := os.environ.get("MCP_HOST"):
+            config.host = host
 
-        if target_type is int:
+        if port_str := os.environ.get("MCP_PORT"):
             try:
-                return int(value)
+                config.port = int(port_str)
             except ValueError as e:
-                raise ValueError(f"Cannot convert '{value}' to integer") from e
+                msg = f"Invalid MCP_PORT value: {port_str}"
+                raise ValueError(msg) from e
 
-        elif target_type is bool:
-            # Handle various boolean representations
-            true_values = {"true", "1", "yes", "on"}
-            false_values = {"false", "0", "no", "off", ""}
+        if debug_str := os.environ.get("MCP_DEBUG"):
+            config.debug = debug_str.lower() in ("true", "1", "yes", "on")
 
-            lower_value = value.lower()
-            if lower_value in true_values:
-                return True
-            if lower_value in false_values:
-                return False
-            # Default to False for any unrecognized value
-            return False
+        # Logging overrides
+        if log_level := os.environ.get("MCP_LOG_LEVEL"):
+            config.logging.level = log_level
 
-        elif target_type is list:
-            # Assume comma-separated values
-            return [item.strip() for item in value.split(",") if item.strip()]
+        if log_format := os.environ.get("MCP_LOG_FORMAT"):
+            config.logging.format = log_format
 
-        else:
-            # For other types, return as string and let pydantic handle conversion
-            return value
+        # Cache overrides
+        if cache_type := os.environ.get("MCP_CACHE_TYPE"):
+            config.cache.type = cache_type
 
-    def _infer_and_convert_value(self, value: str) -> Any:
-        """Infer type from string value and convert."""
-        # Try integer
+        if redis_url := os.environ.get("MCP_REDIS_URL"):
+            config.cache.redis_url = redis_url
+
+        logger.info("Configuration loaded with environment overrides")
+        return config
+
+    @classmethod
+    def validate_config(cls, config_data: dict[str, Any]) -> ServerConfig:
+        """Validate raw configuration data.
+
+        Args:
+            config_data: Raw configuration dictionary
+
+        Returns:
+            ServerConfig: Validated configuration object
+
+        Raises:
+            ValueError: If configuration is invalid
+
+        """
         try:
-            return int(value)
-        except ValueError:
-            pass
+            return ServerConfig(**config_data)
+        except Exception as e:
+            msg = f"Configuration validation failed: {e}"
+            raise ValueError(msg) from e
 
         # Try boolean
         if value.lower() in {"true", "false", "1", "0", "yes", "no", "on", "off"}:
@@ -912,533 +1222,37 @@ class ConfigManager:
         """Get configuration for a specific provider.
 
         Args:
-            provider_type: Type of provider (ProviderType enum or string).
+            provider_name: Name of the provider
 
         Returns:
-            ProviderConfig or dict: Provider configuration.
+            ProviderConfig or None if not found
 
-        Raises:
-            RuntimeError: If configuration is not initialized.
-            ValueError: If provider configuration is not found.
         """
-        # Handle string provider names for test compatibility (primary path)
-        if isinstance(provider_type, str):
-            # Check actual provider configs first
-            if provider_type in self._provider_configs:
-                config = self._provider_configs[provider_type].copy()
+        if not self.config or not self.config.providers:
+            return None
 
-                # Ensure we have the required keys
-                if "enabled" not in config:
-                    config["enabled"] = True
+        return self.config.providers.get(provider_name)
 
-                # Retrieve decrypted key if encrypted
-                if self.key_manager.key_exists(provider_type):
-                    config["api_key"] = self.key_manager.get_key(provider_type)
-
-                return config
-
-            # Handle mock config from tests
-            if self.config is None:
-                self.config = self._load_configuration()
-
-            if hasattr(self.config, "providers") and hasattr(
-                self.config.providers, "__iter__"
-            ):
-                for provider in self.config.providers:
-                    if hasattr(provider, "name") and provider.name == provider_type:
-                        # Convert mock provider to dict
-                        config_dict = {
-                            "name": provider.name,
-                            "enabled": getattr(provider, "enabled", True),
-                        }
-                        # Add other attributes if they exist
-                        for attr in [
-                            "provider_type",
-                            "api_key",
-                            "model_name",
-                            "max_tokens",
-                            "endpoint",
-                            "rate_limit",
-                            "quota_limit",
-                        ]:
-                            if hasattr(provider, attr):
-                                config_dict[attr] = getattr(provider, attr)
-                        return config_dict
-
-            return None  # Return None if not found
-
-        # Trigger lazy loading if needed for enum-based access
-        if self.config is None:
-            self.config = self._load_configuration()
-
-        # Handle mock config from tests
-        if hasattr(self.config, "providers") and hasattr(
-            self.config.providers, "__iter__"
-        ):
-            for provider in self.config.providers:
-                if hasattr(provider, "name") and provider.name == provider_type:
-                    # Convert provider mock to dict
-                    result = {"name": provider.name}
-                    for attr in [
-                        "enabled",
-                        "provider_type",
-                        "api_key",
-                        "model_name",
-                        "max_tokens",
-                        "endpoint",
-                        "rate_limit",
-                        "quota_limit",
-                    ]:
-                        if hasattr(provider, attr):
-                            result[attr] = getattr(provider, attr)
-                    return result
-            return None  # Provider not found
-
-        # Original enum-based logic
-        config = self.get_config()
-
-        if provider_type not in config.providers:
-            raise ValueError(f"Provider {provider_type} not configured")
-
-        return config.providers[provider_type]
-
-    def update_provider_config(
-        self,
-        provider_type: ProviderType,
-        provider_config: ProviderConfig,
-    ) -> None:
-        """Update provider configuration.
-
-        Args:
-            provider_type: Type of provider.
-            provider_config: New provider configuration.
-        """
-        if self._config is None:
-            raise RuntimeError("Configuration not initialized")
-
-        self._config.providers[provider_type] = provider_config
-
-    def get_cache_config(self) -> CacheConfig:
-        """Get cache configuration."""
-        config = self.get_config()
-        return config.cache
-
-    def get_logging_config(self) -> LoggingConfig:
-        """Get logging configuration."""
-        config = self.get_config()
-        return config.logging
-
-    def get_security_config(self) -> SecurityConfig:
-        """Get security configuration."""
-        config = self.get_config()
-        return config.security
-
-    def get_monitoring_config(self) -> MonitoringConfig:
-        """Get monitoring configuration."""
-        config = self.get_config()
-        return config.monitoring
-
-
-# Global configuration manager instance
-_config_manager = ConfigManager()
-
-
-def get_config_manager() -> ConfigManager:
-    """Get the global configuration manager instance."""
-    return _config_manager
-
-
-def initialize_config(config_path: str | Path | None = None) -> ServerConfig:
-    """Initialize global configuration."""
-    return _config_manager.initialize(config_path)
-
-
-def get_config() -> ServerConfig:
-    """Get current global configuration."""
-    return _config_manager.get_config()
-
-
-def reload_config() -> ServerConfig:
-    """Reload global configuration."""
-    return _config_manager.reload_config()
-
-
-def get_provider_config(provider_type: ProviderType) -> ProviderConfig:
-    """Get configuration for a specific provider."""
-    return _config_manager.get_provider_config(provider_type)
-
-
-class DynamicConfigLoader:
-    """Dynamic configuration loader for runtime config updates."""
-
-    def __init__(self, config_manager: ConfigManager) -> None:
-        """Initialize with config manager."""
-        self.config_manager = config_manager
-        self._watchers: list[Any] = []
-        self._callbacks: list[Any] = []
-
-    def start_watching(self, config_path: Path) -> None:
-        """Start watching configuration file for changes."""
-        # Implementation would use file system watchers
-        # This is a placeholder for future implementation
-        pass
-
-    def stop_watching(self) -> None:
-        """Stop watching configuration file."""
-        for watcher in self._watchers:
-            if hasattr(watcher, "stop"):
-                watcher.stop()
-        self._watchers.clear()
-
-    def add_change_callback(self, callback: Any) -> None:
-        """Add callback for configuration changes."""
-        self._callbacks.append(callback)
-
-    def _handle_config_change(self) -> None:
-        """Handle configuration file change."""
-        try:
-            new_config = self.config_manager.reload_config()
-            for callback in self._callbacks:
-                callback(new_config)
-        except Exception as e:
-            logger.error("Error handling config change: %s", e)
-
-
-# File server configuration cache
-_file_server_data: dict[str, Any] = {}
-
-
-def load_file_server_config(file_path: str) -> ServerConfig:
-    """Load server configuration from file with caching."""
-    global _file_server_data
-
-    if file_path in _file_server_data:
-        cached_config = _file_server_data[file_path]
-        return cached_config
-
-    config = initialize_config(file_path)
-    _file_server_data[file_path] = config
-    return config
-
-
-def get_env_config_overrides() -> dict[str, Any]:
-    """Get configuration overrides from environment variables."""
-    overrides = {}
-
-    # Server overrides
-    if host := os.getenv("MCP_SERVER_HOST"):
-        overrides["server"] = overrides.get("server", {})
-        overrides["server"]["host"] = host
-
-    if port := os.getenv("MCP_SERVER_PORT"):
-        overrides["server"] = overrides.get("server", {})
-        try:
-            overrides["server"]["port"] = int(port)
-        except ValueError:
-            logger.warning("Invalid port in MCP_SERVER_PORT: %s", port)
-
-    # Logging overrides
-    if log_level := os.getenv("MCP_LOG_LEVEL"):
-        overrides["logging"] = overrides.get("logging", {})
-        overrides["logging"]["level"] = log_level.upper()
-
-    # Cache overrides
-    if cache_enabled := os.getenv("MCP_CACHE_ENABLED"):
-        overrides["cache"] = overrides.get("cache", {})
-        overrides["cache"]["enabled"] = cache_enabled.lower() in {"true", "1", "yes"}
-
-    return overrides
-
-
-def merge_config_overrides(
-    base_config: dict[str, Any], overrides: dict[str, Any]
-) -> dict[str, Any]:
-    """Merge configuration overrides into base configuration."""
-    result = base_config.copy()
-
-    for key, value in overrides.items():
-        if isinstance(value, dict) and key in result and isinstance(result[key], dict):
-            result[key] = merge_config_overrides(result[key], value)
-        else:
-            result[key] = value
-
-    return result
-
-
-class ConfigValidator:
-    """Configuration validator for runtime validation."""
-
-    @staticmethod
-    def validate_provider_config(
-        provider_type: ProviderType, config: ProviderConfig
-    ) -> bool:
-        """Validate provider configuration."""
-        # Basic validation
-        if not config.enabled:
-            return True
-
-        # Check required fields based on provider type
-        if provider_type == ProviderType.OPENAI:
-            return bool(config.api_key)
-        elif provider_type == ProviderType.ANTHROPIC:
-            return bool(config.api_key)
-        elif provider_type == ProviderType.GEMINI:
-            return bool(config.api_key)
-        elif provider_type == ProviderType.LLAMA:
-            return bool(config.model_path)
-
-        return True
-
-    @staticmethod
-    def validate_cache_config(config: CacheConfig) -> bool:
-        """Validate cache configuration."""
-        if not config.enabled:
-            return True
-
-        if config.type == "redis":
-            return bool(
-                config.redis_config.get("host") or config.redis_config.get("url")
-            )
-
-        return True
-
-    @staticmethod
-    def validate_server_config(config: ServerConfig) -> list[str]:
-        """Validate complete server configuration and return errors."""
-        errors = []
-
-        # Validate providers
-        for provider_type, provider_config in config.providers.items():
-            if not ConfigValidator.validate_provider_config(
-                provider_type, provider_config
-            ):
-                errors.append(f"Invalid configuration for provider {provider_type}")
-
-        # Validate cache
-        if not ConfigValidator.validate_cache_config(config.cache):
-            errors.append("Invalid cache configuration")
-
-        # Validate port range
-        if not (1 <= config.server.port <= 65535):
-            errors.append(f"Invalid port number: {config.server.port}")
-
-        return errors
-
-
-def validate_and_load_config(
-    config_path: str | Path | None = None,
-) -> ServerConfig:
-    """Validate and load configuration with comprehensive error checking."""
-    try:
-        config = initialize_config(config_path)
-
-        # Run validation
-        errors = ConfigValidator.validate_server_config(config)
-        if errors:
-            raise ValueError(f"Configuration validation failed: {', '.join(errors)}")
-
-        return config
-    except Exception as e:
-        logger.error("Failed to load configuration: %s", e)
-        raise
-
-
-def create_default_config() -> dict[str, Any]:
-    """Create default configuration dictionary."""
-    return {
-        "server": {
-            "host": "localhost",
-            "port": 8080,
-            "debug": False,
-        },
-        "cache": {
-            "enabled": True,
-            "type": "memory",
-            "ttl_default": 3600,
-            "max_size": 1000,
-        },
-        "logging": {
-            "level": "INFO",
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        },
-        "security": {
-            "enable_auth": False,
-            "cors_enabled": True,
-            "cors_origins": ["*"],
-        },
-        "monitoring": {
-            "enabled": True,
-            "metrics_enabled": True,
-            "health_check_enabled": True,
-        },
-        "providers": {},
-    }
-
-
-def save_config_to_file(config: ServerConfig, file_path: str | Path) -> None:
-    """Save configuration to file."""
-    config_dict = config.model_dump()
-
-    file_path = Path(file_path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(config_dict, f, indent=2, default=str)
-
-    logger.info("Configuration saved to %s", file_path)
-
-
-# Configuration update utilities
-def update_provider_in_config(
-    config_path: str | Path,
-    provider_type: ProviderType,
-    provider_config: ProviderConfig,
-) -> None:
-    """Update provider configuration in config file."""
-    config = validate_and_load_config(config_path)
-    config.providers[provider_type] = provider_config
-    save_config_to_file(config, config_path)
-
-
-def read_config_section(config_path: str | Path, section: str) -> dict[str, Any]:
-    """Read specific section from configuration file."""
-    with open(config_path, encoding="utf-8") as f:
-        full_config = json.load(f)
-
-    return full_config.get(section, {})
-
-
-def update_config_section(
-    config_path: str | Path, section: str, section_config: dict[str, Any]
-) -> None:
-    """Update specific section in configuration file."""
-    with open(config_path, encoding="utf-8") as f:
-        full_config = json.load(f)
-
-    full_config[section] = section_config
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(full_config, f, indent=2, default=str)
-
-
-def get_effective_config(
-    config_path: str | Path | None = None,
-) -> dict[str, Any]:
-    """Get effective configuration with all overrides applied."""
-    # Load base config
-    try:
-        config = validate_and_load_config(config_path)
-        base_config = config.model_dump()
-    except (FileNotFoundError, ValueError):
-        # Use default config if file doesn't exist or is invalid
-        base_config = create_default_config()
-
-    # Apply environment overrides
-    env_overrides = get_env_config_overrides()
-    effective_config = merge_config_overrides(base_config, env_overrides)
-
-    return effective_config
-
-
-# Context manager for temporary config changes
-class TemporaryConfigChange:
-    """Context manager for temporary configuration changes."""
-
-    def __init__(self, **overrides: Any):
-        """Initialize with configuration overrides."""
-        self.overrides = overrides
-        self.original_config: ServerConfig | None = None
-
-    def __enter__(self) -> ServerConfig:
-        """Enter context and apply overrides."""
-        self.original_config = get_config()
-
-        # Create modified config
-        config_dict = self.original_config.model_dump()
-        config_dict.update(self.overrides)
-
-        # Update global config
-        modified_config = ServerConfig(**config_dict)
-        _config_manager._config = modified_config
-
-        return modified_config
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit context and restore original config."""
-        if self.original_config is not None:
-            _config_manager._config = self.original_config
-
-
-class EnvironmentLoader:
-    """Load configuration from environment variables."""
-
-    @staticmethod
-    def get_api_key(provider: str) -> str | None:
-        """Get API key for provider from environment.
-
-        Args:
-            provider: Provider name (e.g., 'gemini', 'openai')
+    def get_enabled_providers(self) -> list[str]:
+        """Get list of enabled provider names.
 
         Returns:
-            API key string or None if not found
+            List of enabled provider names
+
         """
-        # Try different possible environment variable names
-        env_vars = [
-            f"{provider.upper()}_API_KEY",
-            f"{provider.upper()}_KEY",
-            f"API_KEY_{provider.upper()}",
+        if not self.config or not self.config.providers:
+            return []
+
+        return [
+            name for name, provider in self.config.providers.items() if provider.enabled
         ]
 
-        for env_var in env_vars:
-            value = os.getenv(env_var)
-            if value:
-                return value
-
-        return None
-
-    @staticmethod
-    def get_server_config() -> dict[str, Any]:
-        """Get server configuration from environment.
+    @classmethod
+    def get_default_config(cls) -> ServerConfig:
+        """Get default configuration object.
 
         Returns:
-            Dictionary with server configuration
+            ServerConfig: Default configuration
+
         """
-        config = {
-            "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "gemini"),
-            "log_level": os.getenv("MCP_LOG_LEVEL", "INFO"),
-        }
-
-        # Add optional server settings if present
-        if host := os.getenv("MCP_SERVER_HOST"):
-            config["host"] = host
-
-        if port := os.getenv("MCP_SERVER_PORT"):
-            config["port"] = int(port)
-
-        return config
-
-
-# Export commonly used functions and classes
-__all__ = [
-    "ConfigManager",
-    "ConfigLoader",
-    "EnvironmentLoader",
-    "CacheConfig",
-    "LoggingConfig",
-    "SecurityConfig",
-    "MonitoringConfig",
-    "ConfigValidator",
-    "DynamicConfigLoader",
-    "TemporaryConfigChange",
-    "ProviderConfig",
-    "get_config_manager",
-    "initialize_config",
-    "get_config",
-    "reload_config",
-    "get_provider_config",
-    "validate_and_load_config",
-    "create_default_config",
-    "save_config_to_file",
-    "get_effective_config",
-    "load_file_server_config",
-]
+        return ServerConfig()

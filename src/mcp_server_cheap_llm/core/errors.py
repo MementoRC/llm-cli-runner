@@ -12,6 +12,7 @@ Key exceptions:
 Example:
     >>> raise ProviderError("Gemini API key invalid", provider="gemini")
     >>> raise ConfigurationError("Missing required field: model_name")
+
 """
 
 from typing import Any
@@ -33,6 +34,7 @@ class CheapLLMError(Exception):
         ...     raise CheapLLMError("Something went wrong", error_code="E001")
         ... except CheapLLMError as e:
         ...     print(f"Error {e.error_code}: {e.message}")
+
     """
 
     def __init__(
@@ -40,13 +42,14 @@ class CheapLLMError(Exception):
         message: str,
         error_code: str | None = None,
         context: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize the exception.
 
         Args:
             message: Human-readable error description
             error_code: Optional error code for categorization
             context: Additional context for debugging
+
         """
         super().__init__(message)
         self.message = message
@@ -58,6 +61,7 @@ class CheapLLMError(Exception):
 
         Returns:
             Dictionary representation of the exception
+
         """
         return {
             "error_type": self.__class__.__name__,
@@ -79,6 +83,7 @@ class ConfigurationError(CheapLLMError):
         ...     error_code="CFG001",
         ...     context={"provider": "gemini", "field": "api_key"}
         ... )
+
     """
 
 
@@ -97,6 +102,7 @@ class ProviderError(CheapLLMError):
         ...     error_code="PRV001",
         ...     context={"provider": "gemini", "retry_after": 60}
         ... )
+
     """
 
     def __init__(
@@ -105,7 +111,7 @@ class ProviderError(CheapLLMError):
         provider: str,
         error_code: str | None = None,
         context: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize provider error.
 
         Args:
@@ -113,6 +119,7 @@ class ProviderError(CheapLLMError):
             provider: Name of the failing provider
             error_code: Optional error code
             context: Additional context information
+
         """
         context = context or {}
         context["provider"] = provider
@@ -132,6 +139,7 @@ class ValidationError(CheapLLMError):
         ...     error_code="VAL001",
         ...     context={"max_length": 10000, "actual_length": 15000}
         ... )
+
     """
 
 
@@ -150,6 +158,7 @@ class RateLimitError(ProviderError):
         ...     provider="gemini",
         ...     retry_after=60
         ... )
+
     """
 
     def __init__(
@@ -159,7 +168,7 @@ class RateLimitError(ProviderError):
         retry_after: int,
         error_code: str | None = None,
         context: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize rate limit error.
 
         Args:
@@ -168,6 +177,7 @@ class RateLimitError(ProviderError):
             retry_after: Seconds to wait before retrying
             error_code: Optional error code
             context: Additional context information
+
         """
         context = context or {}
         context["retry_after"] = retry_after
@@ -187,4 +197,5 @@ class SecurityError(CheapLLMError):
         ...     error_code="SEC001",
         ...     context={"command": "rm -rf /", "source": "user_input"}
         ... )
+
     """

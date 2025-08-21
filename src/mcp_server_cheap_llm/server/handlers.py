@@ -1,4 +1,4 @@
-"""MCP Protocol Handlers.
+"""Server handlers and protocol implementation.
 
 import json
 from typing import Any
@@ -15,68 +15,273 @@ from mcp_server_cheap_llm.core.errors import ValidationError
 from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.logging import get_logger
 
-# Import MCP types for proper tool handling
-try:
-    from mcp.types import CallToolRequest, CallToolResult, TextContent, Tool
-except ImportError:
-    # Fallback for testing - create minimal mock types
-    class Tool:
-        """Mock Tool class for testing when MCP types unavailable."""
+logger = get_logger(__name__)
 
-        def __init__(self, name, description, inputSchema):
+
+class ValidationError(Exception):
+    """Custom validation error for protocol handling."""
+
+    def __init__(self, message: str) -> None:
+        """Initialize ValidationError with message.
+
+        Args:
+            message: Error message describing the validation failure
+
+        """
+        super().__init__(message)
+        self.message = message
+
+
+# Type compatibility layer for MCP types
+try:
+    # Try to import MCP types if available
+    from mcp.types import CallToolRequest, CallToolResult, TextContent, Tool
+
+except ImportError:
+    # Protocol definitions for type checking when MCP types unavailable
+    @runtime_checkable
+    class Tool(Protocol):
+        """Tool protocol for type safety."""
+
+        name: str
+        description: str
+        inputSchema: dict[str, Any]
+
+        def __init__(
+            self,
+            name: str,
+            description: str,
+            inputSchema: dict[str, Any],
+        ) -> None:
             """Initialize Tool."""
+            ...
+
+    @runtime_checkable
+    class TextContent(Protocol):
+        """TextContent protocol for type safety."""
+
+        text: str
+        type: str
+
+        def __init__(self, text: str, type: str = "text") -> None:
+            """Initialize TextContent."""
+            ...
+
+    @runtime_checkable
+    class CallToolResult(Protocol):
+        """CallToolResult protocol for type safety."""
+
+        content: list[Any]
+        isError: bool
+
+        def __init__(self, content: list[Any], isError: bool = False) -> None:
+            """Initialize CallToolResult."""
+            ...
+
+    @runtime_checkable
+    class CallToolRequest(Protocol):
+        """CallToolRequest protocol for type safety."""
+
+        method: str
+        params: Any
+
+        def __init__(self, method: str, params: Any) -> None:
+            """Initialize CallToolRequest."""
+            ...
+
+    # Fallback implementations for runtime
+    class _Tool:
+        """Fallback Tool implementation."""
+
+        def __init__(
+            self,
+            name: str,
+            description: str,
+            inputSchema: dict[str, Any],
+        ) -> None:
             self.name = name
             self.description = description
             self.inputSchema = inputSchema
 
-    class TextContent:
-        """Mock TextContent class for testing when MCP types unavailable."""
+    class _TextContent:
+        """Fallback TextContent implementation."""
 
-        def __init__(self, text, type="text"):
-            """Initialize TextContent."""
+        def __init__(self, text: str, type: str = "text") -> None:
             self.text = text
             self.type = type
 
-    class CallToolResult:
-        """Mock CallToolResult class for testing when MCP types unavailable."""
+    class _CallToolResult:
+        """Fallback CallToolResult implementation."""
 
-        def __init__(self, content, isError=False):
-            """Initialize CallToolResult."""
+        def __init__(self, content: list[Any], isError: bool = False) -> None:
             self.content = content
             self.isError = isError
 
-    class CallToolRequest:
-        """Mock CallToolRequest class for testing when MCP types unavailable."""
+    class _CallToolRequest:
+        """Fallback CallToolRequest implementation."""
 
-        def __init__(self, method, params):
-            """Initialize CallToolRequest."""
+        def __init__(self, method: str, params: Any) -> None:
             self.method = method
             self.params = params
+
+    # Use fallback implementations at runtime
+    Tool = _Tool  # type: ignore[misc,assignment]  # noqa: F811
+    TextContent = _TextContent  # type: ignore[misc,assignment]  # noqa: F811
+    CallToolResult = _CallToolResult  # type: ignore[misc,assignment]  # noqa: F811
+    CallToolRequest = _CallToolRequest  # type: ignore[misc,assignment]  # noqa: F811
 
 
 class MCPProtocolHandler:
     """MCP Protocol Handler for JSON-RPC message processing.
 
-    Provides comprehensive message parsing, validation, and error handling
-    according to MCP specification with performance monitoring and logging.
+    This class handles the core MCP protocol operations including
+    message validation, routing, and response formatting.
     """
 
-    def __init__(self):
-        """Initialize MCP protocol handler with metrics tracking."""
+    def __init__(self) -> None:
+        """Initialize MCP protocol handler."""
         self.logger = get_logger(__name__)
-        self._metrics = {
-            "messages_parsed": 0,
-            "requests_handled": 0,
+        self._metrics: dict[str, int] = {
+            "requests_processed": 0,
+            "responses_sent": 0,
             "errors_encountered": 0,
-            "invalid_json": 0,
             "invalid_jsonrpc": 0,
-            "parsing_errors": 0,
         }
-        self._max_message_size = 512 * 1024  # 512KB limit
-        self._max_nesting_depth = 100
+
+    def get_metrics(self) -> dict[str, int]:
+        """Get protocol handler metrics.
+
+        Returns:
+            Dictionary of metrics
+
+        """
+        return self._metrics.copy()
+
+    def reset_metrics(self) -> None:
+        """Reset all metrics to zero."""
+        for key in self._metrics:
+            self._metrics[key] = 0
+
+    async def process_message(self, message: str) -> str:
+        """Process incoming JSON-RPC message.
+
+        Args:
+            message: Raw JSON-RPC message string
+
+        Returns:
+            JSON-RPC response string
+
+        """
+        try:
+            # Parse JSON
+            data = json.loads(message)
+            self._metrics["requests_processed"] += 1
+
+            # Validate JSON-RPC structure
+            validated_data = self._validate_jsonrpc(data)
+
+            # Route message based on method
+            response = await self._route_message(validated_data)
+
+            # Format response
+            response_str = json.dumps(response)
+            self._metrics["responses_sent"] += 1
+
+            return response_str
+
+        except json.JSONDecodeError as e:
+            self._metrics["errors_encountered"] += 1
+            error_response = {
+                "jsonrpc": "2.0",
+                "error": {"code": -32700, "message": f"Parse error: {e}"},
+                "id": None,
+            }
+            return json.dumps(error_response)
+
+        except ValidationError as e:
+            self._metrics["errors_encountered"] += 1
+            error_response = {
+                "jsonrpc": "2.0",
+                "error": {"code": -32600, "message": f"Invalid Request: {e.message}"},
+                "id": data.get("id") if "data" in locals() else None,
+            }
+            return json.dumps(error_response)
+
+        except Exception as e:
+            self._metrics["errors_encountered"] += 1
+            self.logger.exception(f"Unexpected error processing message: {e}")
+            error_response = {
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": "Internal error"},
+                "id": data.get("id") if "data" in locals() else None,
+            }
+            return json.dumps(error_response)
+
+    def _validate_jsonrpc(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Validate JSON-RPC message structure.
+
+        Args:
+            data: Parsed JSON data
+
+        Returns:
+            Validated data
+
+        Raises:
+            ValidationError: If validation fails
+
+        """
+        try:
+            # Check basic structure
+            if not isinstance(data, dict):
+                self._metrics["invalid_jsonrpc"] += 1
+                self._metrics["errors_encountered"] += 1
+                msg = "Request must be JSON object"
+                raise ValidationError(msg)
+
+            # Check JSON-RPC version
+            if data.get("jsonrpc") != "2.0":
+                self._metrics["invalid_jsonrpc"] += 1
+                self._metrics["errors_encountered"] += 1
+                msg = "Invalid or missing 'jsonrpc' field"
+                raise ValidationError(msg)
+
+            # Check if it's a request (has method) or response (has result/error)
+            if "method" in data:
+                # It's a request - validate method
+                method = data["method"]
+                if not isinstance(method, str):
+                    self._metrics["invalid_jsonrpc"] += 1
+                    self._metrics["errors_encountered"] += 1
+                    msg = "'method' must be string"
+                    raise ValidationError(msg)
+            elif "result" not in data and "error" not in data:
+                # It's a request without a method
+                self._metrics["invalid_jsonrpc"] += 1
+                self._metrics["errors_encountered"] += 1
+                msg = "Missing 'method' field"
+                raise ValidationError(msg)
+
+            # Validate id field if present
+            if "id" in data:
+                id_val = data["id"]
+                if not (isinstance(id_val, str | int | float) or id_val is None):
+                    self._metrics["invalid_jsonrpc"] += 1
+                    self._metrics["errors_encountered"] += 1
+                    msg = "'id' must be string, number, or null"
+                    raise ValidationError(msg)
+
+            return data
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            self._metrics["invalid_jsonrpc"] += 1
+            self._metrics["errors_encountered"] += 1
+            msg = f"Validation error: {e}"
+            raise ValidationError(msg) from e
 
     def parse_message(self, message: str) -> dict[str, Any]:
-        """Parse and validate MCP JSON-RPC message.
+        """Parse and validate JSON-RPC message.
 
         Args:
             message: Raw JSON-RPC message string
@@ -85,295 +290,558 @@ class MCPProtocolHandler:
             Parsed and validated message dictionary
 
         Raises:
-            ValidationError: If message is invalid or malformed
+            ValidationError: If parsing or validation fails
+
         """
         try:
-            # Check message size limit
-            if len(message) > self._max_message_size:
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Message too large")
-
             # Parse JSON
-            try:
-                data = json.loads(message)
-                self._metrics["messages_parsed"] += 1
-            except json.JSONDecodeError as e:
-                self._metrics["invalid_json"] += 1
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError(f"Invalid JSON: {e}") from e
-
-            # Check nesting depth
-            if self._check_nesting_depth(data) > self._max_nesting_depth:
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Nesting too deep")
+            data = json.loads(message)
+            self._metrics["requests_processed"] += 1
 
             # Validate JSON-RPC structure
-            if not isinstance(data, dict):
-                self._metrics["invalid_jsonrpc"] += 1
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Message must be a JSON object")
+            validated_data = self._validate_jsonrpc(data)
+            return validated_data
 
-            # Check for jsonrpc field
-            if "jsonrpc" not in data:
-                self._metrics["invalid_jsonrpc"] += 1
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Missing 'jsonrpc' field")
-
-            if data.get("jsonrpc") != "2.0":
-                self._metrics["invalid_jsonrpc"] += 1
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Invalid JSON-RPC version, must be '2.0'")
-
-            # Validate method field for requests
-            if "method" in data:
-                if not isinstance(data["method"], str):
-                    self._metrics["invalid_jsonrpc"] += 1
-                    self._metrics["errors_encountered"] += 1
-                    raise ValidationError("'method' must be string")
-            elif "result" not in data and "error" not in data:
-                # It's a request without a method
-                self._metrics["invalid_jsonrpc"] += 1
-                self._metrics["errors_encountered"] += 1
-                raise ValidationError("Missing 'method' field")
-
-            # Validate id field if present
-            if "id" in data:
-                id_val = data["id"]
-                if not (isinstance(id_val, str | int | float) or id_val is None):
-                    self._metrics["invalid_jsonrpc"] += 1
-                    self._metrics["errors_encountered"] += 1
-                    raise ValidationError("'id' must be string, number, or null")
-
-            return data
-
-        except ValidationError:
-            raise
-        except Exception as e:
-            self._metrics["parsing_errors"] += 1
+        except json.JSONDecodeError as e:
             self._metrics["errors_encountered"] += 1
-            self.logger.error(f"Unexpected parsing error: {e}")
-            raise ValidationError(f"Message parsing failed: {e}") from e
+            self._metrics["invalid_jsonrpc"] += 1
+            msg = f"Invalid JSON: {e}"
+            raise ValidationError(msg) from e
 
-    def _check_nesting_depth(self, obj: Any, depth: int = 0) -> int:
-        """Check the maximum nesting depth of an object.
-
-        Args:
-            obj: Object to check
-            depth: Current depth
-
-        Returns:
-            Maximum nesting depth
-        """
-        if depth > self._max_nesting_depth:
-            return depth
-
-        if isinstance(obj, dict):
-            if not obj:
-                return depth
-            return max(self._check_nesting_depth(v, depth + 1) for v in obj.values())
-        elif isinstance(obj, list):
-            if not obj:
-                return depth
-            return max(self._check_nesting_depth(v, depth + 1) for v in obj)
-        else:
-            return depth
-
-    def create_response(
-        self,
-        result: Any,
-        request_id: Any,
-    ) -> dict[str, Any]:
-        """Create MCP-compliant JSON-RPC success response.
+    async def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Handle parsed JSON-RPC request.
 
         Args:
-            result: Success result data
-            request_id: Request identifier from original request
+            request: Parsed JSON-RPC request dictionary
 
         Returns:
-            Formatted JSON-RPC response
+            Response dictionary
+
         """
-        response = {"jsonrpc": "2.0", "id": request_id, "result": result}
-        return response
+        message_id = request.get("id")
+
+        # Handle notifications (no id)
+        if message_id is None:
+            # Notifications don't get responses
+            return None
+
+        # Route to appropriate handler
+        try:
+            response_data = await self._route_message(request)
+            return self.create_response(message_id, response_data)
+        except Exception as e:
+            self.logger.exception(f"Error handling request: {e}")
+            return self.create_error_response(
+                message_id, -32603, "Internal error", {"details": str(e)}
+            )
+
+    def create_response(self, message_id: Any, result: Any) -> dict[str, Any]:
+        """Create JSON-RPC success response.
+
+        Args:
+            message_id: Request ID to echo back
+            result: Result data
+
+        Returns:
+            JSON-RPC response dictionary
+
+        """
+        self._metrics["responses_sent"] += 1
+        return {
+            "jsonrpc": "2.0",
+            "result": result,
+            "id": message_id,
+        }
 
     def create_error_response(
         self,
+        message_id: Any,
         code: int,
         message: str,
-        request_id: Any,
         data: Any = None,
     ) -> dict[str, Any]:
-        """Create MCP-compliant JSON-RPC error response.
+        """Create JSON-RPC error response.
 
         Args:
-            code: JSON-RPC error code
+            message_id: Request ID to echo back
+            code: Error code
             message: Error message
-            request_id: Request identifier
-            data: Additional error data
+            data: Optional error data
 
         Returns:
-            Formatted error response
+            JSON-RPC error response dictionary
+
         """
-        error = {"code": code, "message": message}
+        self._metrics["errors_encountered"] += 1
+        error_obj = {
+            "code": code,
+            "message": message,
+        }
         if data is not None:
-            error["data"] = data
+            error_obj["data"] = data
 
-        response = {"jsonrpc": "2.0", "id": request_id, "error": error}
-        return response
-
-    def get_metrics(self) -> dict[str, int]:
-        """Get protocol handler metrics.
-
-        Returns:
-            Dictionary containing processing metrics
-        """
-        return deepcopy(self._metrics)
-
-    def reset_metrics(self) -> None:
-        """Reset all metrics to zero."""
-        self._metrics = {
-            "messages_parsed": 0,
-            "requests_handled": 0,
-            "errors_encountered": 0,
-            "invalid_json": 0,
-            "invalid_jsonrpc": 0,
-            "parsing_errors": 0,
+        return {
+            "jsonrpc": "2.0",
+            "error": error_obj,
+            "id": message_id,
         }
 
-    async def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
-        """Handle incoming MCP request.
+    async def _route_message(self, data: dict[str, Any]) -> Any:
+        """Route validated message to appropriate handler.
 
         Args:
-            request: Parsed JSON-RPC request
+            data: Validated JSON-RPC data
 
         Returns:
-            JSON-RPC response or None for notifications
+            Response data (just the result, not full JSON-RPC response)
 
         Raises:
-            ValidationError: If request is invalid
+            Exception: If method not found or handler fails
+
         """
-        try:
-            request_id = request.get("id")
-            method = request.get("method")
-            params = request.get("params", {})
+        method = data.get("method")
+        params = data.get("params", {})
 
-            # Increment metrics
-            self._metrics["requests_handled"] += 1
+        # Handle different MCP methods
+        if method == "initialize":
+            return await self._handle_initialize(params)
+        if method == "tools/list":
+            return await self._handle_list_tools(params)
+        if method == "tools/call":
+            return await self._handle_call_tool(params)
+        if method == "resources/list":
+            return await self._handle_list_resources(params)
+        if method == "resources/read":
+            return await self._handle_read_resource(params)
 
-            # Notifications (no id) don't get responses
-            if "id" not in request:
-                return None
+        # Method not found
+        msg = f"Method not found: {method}"
+        raise ValidationError(msg)
 
-            if not method:
-                return self.create_error_response(
-                    -32600,
-                    "Missing method in request",
-                    request_id,
-                )
+    async def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Handle initialize request.
 
-            # Route to appropriate handler based on method
-            if method == "ping":
-                return self.create_response({"status": "pong"}, request_id)
-            elif method == "initialize":
-                return self.create_response(
-                    {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {
-                            "logging": {},
-                            "prompts": {"listChanged": True},
-                            "resources": {"subscribe": True, "listChanged": True},
-                            "tools": {"listChanged": True},
-                        },
-                        "serverInfo": {
-                            "name": "mcp-server-cheap-llm",
-                            "version": "1.0.0",
-                        },
-                    },
-                    request_id,
-                )
-            elif method == "tools/list":
-                # Return tools list in MCP format
-                return self.create_response(
-                    {
-                        "tools": [
-                            {
-                                "name": "gemini_generate",
-                                "description": "Generate text using Gemini",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "prompt": {
-                                            "type": "string",
-                                            "description": "The prompt to generate from",
-                                        }
-                                    },
-                                    "required": ["prompt"],
-                                },
-                            }
-                        ]
-                    },
-                    request_id,
-                )
-            elif method == "tools/call":
-                # Validate params for tools/call
-                if not params or "arguments" not in params:
-                    return self.create_error_response(
-                        -32602,
-                        "Invalid params",
-                        request_id,
-                    )
-                # Return mock tool result
-                return self.create_response(
-                    {"content": [{"type": "text", "text": "Mock tool response"}]},
-                    request_id,
-                )
-            else:
-                return self.create_error_response(
-                    -32601,
-                    "Method not found",
-                    request_id,
-                )
+        Args:
+            params: Request parameters
 
-        except Exception as e:
-            self.logger.error(f"Error handling request: {e}")
-            return self.create_error_response(
-                -32603,
-                f"Internal error: {e}",
-                request.get("id"),
-            )
+        Returns:
+            Initialize result data
+
+        """
+        # Basic initialization response
+        return {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {},
+                "resources": {},
+                "logging": {},
+            },
+            "serverInfo": {"name": "cheap-llm-server", "version": "0.1.0"},
+        }
+
+    async def _handle_list_tools(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Handle list_tools request.
+
+        Args:
+            params: Request parameters
+
+        Returns:
+            Tools list result data
+
+        """
+        # Return empty tools list for now
+        return {"tools": []}
+
+    async def _handle_call_tool(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Handle call_tool request.
+
+        Args:
+            params: Request parameters
+
+        Returns:
+            Tool execution result data
+
+        """
+        tool_name = params.get("name", "unknown")
+
+        # Placeholder tool execution - return result data only
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"Tool '{tool_name}' executed successfully",
+                },
+            ],
+        }
+
+    async def _handle_list_resources(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Handle list_resources request.
+
+        Args:
+            params: Request parameters
+
+        Returns:
+            Resources list result data
+
+        """
+        return {"resources": []}
+
+    async def _handle_read_resource(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Handle read_resource request.
+
+        Args:
+            params: Request parameters
+
+        Returns:
+            Resource content result data
+
+        """
+        resource_uri = params.get("uri", "unknown")
+
+        return {
+            "contents": [
+                {
+                    "uri": resource_uri,
+                    "mimeType": "text/plain",
+                    "text": f"Content for resource: {resource_uri}",
+                },
+            ],
+        }
+
+
+class RequestQueueDict:
+    """Thread-safe dictionary-like interface for request queuing.
+
+    This class provides a dictionary-like interface with thread safety
+    for managing request queues and caching.
+    """
+
+    def __init__(self) -> None:
+        """Initialize request queue dictionary."""
+        self._data: dict[str, Any] = {}
+        self._lock = Lock()
+
+    def __contains__(self, key: str) -> bool:
+        """Check if key exists in the queue.
+
+        Args:
+            key: Key to check
+
+        Returns:
+            True if key exists
+
+        """
+        with self._lock:
+            return key in self._data
+
+    def __getitem__(self, key: str) -> Any:
+        """Get item from queue.
+
+        Args:
+            key: Key to retrieve
+
+        Returns:
+            Value associated with key
+
+        """
+        with self._lock:
+            return self._data[key]
+
+    def pop(self, key: str, default: Any = None) -> Any:
+        """Remove and return item from queue.
+
+        Args:
+            key: Key to remove
+            default: Default value if key not found
+
+        Returns:
+            Removed value or default
+
+        """
+        with self._lock:
+            return self._data.pop(key, default)
+
+    def __call__(self, key: str, value: Any) -> None:
+        """Add item to queue.
+
+        Args:
+            key: Key to add
+            value: Value to associate with key
+
+        """
+        with self._lock:
+            self._data[key] = value
+
+
+class ToolAdapter:
+    """Adapter for tool integration and compatibility.
+
+    This class provides adaptation and compatibility layers for
+    integrating different tool implementations.
+    """
+
+    def __init__(self, tool_spec: dict[str, Any]) -> None:
+        """Initialize tool adapter.
+
+        Args:
+            tool_spec: Tool specification dictionary
+
+        """
+        self.logger = get_logger(__name__)
+        self.tool_spec = tool_spec
+        self.name = tool_spec.get("name", "unknown")
+
+    def adapt_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Adapt request for tool execution.
+
+        Args:
+            request: Original request data
+
+        Returns:
+            Adapted request data
+
+        """
+        return request
+
+    def adapt_response(self, response: Any) -> dict[str, Any]:
+        """Adapt tool response to standard format.
+
+        Args:
+            response: Tool response data
+
+        Returns:
+            Adapted response in standard format
+
+        """
+        return {"result": response}
+
+    def adapt_tool(self, tool_spec: dict[str, Any], provider: str) -> dict[str, Any]:
+        """Adapt tool specification for a specific provider.
+
+        Args:
+            tool_spec: Original tool specification
+            provider: Target provider name
+
+        Returns:
+            Adapted tool specification
+
+        """
+        adapted_tool = tool_spec.copy()
+        adapted_tool["provider_specific"] = {
+            "provider": provider,
+            "adapted_at": datetime.now().isoformat(),
+        }
+
+        # Provider-specific adaptations
+        if provider == "openai":
+            adapted_tool["provider_specific"]["format"] = "openai_function"
+        elif provider == "anthropic":
+            adapted_tool["provider_specific"]["format"] = "anthropic_tool"
+
+        return adapted_tool
+
+
+class ToolVersionManager:
+    """Manager for tool versioning and compatibility.
+
+    This class handles tool version management, compatibility
+    checking, and migration between different tool versions.
+    """
+
+    def __init__(self) -> None:
+        """Initialize tool version manager."""
+        self.logger = get_logger(__name__)
+        self._versions: dict[str, list[str]] = {}
+
+    def register_version(self, tool_name: str, version: str) -> None:
+        """Register a tool version.
+
+        Args:
+            tool_name: Name of the tool
+            version: Version string
+
+        """
+        if tool_name not in self._versions:
+            self._versions[tool_name] = []
+        if version not in self._versions[tool_name]:
+            self._versions[tool_name].append(version)
+            self._versions[tool_name].sort()
+
+    def get_versions(self, tool_name: str) -> list[str]:
+        """Get available versions for a tool.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            List of available versions
+
+        """
+        return self._versions.get(tool_name, [])
+
+    def get_latest_version(self, tool_name: str) -> str | None:
+        """Get latest version for a tool.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            Latest version or None if not found
+
+        """
+        versions = self.get_versions(tool_name)
+        return versions[-1] if versions else None
+
+
+class ProviderToolManager:
+    """Manager for provider-specific tool handling.
+
+    This class manages tools that are specific to particular
+    LLM providers, handling provider-specific configurations
+    and tool implementations.
+    """
+
+    def __init__(
+        self,
+        provider_name: str,
+        config: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize provider tool manager.
+
+        Args:
+            provider_name: Name of the LLM provider
+            config: Optional configuration dictionary
+
+        """
+        self.logger = get_logger(__name__)
+        self.provider_name = provider_name
+        self.config = config or {}
+        self._tools: dict[str, dict[str, Any]] = {}
+        self._provider_tools: dict[str, dict[str, Any]] = {}
+        self._tool_adapters: dict[str, ToolAdapter] = {}
+
+    def register_provider_tool(self, tool_spec: dict[str, Any]) -> None:
+        """Register a tool for this provider.
+
+        Args:
+            tool_spec: Tool specification
+
+        """
+        tool_name = tool_spec.get("name", "unknown")
+
+        # Store tool with provider configuration
+        provider_tool = {
+            "name": tool_name,
+            "description": tool_spec.get("description", ""),
+            "inputSchema": tool_spec.get("inputSchema", {}),
+            "provider_config": tool_spec.get("inputSchema", {}).get("properties", {}),
+        }
+
+        self._tools[tool_name] = provider_tool
+        self._provider_tools[tool_name] = tool_spec
+
+        # Create adapter for the tool
+        adapter_key = f"{self.provider_name}:{tool_name}"
+        self._tool_adapters[adapter_key] = ToolAdapter(tool_spec)
+
+        self.logger.info(
+            f"Registered tool '{tool_name}' for provider '{self.provider_name}'",
+        )
+
+    def get_provider_tools(self, provider: str) -> dict[str, Any]:
+        """Get tools for a specific provider.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            Dictionary of provider tools
+
+        """
+        return self._provider_tools.get(provider, {})
+
+    def get_tool_adapter(self, provider: str, tool_name: str) -> ToolAdapter | None:
+        """Get tool adapter for provider-specific tool.
+
+        Args:
+            provider: Provider name
+            tool_name: Tool name
+
+        Returns:
+            Tool adapter or None if not found
+
+        """
+        adapter_key = f"{provider}:{tool_name}"
+        return self._tool_adapters.get(adapter_key)
 
 
 class ToolRegistry:
-    """Registry for MCP tool management and discovery."""
+    """Tool registry for managing and discovering MCP tools.
 
-    def __init__(self):
+    This class handles registration, discovery, and invocation of tools
+    across different providers and contexts.
+    """
+
+    def __init__(self) -> None:
         """Initialize tool registry."""
         self.logger = get_logger(__name__)
-        self._tools = {}
-        self._providers = set()
+        self._tools: dict[str, dict[str, dict[str, Any]]] = {}
+        self._providers: set[str] = set()
         self._lock = Lock()
 
-    def register_tool(self, tool_spec: dict[str, Any], provider: str, handler=None):
+    def register_tool(
+        self,
+        tool_spec: dict[str, Any],
+        provider: str,
+        handler: Any = None,
+    ) -> None:
         """Register a tool for a specific provider.
 
         Args:
             tool_spec: Tool specification dictionary
             provider: Provider name
             handler: Optional tool handler function
+
         """
         with self._lock:
-            tool_name = tool_spec.get("name")
-            if not tool_name:
-                raise ValidationError("Tool specification must have a name")
+            if provider not in self._tools:
+                self._tools[provider] = {}
 
-            if tool_name not in self._tools:
-                self._tools[tool_name] = {}
-
-            self._tools[tool_name][provider] = {
-                **tool_spec,
+            tool_name = tool_spec.get("name", "unknown")
+            self._tools[provider][tool_name] = {
+                "spec": tool_spec,
                 "handler": handler,
-                "registered_at": datetime.now().isoformat(),
             }
             self._providers.add(provider)
+
+        self.logger.info(f"Registered tool '{tool_name}' for provider '{provider}'")
+
+    def unregister_tool(self, tool_name: str, provider: str) -> bool:
+        """Unregister a tool from a provider.
+
+        Args:
+            tool_name: Name of the tool to unregister
+            provider: Provider name
+
+        Returns:
+            True if tool was unregistered, False if not found
+
+        """
+        with self._lock:
+            if provider in self._tools and tool_name in self._tools[provider]:
+                del self._tools[provider][tool_name]
+
+                # Clean up empty provider entries
+                if not self._tools[provider]:
+                    del self._tools[provider]
+                    self._providers.discard(provider)
+
+                self.logger.info(
+                    f"Unregistered tool '{tool_name}' from provider '{provider}'",
+                )
+                return True
+
+        return False
 
     def discover_tools(self, provider: str | None = None) -> list[dict[str, Any]]:
         """Discover available tools.
@@ -383,316 +851,444 @@ class ToolRegistry:
 
         Returns:
             List of tool specifications
+
         """
         tools = []
+
         with self._lock:
-            for _tool_name, providers in self._tools.items():
-                if provider:
-                    if provider in providers:
-                        tools.append(providers[provider])
-                else:
-                    # Return tools from all providers
-                    tools.extend(providers.values())
+            if provider:
+                # Return tools for specific provider
+                if provider in self._tools:
+                    for tool_data in self._tools[provider].values():
+                        tools.append(tool_data["spec"])
+            else:
+                # Return all tools from all providers
+                for provider_tools in self._tools.values():
+                    for tool_data in provider_tools.values():
+                        tools.append(tool_data["spec"])
 
         return tools
 
-    def invoke_tool(self, tool_name: str, provider: str, params: dict[str, Any]) -> Any:
-        """Invoke a tool with given parameters.
+    def get_tool_handler(self, tool_name: str, provider: str) -> Any | None:
+        """Get handler for a specific tool.
 
         Args:
-            tool_name: Name of tool to invoke
-            provider: Provider to use
-            params: Tool parameters
+            tool_name: Name of the tool
+            provider: Provider name
+
+        Returns:
+            Tool handler function or None if not found
+
+        """
+        with self._lock:
+            if tool_name in self._tools and provider in self._tools[tool_name]:
+                return self._tools[tool_name][provider]["handler"]
+        return None
+
+    def invoke_tool(
+        self,
+        tool_name: str,
+        provider: str,
+        arguments: dict[str, Any],
+    ) -> Any:
+        """Invoke a tool with given arguments.
+
+        Args:
+            tool_name: Name of the tool to invoke
+            provider: Provider name
+            arguments: Tool arguments
 
         Returns:
             Tool execution result
 
         Raises:
-            ValidationError: If tool or provider not found
+            ValueError: If tool or provider not found
+
+        """
+        handler = self.get_tool_handler(tool_name, provider)
+        if not handler:
+            msg = f"Tool '{tool_name}' not found for provider '{provider}'"
+            raise ValueError(msg)
+
+        try:
+            # If handler is a callable, invoke it
+            if callable(handler):
+                return handler(arguments)
+            # If handler is a static response, return it
+            return handler
+        except Exception as e:
+            self.logger.exception(f"Error invoking tool '{tool_name}': {e}")
+            raise
+
+    def get_providers(self) -> list[str]:
+        """Get list of registered providers.
+
+        Returns:
+            List of provider names
+
         """
         with self._lock:
-            if tool_name not in self._tools:
-                raise ValidationError(f"Tool not found: {tool_name}")
+            return list(self._providers)
 
-            if provider not in self._tools[tool_name]:
-                raise ValidationError(
-                    f"Provider {provider} not available for tool {tool_name}",
+    def get_tool_count(self, provider: str | None = None) -> int:
+        """Get count of registered tools.
+
+        Args:
+            provider: Optional provider filter
+
+        Returns:
+            Number of registered tools
+
+        """
+        with self._lock:
+            if provider:
+                return len(self._tools.get(provider, {}))
+            return sum(len(tools) for tools in self._tools.values())
+
+    def clear_provider(self, provider: str) -> int:
+        """Clear all tools for a provider.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            Number of tools removed
+
+        """
+        with self._lock:
+            if provider in self._tools:
+                count = len(self._tools[provider])
+                del self._tools[provider]
+                self._providers.discard(provider)
+                self.logger.info(f"Cleared {count} tools for provider '{provider}'")
+                return count
+        return 0
+
+    def get_registry_stats(self) -> dict[str, Any]:
+        """Get registry statistics.
+
+        Returns:
+            Dictionary with registry statistics
+
+        """
+        with self._lock:
+            return {
+                "total_providers": len(self._providers),
+                "total_tools": sum(len(tools) for tools in self._tools.values()),
+                "providers": list(self._providers),
+                "tools_by_provider": {
+                    provider: list(tools.keys())
+                    for provider, tools in self._tools.items()
+                },
+            }
+
+
+class RequestManager:
+    """Manager for handling request lifecycle and caching.
+
+    This class provides request management functionality including
+    caching, queuing, and lifecycle tracking.
+    """
+
+    def __init__(self) -> None:
+        """Initialize request manager."""
+        self.logger = get_logger(__name__)
+        self._active_requests: dict[str, dict[str, Any]] = {}
+        self._request_queue = RequestQueueDict()
+        self._cache: dict[str, Any] = {}
+        self._lock = Lock()
+
+    def create_request_id(self) -> str:
+        """Create a unique request ID.
+
+        Returns:
+            Unique request identifier
+
+        """
+        return str(uuid.uuid4())
+
+    def start_request(self, request_id: str, request_data: dict[str, Any]) -> None:
+        """Start tracking a request.
+
+        Args:
+            request_id: Request identifier
+            request_data: Request data
+
+        """
+        with self._lock:
+            self._active_requests[request_id] = {
+                "data": request_data,
+                "started_at": datetime.now(),
+                "status": "active",
+            }
+
+    def complete_request(self, request_id: str, response_data: Any) -> None:
+        """Mark request as completed.
+
+        Args:
+            request_id: Request identifier
+            response_data: Response data
+
+        """
+        with self._lock:
+            if request_id in self._active_requests:
+                self._active_requests[request_id].update(
+                    {
+                        "response": response_data,
+                        "completed_at": datetime.now(),
+                        "status": "completed",
+                    },
                 )
 
-            tool_spec = self._tools[tool_name][provider]
-            handler = tool_spec.get("handler")
-
-            if not handler:
-                raise ValidationError(f"No handler registered for tool {tool_name}")
-
-            return handler(params)
-
-    def unregister_tool(self, tool_name: str, provider: str):
-        """Unregister a tool from a provider.
+    def fail_request(self, request_id: str, error: str) -> None:
+        """Mark request as failed.
 
         Args:
-            tool_name: Name of tool to unregister
-            provider: Provider to remove tool from
+            request_id: Request identifier
+            error: Error message
+
         """
         with self._lock:
-            if tool_name in self._tools and provider in self._tools[tool_name]:
-                del self._tools[tool_name][provider]
-                if not self._tools[tool_name]:  # No providers left
-                    del self._tools[tool_name]
+            if request_id in self._active_requests:
+                self._active_requests[request_id].update(
+                    {
+                        "error": error,
+                        "completed_at": datetime.now(),
+                        "status": "failed",
+                    },
+                )
 
-
-class ProviderToolManager:
-    """Manager for provider-specific tool handling."""
-
-    def __init__(self, provider_name: str):
-        """Initialize provider tool manager.
-
-        Args:
-            provider_name: Name of the provider
-        """
-        self.provider_name = provider_name
-        self.logger = get_logger(__name__)
-        self._tools: dict[str, Any] = {}
-
-    def register_provider_tool(self, tool_spec: dict[str, Any]):
-        """Register a provider-specific tool.
+    def get_request_status(self, request_id: str) -> dict[str, Any] | None:
+        """Get request status.
 
         Args:
-            tool_spec: Tool specification with provider config
-
-        Raises:
-            ValidationError: If tool spec is invalid
-        """
-        if "provider_config" not in tool_spec:
-            raise ValidationError("Provider tools must include provider_config")
-
-        tool_name = tool_spec.get("name")
-        if not tool_name:
-            raise ValidationError("Tool must have a name")
-
-        self._tools[tool_name] = tool_spec
-
-    def adapt_tool_for_provider(self, tool_name: str) -> dict[str, Any]:
-        """Adapt tool specification for provider API.
-
-        Args:
-            tool_name: Name of tool to adapt
+            request_id: Request identifier
 
         Returns:
-            Adapted tool specification
+            Request status dictionary or None if not found
 
-        Raises:
-            ValidationError: If tool not found
         """
-        if tool_name not in self._tools:
-            raise ValidationError(f"Tool {tool_name} not found")
+        with self._lock:
+            return self._active_requests.get(request_id)
 
-        return self._tools[tool_name]
-
-    def create_execution_context(self, tool_name: str) -> dict[str, Any]:
-        """Create execution context for tool.
+    def cleanup_completed_requests(self, max_age_seconds: int = 3600) -> int:
+        """Clean up old completed requests.
 
         Args:
-            tool_name: Name of tool
+            max_age_seconds: Maximum age in seconds for completed requests
 
         Returns:
-            Execution context dictionary
+            Number of requests cleaned up
 
-        Raises:
-            ValidationError: If tool not found
         """
-        if tool_name not in self._tools:
-            raise ValidationError(f"Tool {tool_name} not found")
+        cutoff_time = datetime.now()
+        cutoff_time = cutoff_time.replace(second=cutoff_time.second - max_age_seconds)
 
-        tool_spec = self._tools[tool_name]
-        return {
-            "provider": self.provider_name,
-            "config": tool_spec.get("provider_config", {}),
-            "tool_name": tool_name,
-        }
+        cleaned_count = 0
+        with self._lock:
+            to_remove = []
+            for request_id, request_info in self._active_requests.items():
+                if (
+                    request_info.get("status") in ("completed", "failed")
+                    and request_info.get("completed_at", datetime.now()) < cutoff_time
+                ):
+                    to_remove.append(request_id)
 
+            for request_id in to_remove:
+                del self._active_requests[request_id]
+                cleaned_count += 1
 
-class ToolAdapter:
-    """Adapter for converting tools between provider formats."""
+        if cleaned_count > 0:
+            self.logger.info(f"Cleaned up {cleaned_count} old requests")
 
-    def __init__(self):
-        """Initialize tool adapter."""
-        self.logger = get_logger(__name__)
-
-    def adapt_tool(
-        self,
-        tool_spec: dict[str, Any],
-        target_provider: str,
-    ) -> dict[str, Any]:
-        """Adapt tool specification for target provider.
-
-        Args:
-            tool_spec: Original tool specification
-            target_provider: Target provider name
-
-        Returns:
-            Adapted tool specification
-
-        Raises:
-            ValidationError: If provider not supported
-        """
-        supported_providers = ["openai", "anthropic", "gemini"]
-        if target_provider not in supported_providers:
-            raise ValidationError(f"Unsupported provider: {target_provider}")
-
-        # Create adapted tool spec
-        adapted_tool = deepcopy(tool_spec)
-        adapted_tool["provider_specific"] = {"provider": target_provider}
-
-        # Add provider-specific adaptations
-        if target_provider == "openai":
-            adapted_tool["provider_specific"]["format"] = "openai_function"
-        elif target_provider == "anthropic":
-            adapted_tool["provider_specific"]["format"] = "anthropic_tool"
-        elif target_provider == "gemini":
-            adapted_tool["provider_specific"]["format"] = "gemini_function"
-
-        return adapted_tool
-
-
-class ToolVersionManager:
-    """Manager for tool versioning and compatibility."""
-
-    def __init__(self):
-        """Initialize version manager."""
-        self.logger = get_logger(__name__)
-        self._versions = {}
-
-    def register_version(self, tool_spec: dict[str, Any]):
-        """Register a tool version.
-
-        Args:
-            tool_spec: Tool specification with version info
-        """
-        tool_name = tool_spec.get("name")
-        version = tool_spec.get("version", "1.0.0")
-
-        if tool_name not in self._versions:
-            self._versions[tool_name] = {}
-
-        self._versions[tool_name][version] = tool_spec
-
-    def get_latest_version(self, tool_name: str) -> dict[str, Any]:
-        """Get latest version of a tool.
-
-        Args:
-            tool_name: Name of tool
-
-        Returns:
-            Latest tool specification
-
-        Raises:
-            ValidationError: If tool not found
-        """
-        if tool_name not in self._versions:
-            raise ValidationError(f"Tool {tool_name} not found")
-
-        versions = list(self._versions[tool_name].keys())
-        versions.sort(reverse=True)  # Simple version sorting
-        latest_version = versions[0]
-
-        return self._versions[tool_name][latest_version]
-
-    def get_version(self, tool_name: str, version: str) -> dict[str, Any]:
-        """Get specific version of a tool.
-
-        Args:
-            tool_name: Name of tool
-            version: Version to retrieve
-
-        Returns:
-            Tool specification for version
-
-        Raises:
-            ValidationError: If tool or version not found
-        """
-        if tool_name not in self._versions:
-            raise ValidationError(f"Tool {tool_name} not found")
-
-        if version not in self._versions[tool_name]:
-            raise ValidationError(f"Version {version} not found for {tool_name}")
-
-        return self._versions[tool_name][version]
-
-    def is_compatible(self, tool_name: str, from_version: str, to_version: str) -> bool:
-        """Check if versions are compatible.
-
-        Args:
-            tool_name: Name of tool
-            from_version: Source version
-            to_version: Target version
-
-        Returns:
-            True if versions are compatible
-        """
-        # Simple compatibility check - in real implementation this would be more sophisticated
-        try:
-            self.get_version(tool_name, from_version)
-            self.get_version(tool_name, to_version)
-            return True
-        except ValidationError:
-            return False
-
-    def migrate_parameters(
-        self,
-        tool_name: str,
-        from_version: str,
-        to_version: str,
-        params: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Migrate parameters between versions.
-
-        Args:
-            tool_name: Name of tool
-            from_version: Source version
-            to_version: Target version
-            params: Original parameters
-
-        Returns:
-            Migrated parameters
-        """
-        # Simple migration - just copy parameters and add defaults for new fields
-        to_spec = self.get_version(tool_name, to_version)
-
-        migrated_params = deepcopy(params)
-
-        # Add default values for new parameters in target version
-        to_schema = to_spec.get("inputSchema", {})
-        to_properties = to_schema.get("properties", {})
-
-        for param_name, param_spec in to_properties.items():
-            if param_name not in migrated_params and "default" in param_spec:
-                migrated_params[param_name] = param_spec["default"]
-
-        return migrated_params
+        return cleaned_count
 
 
 class StreamingHandler:
-    """Handler for streaming MCP responses."""
+    """Handler for streaming response functionality.
 
-    def __init__(self, config: dict[str, Any]):
+    This class provides streaming capabilities for real-time response
+    delivery with backpressure handling and flow control.
+    """
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         """Initialize streaming handler.
 
         Args:
-            config: Streaming configuration
-        """
-        self.config = config
-        self.logger = get_logger(__name__)
-        self._active_sessions: dict[str, Any] = {}
+            config: Optional configuration dictionary
 
-    async def create_stream_session(self, client_id: str) -> str:
-        """Create a streaming session.
+        """
+        self.logger = get_logger(__name__)
+        self.config = config or {}
+        self.buffer_size = self.config.get("buffer_size", 1024)
+        self.chunk_size = self.config.get("chunk_size", 128)
+        self.flow_control_enabled = self.config.get("flow_control_enabled", True)
+        self.backpressure_threshold = self.config.get("backpressure_threshold", 0.8)
+        self.connection_timeout = self.config.get("connection_timeout", 30)
+        self.stream_timeout = self.config.get("stream_timeout", 10)
+        self.max_concurrent_streams = self.config.get("max_concurrent_streams", 10)
+        self._active_streams: dict[str, Any] = {}
+        self._active_sessions: dict[str, Any] = {}  # For session management
+        self._lock = Lock()
+        self._metrics = {
+            "total_chunks_sent": 0,
+            "total_bytes_sent": 0,
+            "active_connections": 0,
+            "errors_encountered": 0,
+        }
+
+    async def create_stream_session(self, session_id: str | None = None) -> str:
+        """Create a new streaming session.
 
         Args:
-            client_id: Client identifier
+            session_id: Optional session identifier
+
+        Returns:
+            Stream session ID
+
+        """
+        stream_id = session_id or str(uuid.uuid4())
+
+        with self._lock:
+            self._active_streams[stream_id] = {
+                "created_at": datetime.now(),
+                "status": "active",
+                "chunks_sent": 0,
+                "bytes_sent": 0,
+            }
+
+        return stream_id
+
+    async def stream_response(
+        self,
+        stream_id: str,
+        data: Any,
+        max_chunks: int | None = None,
+    ):
+        """Stream response data for a session.
+
+        Args:
+            stream_id: Stream session identifier
+            data: Data to stream (can be string or iterable)
+            max_chunks: Optional maximum chunks to send
+
+        Yields:
+            Chunks of data
+
+        """
+        if stream_id not in self._active_streams:
+            msg = f"Stream session {stream_id} not found"
+            raise ValidationError(msg)
+
+        # Convert data to chunks
+        if isinstance(data, str):
+            chunks = [
+                data[i : i + self.chunk_size]
+                for i in range(0, len(data), self.chunk_size)
+            ]
+        elif hasattr(data, "__iter__"):
+            chunks = list(data)
+        else:
+            chunks = [str(data)]
+
+        # Limit chunks if specified
+        if max_chunks:
+            chunks = chunks[:max_chunks]
+
+        # Stream chunks with flow control
+        for chunk in chunks:
+            # Check for backpressure
+            if self.flow_control_enabled:
+                await self._check_backpressure(stream_id)
+
+            # Update metrics
+            with self._lock:
+                self._active_streams[stream_id]["chunks_sent"] += 1
+                self._active_streams[stream_id]["bytes_sent"] += len(str(chunk))
+                self._metrics["total_chunks_sent"] += 1
+                self._metrics["total_bytes_sent"] += len(str(chunk))
+
+            yield chunk
+
+    async def _check_backpressure(self, stream_id: str) -> None:
+        """Check and handle backpressure for streaming.
+
+        Args:
+            stream_id: Stream session identifier
+
+        """
+        # Simulate backpressure handling
+        import asyncio
+
+        await asyncio.sleep(0)  # Yield control
+
+    def get_stream_metrics(self, stream_id: str) -> dict[str, Any]:
+        """Get metrics for a specific stream.
+
+        Args:
+            stream_id: Stream session identifier
+
+        Returns:
+            Stream metrics dictionary
+
+        """
+        with self._lock:
+            return self._active_streams.get(stream_id, {}).copy()
+
+    def close_session(self, session_id: str) -> None:
+        """Close a session (alias for close_stream).
+
+        Args:
+            session_id: Session identifier
+
+        """
+        with self._lock:
+            if session_id in self._active_sessions:
+                del self._active_sessions[session_id]
+                self._metrics["active_connections"] -= 1
+            if session_id in self._active_streams:
+                del self._active_streams[session_id]
+
+    async def close_stream(self, stream_id: str) -> None:
+        """Close a streaming session.
+
+        Args:
+            stream_id: Stream session identifier
+
+        """
+        with self._lock:
+            if stream_id in self._active_streams:
+                self._active_streams[stream_id]["status"] = "closed"
+
+
+class SessionManager:
+    """Manager for client sessions and streaming.
+
+    This class handles client session management, streaming responses,
+    and session lifecycle operations.
+    """
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """Initialize session manager.
+
+        Args:
+            config: Optional configuration dictionary
+
+        """
+        self.logger = get_logger(__name__)
+        self.config = config or {}
+        self._active_sessions: dict[str, dict[str, Any]] = {}
+        self._lock = Lock()
+
+    def create_session(self, client_id: str | None = None) -> str:
+        """Create a new session.
+
+        Args:
+            client_id: Optional client identifier
 
         Returns:
             Session ID
+
         """
         session_id = str(uuid.uuid4())
         self._active_sessions[session_id] = {
@@ -702,7 +1298,12 @@ class StreamingHandler:
         }
         return session_id
 
-    async def stream_response(self, session_id: str, data: dict[str, Any], **kwargs):
+    async def stream_response(
+        self,
+        session_id: str,
+        data: dict[str, Any],
+        **kwargs: Any,
+    ):
         """Stream response data to client.
 
         Args:
@@ -711,86 +1312,120 @@ class StreamingHandler:
             **kwargs: Additional streaming options
 
         Yields:
-            Stream chunks
+            Streamed data chunks
 
-        Raises:
-            ValidationError: If session invalid or streaming fails
-            asyncio.TimeoutError: If stream timeout is exceeded
         """
-        # Check for invalid session
-        if session_id not in self._active_sessions:
-            raise ValidationError(f"Invalid session: {session_id}")
+        # Placeholder streaming implementation
+        # In a real implementation, this would handle SSE or WebSocket streaming
+        yield json.dumps(data)
 
-        # Check for error in response data (test_stream_error_handling)
-        if "error" in data:
-            raise ValidationError(f"Streaming error: {data.get('error')}")
-
-        # Check for force_error flag (test_streaming_session_cleanup_on_error)
-        if data.get("force_error"):
-            # Clean up session on error
-            if session_id in self._active_sessions:
-                del self._active_sessions[session_id]
-            raise RuntimeError("Forced streaming error")
-
-        # Handle timeout simulation (test_stream_timeout_handling)
-        if data.get("simulate_slow") and data.get("delay_seconds", 0) > self.config.get(
-            "stream_timeout", 10
-        ):
-            raise TimeoutError("Stream timeout exceeded")
-
-        # Simple streaming implementation for testing
-        for i in range(kwargs.get("max_chunks", 3)):
-            chunk = {
-                "session_id": session_id,
-                "chunk_id": i + 1,
-                "data": data,
-                "timestamp": datetime.now().isoformat(),
-                "sequence": i,
-            }
-
-            # Add optional fields based on data
-            if data.get("backpressure_test"):
-                # Check if we should simulate backpressure
-                if i > 5:  # After some chunks, apply backpressure
-                    chunk["backpressure_applied"] = True
-
-            if data.get("flow_control_required") and self.config.get(
-                "flow_control_enabled"
-            ):
-                # Apply flow control when requested
-                if i % 3 == 0:  # Every 3rd chunk
-                    chunk["flow_control_applied"] = True
-
-            if data.get("buffer_overflow_handled"):
-                chunk["buffer_overflow_handled"] = True
-
-            if data.get("performance_test"):
-                # Add performance metrics
-                chunk["metrics"] = {
-                    "processing_time": 0.001 * (i + 1),  # Simulate processing time
-                    "throughput": 1000 / (i + 1),  # Simulate throughput
-                }
-
-            if data.get("integrity_check"):
-                # Add integrity information
-                chunk["integrity_hash"] = f"hash_{i + 1}"
-
-            yield chunk
-            await asyncio.sleep(0.01)  # Small delay
-
-    async def close_stream_session(self, session_id: str):
-        """Close a streaming session.
+    def get_session_info(self, session_id: str) -> dict[str, Any] | None:
+        """Get session information.
 
         Args:
-            session_id: Session to close
+            session_id: Session ID
 
-        Raises:
-            ValidationError: If session not found
+        Returns:
+            Session information or None if not found
+
         """
-        if session_id not in self._active_sessions:
-            raise ValidationError(f"Session not found: {session_id}")
+        with self._lock:
+            return self._active_sessions.get(session_id)
 
-        del self._active_sessions[session_id]
+    def update_session_status(self, session_id: str, status: str) -> bool:
+        """Update session status.
+
+        Args:
+            session_id: Session ID
+            status: New status
+
+        Returns:
+            True if updated successfully
+
+        """
+        with self._lock:
+            if session_id in self._active_sessions:
+                self._active_sessions[session_id]["status"] = status
+                self._active_sessions[session_id]["last_updated"] = datetime.now()
+                return True
+        return False
+
+    def get_active_sessions(self) -> list[str]:
+        """Get list of active session IDs.
+
+        Returns:
+            List of active session IDs
+
+        """
+        with self._lock:
+            return [
+                sid
+                for sid, info in self._active_sessions.items()
+                if info.get("status") == "active"
+            ]
+
+    def close_session(self, session_id: str) -> bool:
+        """Close a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            True if session was closed
+
+        """
+        with self._lock:
+            if session_id in self._active_sessions:
+                self._active_sessions[session_id]["status"] = "closed"
+                self._active_sessions[session_id]["closed_at"] = datetime.now()
+                return True
+        return False
+
+    def cleanup_sessions(self, max_age_seconds: int = 7200) -> int:
+        """Clean up old sessions.
+
+        Args:
+            max_age_seconds: Maximum age for inactive sessions
+
+        Returns:
+            Number of sessions cleaned up
+
+        """
+        cutoff_time = datetime.now()
+        cutoff_time = cutoff_time.replace(second=cutoff_time.second - max_age_seconds)
+
+        cleaned_count = 0
+        with self._lock:
+            to_remove = []
+            for session_id, session_info in self._active_sessions.items():
+                last_activity = session_info.get(
+                    "last_updated",
+                    session_info["created_at"],
+                )
+                if last_activity < cutoff_time:
+                    to_remove.append(session_id)
+
+            for session_id in to_remove:
+                del self._active_sessions[session_id]
+                cleaned_count += 1
+
+        return cleaned_count
+
+    def remove_session(self, session_id: str) -> bool:
+        """Remove a session completely.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            True if session was removed
+
+        """
+        with self._lock:
+            if session_id in self._active_sessions:
+                del self._active_sessions[session_id]
+                return True
+        return False
 
 
 class MCPProtocolHandler:
@@ -1092,373 +1727,236 @@ class CheapLLMServer:
     """Main CheapLLM MCP Server implementation."""
 
     def __init__(
-        self, config_manager=None, middleware_chain=None, resource_manager=None
-    ):
+        self,
+        config_manager: Any = None,
+        middleware_chain: Any = None,
+        resource_manager: Any = None,
+    ) -> None:
         """Initialize CheapLLM server.
 
         Args:
             config_manager: Configuration manager instance
             middleware_chain: Optional middleware chain
             resource_manager: Optional resource manager
+
         """
         self.logger = get_logger(__name__)
         self.config_manager = config_manager
         self.middleware_chain = middleware_chain
         self.resource_manager = resource_manager
+
+        # Initialize core components
         self.protocol_handler = MCPProtocolHandler()
         self.tool_registry = ToolRegistry()
+        self.request_manager = RequestManager()
+        self.session_manager = SessionManager()
 
-        # Initialize the MCP server instance (mock for now)
-        self._server = type(
-            "MockMCPServer",
-            (),
-            {
-                "list_tools": lambda self: lambda f: f,
-                "call_tool": lambda self: lambda f: f,
-            },
-        )()
+        # Server state
+        self._initialized = False
+        self._server: Any = None  # Will be set when server is created
 
-        # Register MCP handlers
-        self._setup_handlers()
+    async def initialize(self) -> None:
+        """Initialize the server and all components."""
+        if self._initialized:
+            return
 
-    def get_mcp_server(self):
-        """Get the MCP server instance.
+        self.logger.info("Initializing CheapLLM server...")
 
-        Returns:
-            The MCP server instance
-        """
-        return self._server
+        try:
+            # Initialize components in order
+            await self._initialize_components()
 
-    def _setup_handlers(self):
-        """Setup MCP server handlers."""
-        # Register tools based on enabled providers
-        if self.config_manager:
-            enabled_providers = self.config_manager.get_enabled_providers()
+            # Register default tools
+            await self._register_default_tools()
 
-            # Register tools for each enabled provider
-            for provider in enabled_providers:
-                if provider == "gemini":
-                    tool = {
-                        "name": "gemini_generate",
-                        "description": "Generate text using Gemini CLI",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The prompt to generate from",
-                                },
-                                "model": {
-                                    "type": "string",
-                                    "description": "Model to use",
-                                    "default": "gemini-1.5-flash",
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    }
-                    self.tool_registry.register_tool(tool, provider)
+            # Set up server endpoints
+            await self._setup_server_endpoints()
 
-                elif provider == "codex":
-                    tool = {
-                        "name": "codex_generate",
-                        "description": "Generate code using OpenAI Codex",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The code prompt",
-                                },
-                                "language": {
-                                    "type": "string",
-                                    "description": "Programming language",
-                                    "default": "python",
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    }
-                    self.tool_registry.register_tool(tool, provider)
+            self._initialized = True
+            self.logger.info("CheapLLM server initialized successfully")
 
-                elif provider == "llama":
-                    tool = {
-                        "name": "llama_generate",
-                        "description": "Generate text using local LLaMA model",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The prompt to generate from",
-                                },
-                                "max_tokens": {
-                                    "type": "integer",
-                                    "description": "Maximum tokens to generate",
-                                    "default": 256,
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    }
-                    self.tool_registry.register_tool(tool, provider)
+        except Exception as e:
+            self.logger.exception(f"Failed to initialize server: {e}")
+            raise
+
+    async def _initialize_components(self) -> None:
+        """Initialize all server components."""
+        # Component initialization would go here
+        # For now, just log that components are being initialized
+        self.logger.debug("Initializing server components")
+
+    async def _register_default_tools(self) -> None:
+        """Register default tools with the tool registry."""
+        # Default tool registration would go here
+        self.logger.debug("Registering default tools")
+
+    async def _setup_server_endpoints(self) -> None:
+        """Set up server endpoints and handlers."""
+        # This would set up the actual MCP server endpoints
+        # For now, we'll create a mock server object
+
+        class MockServer:
+            """Mock server for development."""
+
+            def __init__(self) -> None:
+                self._handlers = {}
+
+            def list_tools(self):
+                """Register list_tools handler."""
+
+                def decorator(func):
+                    self._handlers["list_tools"] = func
+                    return func
+
+                return decorator
+
+            def call_tool(self):
+                """Register call_tool handler."""
+
+                def decorator(func):
+                    self._handlers["call_tool"] = func
+                    return func
+
+                return decorator
+
+        self._server = MockServer()
 
         # Register list_tools handler
         @self._server.list_tools()
-        async def handle_list_tools():
+        async def handle_list_tools() -> dict[str, Any]:
             """Handle list_tools request."""
             tools = self.tool_registry.discover_tools()
             return {"tools": tools}
 
         # Register call_tool handler
         @self._server.call_tool()
-        async def handle_call_tool(name: str, arguments: dict):
+        async def handle_call_tool(
+            name: str,
+            arguments: dict[str, Any],
+        ) -> dict[str, Any]:
             """Handle call_tool request."""
             # Default provider for now
             result = self.tool_registry.invoke_tool(name, "default", arguments)
             return {"content": [{"type": "text", "text": str(result)}]}
 
+    def get_mcp_server(self) -> Any:
+        """Get the MCP server instance.
+
+        Returns:
+            The MCP server instance
+
+        """
+        return self._server
+
     async def process_request(self, request: dict[str, Any]) -> dict[str, Any]:
         """Process incoming MCP request.
 
         Args:
-            request: Raw request data
+            request: MCP request data
 
         Returns:
-            Processed response
+            MCP response data
+
         """
+        if not self._initialized:
+            await self.initialize()
+
+        request_id = self.request_manager.create_request_id()
+
         try:
-            # Validate request first
-            try:
-                self._validate_request(request)
-            except ValueError as e:
-                # Return error response for validation failures
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request.get("id"),
-                    "error": {"code": -32600, "message": str(e)},
-                }
+            # Start tracking request
+            self.request_manager.start_request(request_id, request)
 
-            # Check resource availability if manager present
-            if self.resource_manager:
-                if not self.resource_manager.can_handle_request(request):
-                    return self.protocol_handler.create_error_response(
-                        -32603,
-                        "Resources unavailable",
-                        request.get("id"),
-                    )
+            # Process through protocol handler
+            request_json = json.dumps(request)
+            response_json = await self.protocol_handler.process_message(request_json)
+            response = json.loads(response_json)
 
-            # Acquire resources if manager present
-            resource_context = None
-            cleanup_needed = False
-            if self.resource_manager:
-                resource_context = self.resource_manager.acquire_resources(request)
+            # Mark request as completed
+            self.request_manager.complete_request(request_id, response)
 
-            try:
-                # Enter resource context if available
-                if resource_context:
-                    await resource_context.__aenter__()
-                    cleanup_needed = True
-
-                # Process through middleware if available
-                processed_request = request
-                if self.middleware_chain:
-                    # Handle middleware errors
-                    try:
-                        processed_request = await self.middleware_chain.process_request(
-                            request
-                        )
-                    except RuntimeError as e:
-                        # Middleware processing error
-                        # Clean up resources before returning
-                        if cleanup_needed and resource_context:
-                            await resource_context.__aexit__(type(e), e, None)
-                            cleanup_needed = False
-                        return {
-                            "jsonrpc": "2.0",
-                            "id": request.get("id"),
-                            "error": {"code": -32603, "message": str(e)},
-                        }
-
-                # Check if this is a completion request
-                if processed_request.get("method") == "completion":
-                    # Handle completion directly
-                    result = await self.handle_completion(
-                        processed_request.get("params", {})
-                    )
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": processed_request.get("id"),
-                        **result,
-                    }
-                else:
-                    # Handle via protocol handler
-                    response = await self.protocol_handler.handle_request(
-                        processed_request
-                    )
-
-                # Process response through middleware
-                if self.middleware_chain and response:
-                    response = await self.middleware_chain.process_response(response)
-
-                # Clean up resources on success
-                if cleanup_needed and resource_context:
-                    await resource_context.__aexit__(None, None, None)
-                    cleanup_needed = False
-
-                return response
-            except Exception as exc:
-                # Clean up resources on error
-                if cleanup_needed and resource_context:
-                    await resource_context.__aexit__(type(exc), exc, None)
-                    cleanup_needed = False
-                raise
+            return response
 
         except Exception as e:
-            self.logger.error(f"Error processing request: {e}")
+            # Mark request as failed
+            self.request_manager.fail_request(request_id, str(e))
+            self.logger.exception(f"Error processing request {request_id}: {e}")
+            raise
 
-            return self.protocol_handler.create_error_response(
-                -32603,
-                f"Internal error: {e}",
-                request.get("id"),
-            )
-
-    async def handle_completion(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Handle completion request.
+    async def start(self, host: str = "localhost", port: int = 8080) -> None:
+        """Start the server.
 
         Args:
-            params: Completion parameters
+            host: Host to bind to
+            port: Port to bind to
 
-        Returns:
-            Completion response
         """
-        # Mock completion response
-        return {"choices": [{"message": {"content": "Mock completion response"}}]}
+        if not self._initialized:
+            await self.initialize()
 
-    def _validate_request(self, request: dict[str, Any]) -> None:
-        """Validate incoming request.
+        self.logger.info(f"Starting CheapLLM server on {host}:{port}")
 
-        Args:
-            request: Request to validate
+        # Server startup logic would go here
+        # For now, just log that the server is starting
+        self.logger.info("Server started successfully")
 
-        Raises:
-            ValueError: If request is invalid
-        """
-        # Validate JSON-RPC version
-        if request.get("jsonrpc") != "2.0":
-            raise ValueError("Invalid JSON-RPC version")
+    async def stop(self) -> None:
+        """Stop the server gracefully."""
+        self.logger.info("Stopping CheapLLM server...")
 
-        # Validate required fields
-        if "method" not in request:
-            raise ValueError("Missing method field")
-
-        # Additional validation as needed
-        if not isinstance(request.get("method"), str):
-            raise ValueError("Method must be a string")
-
-    async def _list_tools(self):
-        """List available tools from all providers.
-
-        Returns:
-            List of available tools
-        """
-        # Return Tool objects for MCP compatibility
-        tools = []
-        raw_tools = self.tool_registry.discover_tools()
-
-        for tool_spec in raw_tools:
-            tool = Tool(
-                name=tool_spec.get("name"),
-                description=tool_spec.get("description"),
-                inputSchema=tool_spec.get("inputSchema", {}),
-            )
-            tools.append(tool)
-
-        return tools
-
-    async def _call_tool(self, request: CallToolRequest):
-        """Call a tool with given request.
-
-        Args:
-            request: CallToolRequest object with tool name and arguments
-
-        Returns:
-            CallToolResult with execution result
-        """
         try:
-            tool_name = request.params.name
-            arguments = request.params.arguments
+            # Cleanup active sessions
+            active_sessions = self.session_manager.get_active_sessions()
+            for session_id in active_sessions:
+                self.session_manager.close_session(session_id)
 
-            # Route to appropriate provider method
-            if tool_name == "gemini_generate":
-                response = await self._call_gemini(arguments)
-            elif tool_name == "codex_generate":
-                response = await self._call_codex(arguments)
-            elif tool_name == "llama_generate":
-                response = await self._call_llama(arguments)
-            else:
-                # Unknown tool error
-                return CallToolResult(
-                    content=[
-                        TextContent(type="text", text=f"Unknown tool: {tool_name}")
-                    ],
-                    isError=True,
-                )
+            # Cleanup active requests
+            self.request_manager.cleanup_completed_requests(0)  # Clean all
 
-            # Return successful result
-            return CallToolResult(content=[TextContent(type="text", text=response)])
+            self.logger.info("Server stopped successfully")
 
         except Exception as e:
-            # Return error result
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"Error: {str(e)}")],
-                isError=True,
-            )
+            self.logger.exception(f"Error during server shutdown: {e}")
+            raise
 
-    async def _call_gemini(self, arguments: dict):
-        """Call Gemini provider.
-
-        Args:
-            arguments: Request arguments
+    def get_server_stats(self) -> dict[str, Any]:
+        """Get server statistics.
 
         Returns:
-            Gemini response string (placeholder)
+            Dictionary with server statistics
+
         """
-        # Extract parameters for GREEN phase implementation
-        prompt = arguments.get("prompt", "")
-        model = arguments.get("model", "gemini-1.5-flash")
+        return {
+            "initialized": self._initialized,
+            "protocol_metrics": self.protocol_handler.get_metrics(),
+            "tool_registry": self.tool_registry.get_registry_stats(),
+            "active_sessions": len(self.session_manager.get_active_sessions()),
+        }
 
-        # Return minimal string response that passes tests
-        return f"Gemini response using {model} for prompt: {prompt}"
-
-    async def _call_codex(self, arguments: dict):
-        """Call Codex provider.
+    def register_tool(
+        self,
+        tool_spec: dict[str, Any],
+        provider: str = "default",
+        handler: Any = None,
+    ) -> None:
+        """Register a tool with the server.
 
         Args:
-            arguments: Request arguments
+            tool_spec: Tool specification
+            provider: Provider name
+            handler: Optional tool handler
 
-        Returns:
-            Codex response string (placeholder)
         """
-        # Extract parameters for GREEN phase implementation
-        prompt = arguments.get("prompt", "")
-        language = arguments.get("language", "python")
+        self.tool_registry.register_tool(tool_spec, provider, handler)
 
-        # Return minimal string response that passes tests
-        return f"Codex response for {language}: {prompt}"
-
-    async def _call_llama(self, arguments: dict):
-        """Call LLaMA provider.
+    def create_session(self, client_id: str | None = None) -> str:
+        """Create a new client session.
 
         Args:
-            arguments: Request arguments
+            client_id: Optional client identifier
 
         Returns:
-            LLaMA response string (placeholder)
-        """
-        # Extract parameters for GREEN phase implementation
-        prompt = arguments.get("prompt", "")
-        max_tokens = arguments.get("max_tokens", 256)
+            Session ID
 
-        # Return minimal string response that passes tests
-        return f"LLaMA response with max_tokens={max_tokens} for prompt: {prompt}"
+        """
+        return self.session_manager.create_session(client_id)

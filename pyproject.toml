@@ -171,7 +171,10 @@ toml = ">=0.10.2"  # For test fixtures
 # Security Scanning
 bandit = ">=1.7.0"
 safety = ">=2.3.0,<3.0"
-# semgrep = "*"  # Requires Python 3.11, we're using 3.13
+# semgrep = "*"  # CI Framework: Enhanced security scanning (compatibility check needed)
+
+# Performance Benchmarking (CI Framework)
+pytest-benchmark = ">=4.0.0"  # For regression detection and trend analysis
 
 # Code Quality Analysis
 hypothesis = ">=6.0.0"
@@ -199,8 +202,8 @@ toml = "*"
 
 [tool.pixi.environments]
 # ===== STREAMLINED LINUX-FOCUSED ENVIRONMENTS =====
-# Runtime-only environment (minimal footprint)
-default = {solve-group = "default"}
+# Development environment with testing capabilities (was runtime-only)
+default = {features = ["quality"], solve-group = "default"}
 
 # CRITICAL: Quality environment for CI workflows (REQUIRED)
 quality = {features = ["quality"], solve-group = "default"}
@@ -262,6 +265,10 @@ ci-quality = "ruff check src/ tests/ --output-format=github && ruff format --che
 security-scan = "bandit -r src/ --severity-level high"
 safety-check = "safety check --ignore=70929 --ignore=70912"
 static-analysis = { depends-on = ["security-scan", "safety-check"] }
+
+# CI Framework Tasks
+test-benchmark = { cmd = "pytest tests/ --benchmark-only --benchmark-skip", env = { PYTHONPATH = "src" } }
+security-extended = "bandit -r src/ --severity-level medium -f json"  # Enhanced security for CI Framework
 
 # Complete validation (for releases)
 validate-all = { depends-on = ["quality", "security-scan", "build"] }

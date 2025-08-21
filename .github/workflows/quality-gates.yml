@@ -1,8 +1,23 @@
 name: Quality Gates
 
+# Enhanced quality gates aligned with CI Framework standards
+# Maintains zero-tolerance approach while adding CI Framework compatibility
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_call:
+    inputs:
+      tier:
+        description: 'Quality tier (essential/comprehensive/extended)'
+        required: false
+        default: 'essential'
+        type: string
+      fail-fast:
+        description: 'Fail fast on first error'
+        required: false
+        default: true
+        type: boolean
 
 env:
   PYTHONNOUSERSITE: 1
@@ -11,7 +26,7 @@ env:
 
 jobs:
   quality-gates:
-    name: Zero-Tolerance Quality Checks
+    name: Zero-Tolerance Quality Checks - ${{ inputs.tier || 'essential' }} tier
     runs-on: ubuntu-latest
 
     steps:
@@ -22,11 +37,16 @@ jobs:
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true
-        cache-key: quality-gates-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
+        cache-key: quality-gates-${{ inputs.tier || 'essential' }}-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
-    - name: Install dependencies
+    - name: Install dependencies (Essential Tier)
+      if: inputs.tier == 'essential' || inputs.tier == '' || inputs.tier == null
       run: pixi install -e quality
+
+    - name: Install dependencies (Comprehensive/Extended Tier)
+      if: inputs.tier == 'comprehensive' || inputs.tier == 'extended'
+      run: pixi install -e quality-extended
 
     - name: 🚨 CRITICAL - F,E9 Violations Check
       run: |
@@ -77,10 +97,19 @@ jobs:
     - name: 📊 Quality Summary
       if: always()
       run: |
-        echo "📊 Quality Gate Summary"
-        echo "======================"
+        echo "📊 Quality Gate Summary - ${{ inputs.tier || 'essential' }} tier"
+        echo "============================================"
         echo "✅ Critical lint checks (F,E9): PASSED"
         echo "📋 Test coverage: See above"
         echo "🔍 Repository hygiene: See above"
         echo ""
+        echo "🎯 CI Framework Tier: ${{ inputs.tier || 'essential' }}"
+        echo "🛡️ Zero-Tolerance Policy: ENFORCED"
+        echo ""
         echo "Remember: ZERO-TOLERANCE for F,E9 violations!"
+
+    # CI Framework compatibility outputs
+    outputs:
+      quality-tier: ${{ inputs.tier || 'essential' }}
+      success: ${{ job.status == 'success' }}
+      fail-fast: ${{ inputs.fail-fast }}

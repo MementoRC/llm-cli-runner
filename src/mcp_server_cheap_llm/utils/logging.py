@@ -17,24 +17,30 @@ from typing import Any
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
-from ..core.models import ProviderType
+from mcp_server_cheap_llm.core.models import ProviderType
 
 
 class ConfigurableJsonRenderer:
     """Configurable JSON renderer for structlog."""
 
-    def __init__(self, include_timestamp: bool = True, include_level: bool = True):
+    def __init__(
+        self, include_timestamp: bool = True, include_level: bool = True
+    ) -> None:
         """Initialize the configurable JSON renderer.
 
         Args:
             include_timestamp: Whether to include timestamp in the output
             include_level: Whether to include log level in the output
+
         """
         self.include_timestamp = include_timestamp
         self.include_level = include_level
 
     def __call__(
-        self, logger: Any, method_name: str, event_dict: dict[str, Any]
+        self,
+        logger: Any,
+        method_name: str,
+        event_dict: dict[str, Any],
     ) -> str:
         """Render log event to JSON format.
 
@@ -45,6 +51,7 @@ class ConfigurableJsonRenderer:
 
         Returns:
             JSON formatted log string
+
         """
         # Format timestamp
         if self.include_timestamp and "timestamp" not in event_dict:
@@ -61,7 +68,10 @@ class ErrorDetailRenderer:
     """Renderer that extracts detailed error information."""
 
     def __call__(
-        self, logger: Any, method_name: str, event_dict: dict[str, Any]
+        self,
+        logger: Any,
+        method_name: str,
+        event_dict: dict[str, Any],
     ) -> dict[str, Any]:
         """Extract error details from exception.
 
@@ -72,8 +82,9 @@ class ErrorDetailRenderer:
 
         Returns:
             Enhanced event dictionary with error details
+
         """
-        if "exception" in event_dict and event_dict["exception"]:
+        if event_dict.get("exception"):
             exc_info = event_dict.pop("exception", None)
             if exc_info:
                 if isinstance(exc_info, tuple) and len(exc_info) == 3:
@@ -82,7 +93,9 @@ class ErrorDetailRenderer:
                         "type": exc_type.__name__ if exc_type else "Unknown",
                         "message": str(exc_value) if exc_value else "",
                         "traceback": traceback.format_exception(
-                            exc_type, exc_value, exc_tb
+                            exc_type,
+                            exc_value,
+                            exc_tb,
                         )
                         if exc_tb
                         else [],
@@ -97,7 +110,10 @@ class ProviderContextFilter:
     """Processor that adds provider context to log entries."""
 
     def __call__(
-        self, logger: Any, method_name: str, event_dict: dict[str, Any]
+        self,
+        logger: Any,
+        method_name: str,
+        event_dict: dict[str, Any],
     ) -> dict[str, Any]:
         """Add provider context to log entries.
 
@@ -168,6 +184,7 @@ class StructuredLogger:
 
         Returns:
             Enhanced event dictionary with provider context
+
         """
         # Add provider context if available
         provider_context = getattr(logger, "provider_context", None)
@@ -180,11 +197,12 @@ class StructuredLogger:
 class MetricsCollector:
     """Collects and aggregates performance metrics."""
 
-    def __init__(self, max_entries: int = 1000):
+    def __init__(self, max_entries: int = 1000) -> None:
         """Initialize the metrics collector.
 
         Args:
             max_entries: Maximum number of metric entries to keep
+
         """
         self._metrics: deque = deque(maxlen=max_entries)
         self._metrics_lock = Lock()
@@ -564,6 +582,7 @@ class SecurityLogger:
             provider: Provider type if applicable
             status: Status of the operation (success/error)
             **kwargs: Additional metric data
+
         """
         metric = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -899,6 +918,7 @@ class PerformanceLogger:
 
         Returns:
             Dictionary of function statistics
+
         """
         with self._metrics_lock:
             stats = {}
@@ -941,11 +961,12 @@ class PerformanceLogger:
 class PerformanceLogger:
     """Logger decorator for performance tracking."""
 
-    def __init__(self, metrics_collector: MetricsCollector | None = None):
+    def __init__(self, metrics_collector: MetricsCollector | None = None) -> None:
         """Initialize the performance logger.
 
         Args:
             metrics_collector: Metrics collector instance
+
         """
         self.metrics_collector = metrics_collector or MetricsCollector()
 
@@ -957,6 +978,7 @@ class PerformanceLogger:
 
         Returns:
             Wrapped function with performance tracking
+
         """
 
         @wraps(func)
@@ -966,8 +988,7 @@ class PerformanceLogger:
             error = None
 
             try:
-                result = await func(*args, **kwargs)
-                return result
+                return await func(*args, **kwargs)
             except Exception as e:
                 status = "error"
                 error = str(e)
@@ -988,8 +1009,7 @@ class PerformanceLogger:
             error = None
 
             try:
-                result = func(*args, **kwargs)
-                return result
+                return func(*args, **kwargs)
             except Exception as e:
                 status = "error"
                 error = str(e)
@@ -1005,8 +1025,7 @@ class PerformanceLogger:
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
-        else:
-            return sync_wrapper
+        return sync_wrapper
 
     # TDD Placeholder methods for performance logger tests
     @property
@@ -1028,8 +1047,7 @@ class PerformanceLogger:
             success = True
             error = None
             try:
-                result = func(*args, **kwargs)
-                return result
+                return func(*args, **kwargs)
             except Exception as e:
                 success = False
                 error = str(e)
@@ -1097,13 +1115,14 @@ class StructuredLogger:
         name: str,
         provider: ProviderType | None = None,
         metrics_collector: MetricsCollector | None = None,
-    ):
+    ) -> None:
         """Initialize the structured logger.
 
         Args:
             name: Logger name
             provider: Provider type for context
             metrics_collector: Metrics collector instance
+
         """
         self.name = name
         self.provider = provider
@@ -1122,6 +1141,7 @@ class StructuredLogger:
 
         Returns:
             New logger instance with bound context
+
         """
         new_logger = StructuredLogger(
             name=self.name,
@@ -1144,7 +1164,10 @@ class StructuredLogger:
         self.logger.warning(message, **kwargs)
 
     def error(
-        self, message: str, error: Exception | None = None, **kwargs: Any
+        self,
+        message: str,
+        error: Exception | None = None,
+        **kwargs: Any,
     ) -> None:
         """Log error message.
 
@@ -1152,13 +1175,17 @@ class StructuredLogger:
             message: Error message
             error: Exception instance
             **kwargs: Additional context
+
         """
         if error:
             kwargs["exception"] = (type(error), error, error.__traceback__)
         self.logger.error(message, **kwargs)
 
     def critical(
-        self, message: str, error: Exception | None = None, **kwargs: Any
+        self,
+        message: str,
+        error: Exception | None = None,
+        **kwargs: Any,
     ) -> None:
         """Log critical message.
 
@@ -1166,6 +1193,7 @@ class StructuredLogger:
             message: Critical message
             error: Exception instance
             **kwargs: Additional context
+
         """
         if error:
             kwargs["exception"] = (type(error), error, error.__traceback__)
@@ -1177,6 +1205,7 @@ class StructuredLogger:
 
         Args:
             **kwargs: Context variables to bind temporarily
+
         """
         bind_contextvars(**kwargs)
         try:
@@ -1189,6 +1218,7 @@ class StructuredLogger:
 
         Returns:
             Performance logger decorator
+
         """
         return PerformanceLogger(self.metrics_collector)
 
@@ -1248,10 +1278,9 @@ class StructuredLogger:
         error_type = type(error).__name__
         if "Security" in error_type:
             return "high"
-        elif "Validation" in error_type or "Provider" in error_type:
+        if "Validation" in error_type or "Provider" in error_type:
             return "medium"
-        else:
-            return "low"
+        return "low"
 
 
 # Global logger instances
@@ -1274,6 +1303,7 @@ def configure_logging(
         include_timestamp: Include timestamp in logs
         include_level: Include level in logs
         max_metrics: Maximum metrics to collect
+
     """
     global _default_logger, _metrics_collector
 
@@ -1293,7 +1323,7 @@ def configure_logging(
             [
                 structlog.dev.set_exc_info,
                 structlog.dev.ConsoleRenderer(colors=True),
-            ]
+            ],
         )
 
     structlog.configure(
@@ -1309,12 +1339,14 @@ def configure_logging(
     # Initialize global instances
     _metrics_collector = MetricsCollector(max_metrics)
     _default_logger = StructuredLogger(
-        "cheap_llm", metrics_collector=_metrics_collector
+        "cheap_llm",
+        metrics_collector=_metrics_collector,
     )
 
 
 def get_logger(
-    name: str = "cheap_llm", provider: ProviderType | None = None
+    name: str = "cheap_llm",
+    provider: ProviderType | None = None,
 ) -> StructuredLogger:
     """Get a structured logger instance.
 
@@ -1324,6 +1356,7 @@ def get_logger(
 
     Returns:
         Structured logger instance
+
     """
     global _default_logger, _metrics_collector
 
@@ -1341,12 +1374,15 @@ def get_metrics_collector() -> MetricsCollector | None:
 
     Returns:
         Global metrics collector instance
+
     """
     return _metrics_collector
 
 
 def performance_track(
-    func: Callable | None = None, *, logger_name: str = "performance"
+    func: Callable | None = None,
+    *,
+    logger_name: str = "performance",
 ):
     """Decorator for performance tracking.
 
@@ -1356,6 +1392,7 @@ def performance_track(
 
     Returns:
         Decorated function or decorator
+
     """
 
     def decorator(f: Callable) -> Callable:
@@ -1364,8 +1401,7 @@ def performance_track(
 
     if func is None:
         return decorator
-    else:
-        return decorator(func)
+    return decorator(func)
 
 
 def setup_logging(
@@ -1383,6 +1419,7 @@ def setup_logging(
         include_timestamp: Include timestamp in logs
         include_level: Include level in logs
         max_metrics: Maximum metrics to collect
+
     """
     configure_logging(level, format_type, include_timestamp, include_level, max_metrics)
 
@@ -1394,7 +1431,7 @@ class LogContext:
     Full implementation will be added in future tasks.
     """
 
-    def __init__(self, correlation_id: str | None = None):
+    def __init__(self, correlation_id: str | None = None) -> None:
         """Initialize log context with correlation ID."""
         self.correlation_id = correlation_id or str(uuid.uuid4())
 
@@ -1404,7 +1441,6 @@ class LogContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context manager."""
-        pass
 
 
 class AuditLogger:
@@ -1414,12 +1450,12 @@ class AuditLogger:
     Full implementation will be added in future tasks.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         """Initialize audit logger."""
         self.name = name
         self._events: list[dict[str, Any]] = []
 
-    def log_audit_event(self, **kwargs):
+    def log_audit_event(self, **kwargs) -> None:
         """Log an audit event."""
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -1446,14 +1482,14 @@ class AuditLogger:
 
 # Export commonly used functions
 __all__ = [
-    "StructuredLogger",
-    "MetricsCollector",
-    "PerformanceLogger",
-    "LogContext",
     "AuditLogger",
     "ConfigurableJsonRenderer",
     "ErrorDetailRenderer",
+    "LogContext",
+    "MetricsCollector",
+    "PerformanceLogger",
     "ProviderContextFilter",
+    "StructuredLogger",
     "configure_logging",
     "get_logger",
     "get_metrics_collector",

@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionMessageParam
 
 from mcp_server_cheap_llm.core.models import (
     CostEstimate,
