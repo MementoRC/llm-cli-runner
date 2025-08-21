@@ -110,6 +110,10 @@ class MCPGitServerCore(DebuggableComponent):
         # Repository binding components
         self.binding_manager = RepositoryBindingManager(server_name)
         self.protected_ops: Optional[ProtectedGitOperations] = None
+        
+        # Binding failure tracking for user feedback
+        self.binding_failed = False
+        self.binding_failure_reason: str | None = None
 
         # State tracking
         self._state_history: list[ComponentState] = []
@@ -181,8 +185,12 @@ class MCPGitServerCore(DebuggableComponent):
                 )
             except (RepositoryBindingError, RemoteContaminationError) as e:
                 logger.error(f"Failed to bind repository: {e}")
-                # Don't fail server initialization, but log the issue
+                # Don't fail server initialization, but log the issue and store failure info
                 logger.warning("Server initialized without repository binding")
+                
+                # Store binding failure info for user feedback
+                self.binding_failure_reason = str(e)
+                self.binding_failed = True
         
         return server
 
@@ -349,6 +357,31 @@ class MCPGitServerCore(DebuggableComponent):
             ProtectedGitOperations instance if available
         """
         return self.protected_ops
+
+    def get_binding_status(self) -> dict[str, Any]:
+        """
+        Get binding status with user-friendly feedback.
+        
+        Returns:
+            Dictionary with binding status and failure information
+        """
+        binding_info = self.binding_manager.get_binding_info()
+        
+        result = {
+            "bound": binding_info.get("bound", False),
+            "binding_failed": self.binding_failed,
+            "status": "bound" if binding_info.get("bound", False) else ("failed" if self.binding_failed else "unbound")
+        }
+        
+        if self.binding_failed and self.binding_failure_reason:
+            result["failure_reason"] = self.binding_failure_reason
+            result["user_message"] = f"Repository binding failed: {self.binding_failure_reason}"
+        elif binding_info.get("bound", False):
+            result["user_message"] = f"Successfully bound to repository: {binding_info.get('repository_path', 'unknown')}"
+        else:
+            result["user_message"] = "Repository not bound"
+            
+        return result
 
     # DebuggableComponent implementation
 

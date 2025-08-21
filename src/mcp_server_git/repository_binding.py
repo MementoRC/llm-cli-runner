@@ -28,6 +28,18 @@ from typing import Optional
 from .utils.git_import import git
 from git.repo import Repo
 
+# Constants
+DEFAULT_REMOTE_NAME = "origin"
+
+__all__ = [
+    "RepositoryBinding",
+    "RepositoryBindingManager", 
+    "RepositoryBindingState",
+    "RepositoryBindingError",
+    "RemoteProtectionError",
+    "DEFAULT_REMOTE_NAME",
+]
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +77,7 @@ class RepositoryBinding:
     """Immutable repository binding configuration."""
     repository_path: Path
     expected_remote_url: str
-    remote_name: str = "origin"
+    remote_name: str = DEFAULT_REMOTE_NAME
     binding_timestamp: float = field(default_factory=time.time)
     binding_hash: str = field(init=False)
     
@@ -214,11 +226,17 @@ class RepositoryBindingManager:
         # Check if operation path is within bound repository
         try:
             operation_path.relative_to(bound_path)
-        except ValueError:
-            raise RepositoryBindingError(
-                f"Operation path {operation_path} outside bound repository {bound_path}. "
-                f"This prevents cross-repository contamination."
-            )
+        except ValueError as e:
+            # relative_to() can fail for different reasons - provide specific error message
+            if "is not in the subpath of" in str(e) or not str(operation_path).startswith(str(bound_path)):
+                raise RepositoryBindingError(
+                    f"Operation path {operation_path} is outside bound repository {bound_path}. "
+                    f"This prevents cross-repository contamination."
+                )
+            else:
+                raise RepositoryBindingError(
+                    f"Cannot determine path relationship between {operation_path} and {bound_path}: {e}"
+                )
     
     async def validate_remote_integrity(self) -> None:
         """
@@ -245,10 +263,16 @@ class RepositoryBindingManager:
         """Get current remote URL from repository."""
         try:
             repo = Repo(repo_path)
-            if "origin" in repo.remotes:
-                return list(repo.remotes.origin.urls)[0]
-            else:
-                raise RepositoryBindingError(f"No 'origin' remote found in {repo_path}")
+            # Safe remote access to prevent race condition
+            try:
+                origin_remote = getattr(repo.remotes, DEFAULT_REMOTE_NAME)
+                urls = list(origin_remote.urls)
+                if not urls:
+                    raise RepositoryBindingError(f"'{DEFAULT_REMOTE_NAME}' remote has no URLs in {repo_path}")
+                return urls[0]
+            except AttributeError:
+                # origin remote doesn't exist
+                raise RepositoryBindingError(f"No '{DEFAULT_REMOTE_NAME}' remote found in {repo_path}")
         except Exception as e:
             raise RepositoryBindingError(f"Failed to get remote URL from {repo_path}: {e}")
     

@@ -16,6 +16,36 @@ CLI_AUTH_TIMEOUT = 10  # seconds for GitHub CLI authentication
 PUSH_OPERATION_TIMEOUT = 300  # seconds (5 minutes) for push operations
 MIN_TOKEN_LENGTH = 10  # minimum length for a valid GitHub token
 
+__all__ = [
+    "git_status",
+    "git_diff_unstaged", 
+    "git_diff_staged",
+    "git_diff",
+    "git_commit",
+    "git_add",
+    "git_reset",
+    "git_log",
+    "git_show",
+    "git_init",
+    "git_push",
+    "git_pull",
+    "git_create_branch",
+    "git_checkout",
+    "git_merge",
+    "git_rebase",
+    "git_cherry_pick",
+    "git_abort",
+    "git_continue",
+    "git_fetch",
+    "git_remote_add",
+    "git_remote_remove",
+    "git_remote_list",
+    "git_remote_get_url",
+    "git_diff_branches",
+    "git_stash_push",
+    "git_stash_pop",
+]
+
 
 def _validate_commit_range(commit_range: str) -> tuple[bool, str]:
     """Validate commit range format and return (is_valid, error_message)
@@ -1046,11 +1076,12 @@ def git_push(
         if "Authentication failed" in str(e) or "401" in str(e):
             # Add debug info directly to error message - OUTER EXCEPTION PATH
             repo_env = Path(repo.working_dir) / ".env"
-            token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
+            token = os.getenv("GITHUB_TOKEN", "")
+            token_info = f"length={len(token)}, starts_with={token[:4]}..." if token else "NOT SET"
             return (
                 f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
                 f"or GitHub CLI authentication (gh auth login)\n"
-                f"🔍 DEBUG [OUTER_EXCEPTION]: GITHUB_TOKEN: {token_status}, "
+                f"🔍 DEBUG [OUTER_EXCEPTION]: GITHUB_TOKEN: {token_info}, "
                 f".env exists: {repo_env.exists()}, "
                 f"working_dir: {repo.working_dir}\n"
                 f"🔍 Outer GitPython error: {str(e)}"

@@ -16,6 +16,14 @@ from typing import Optional
 # Safe git import that handles ClaudeCode redirector conflicts
 from git.repo import Repo
 
+# Configuration constants
+DEFAULT_CONFIRMATION_TOKEN = "CONFIRM_REMOTE_CHANGE"
+
+__all__ = [
+    "ProtectedGitOperations",
+    "DEFAULT_CONFIRMATION_TOKEN",
+]
+
 from .git.operations import (
     git_add,
     git_checkout,
@@ -47,8 +55,9 @@ logger = logging.getLogger(__name__)
 class ProtectedGitOperations:
     """Git operations with repository binding protection."""
     
-    def __init__(self, binding_manager: RepositoryBindingManager):
+    def __init__(self, binding_manager: RepositoryBindingManager, confirmation_token: str = DEFAULT_CONFIRMATION_TOKEN):
         self.binding_manager = binding_manager
+        self.confirmation_token = confirmation_token
     
     async def _validate_and_prepare_operation(self, repo_path: str | Path) -> Path:
         """
@@ -219,9 +228,9 @@ class ProtectedGitOperations:
         Returns:
             Operation result
         """
-        if confirmation_token != "CONFIRM_REMOTE_CHANGE":
+        if confirmation_token != self.confirmation_token:
             raise RemoteProtectionError(
-                "Remote change requires explicit confirmation token: 'CONFIRM_REMOTE_CHANGE'"
+                f"Remote change requires explicit confirmation token: '{self.confirmation_token}'"
             )
         
         validated_path = await self._validate_and_prepare_operation(repo_path)
@@ -240,9 +249,14 @@ class ProtectedGitOperations:
         repo = Repo(validated_path)
         try:
             git_remote_remove(repo, remote_name)
-        except Exception:
-            # Remote might not exist, continue
-            pass
+        except Exception as e:
+            # Only ignore if remote doesn't exist, log other errors
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "does not exist" in error_msg or "no such remote" in error_msg:
+                logger.debug(f"Remote '{remote_name}' doesn't exist, continuing with add")
+            else:
+                logger.warning(f"Failed to remove remote '{remote_name}': {e}")
+                # Continue anyway, but we've logged the real error
         
         result = git_remote_add(repo, remote_name, new_remote_url)
         
