@@ -1026,7 +1026,7 @@ def git_push(
                     repo_env = Path(repo.working_dir) / ".env"
                     token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
                     return (
-                        f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                        f"❌ Authentication failed [DEBUG_VERSION_V3]. Configure GITHUB_TOKEN environment variable "
                         f"or GitHub CLI authentication (gh auth login)\n"
                         f"🔍 DEBUG [REGULAR_PUSH]: GITHUB_TOKEN: {token_status}, "
                         f".env exists: {repo_env.exists()}, "
