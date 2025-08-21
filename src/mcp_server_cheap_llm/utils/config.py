@@ -720,12 +720,59 @@ class ConfigManager:
 
         logger.info("Configuration loaded from file", path=config_path)
 
+        # Transform nested server configuration if present
+        if "server" in config_data and isinstance(config_data["server"], dict):
+            server_config = config_data.pop("server")
+            # Merge server config into root level, handling special fields
+            for key, value in server_config.items():
+                if key == "log_level":
+                    # Map log_level to logging.level structure
+                    if "logging" not in config_data:
+                        config_data["logging"] = {}
+                    config_data["logging"]["level"] = value
+                else:
+                    config_data[key] = value
+
+        # Transform provider configurations to handle nested structures
+        # Also store original config data for later retrieval
+        original_providers = {}
+        if "providers" in config_data and isinstance(config_data["providers"], dict):
+            for provider_name, provider_config in config_data["providers"].items():
+                if isinstance(provider_config, dict):
+                    # Store original config for later
+                    original_providers[provider_name] = provider_config.copy()
+
+                    # Extract only allowed ProviderConfig fields
+                    transformed_config = {}
+                    allowed_fields = [
+                        "enabled",
+                        "api_key",
+                        "base_url",
+                        "max_tokens",
+                        "temperature",
+                        "timeout",
+                    ]
+
+                    for field in allowed_fields:
+                        if field in provider_config:
+                            transformed_config[field] = provider_config[field]
+
+                    # Set defaults if not present
+                    if "enabled" not in transformed_config:
+                        transformed_config["enabled"] = True
+
+                    config_data["providers"][provider_name] = transformed_config
+
         # Validate and create config object
         try:
             config = ServerConfig(**config_data)
         except Exception as e:
             msg = f"Invalid configuration in {config_path}: {e}"
             raise ValueError(msg) from e
+
+        # Store original provider configs for backward compatibility
+        if hasattr(config, "__dict__"):
+            config.__dict__["_original_providers"] = original_providers
 
         return cls._apply_env_overrides(config)
 
@@ -1225,13 +1272,35 @@ class ConfigManager:
             provider_name: Name of the provider
 
         Returns:
-            ProviderConfig or None if not found
+            Provider configuration dictionary or None if not found
 
         """
         if not self.config or not self.config.providers:
             return None
 
-        return self.config.providers.get(provider_name)
+        provider = self.config.providers.get(provider_name)
+        if provider is None:
+            return None
+
+        # Return as dictionary for backward compatibility with tests
+        config_dict = {
+            "enabled": provider.enabled,
+            "api_key": provider.api_key,
+            "base_url": provider.base_url,
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature,
+            "timeout": provider.timeout,
+        }
+
+        # Add any stored original config fields that were filtered out
+        if hasattr(self.config, "_original_providers"):
+            original_config = self.config._original_providers.get(provider_name, {})
+            # Add fields from original config that aren't in the standard fields
+            for key, value in original_config.items():
+                if key not in config_dict:
+                    config_dict[key] = value
+
+        return config_dict
 
     def get_enabled_providers(self) -> list[str]:
         """Get list of enabled provider names.
@@ -1246,6 +1315,38 @@ class ConfigManager:
         return [
             name for name, provider in self.config.providers.items() if provider.enabled
         ]
+
+    def get_server_config(self) -> dict[str, Any]:
+        """Get server configuration as dictionary.
+
+        Returns:
+            Dictionary containing server configuration
+
+        """
+        if not self.config:
+            return {}
+
+        return {
+            "host": self.config.host,
+            "port": self.config.port,
+            "debug": self.config.debug,
+            "providers": {
+                name: {
+                    "enabled": provider.enabled,
+                    "api_key": provider.api_key,
+                    "base_url": provider.base_url,
+                    "max_tokens": provider.max_tokens,
+                    "temperature": provider.temperature,
+                    "timeout": provider.timeout,
+                }
+                for name, provider in (self.config.providers or {}).items()
+            },
+            "logging": {
+                "level": self.config.logging.level,
+                "format": self.config.logging.format,
+                "file": self.config.logging.file,
+            },
+        }
 
     @classmethod
     def get_default_config(cls) -> ServerConfig:
