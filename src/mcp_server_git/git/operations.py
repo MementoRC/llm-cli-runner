@@ -842,16 +842,24 @@ def git_init(repo_path: str) -> str:
 def _get_github_token_from_cli() -> str | None:
     """Extract token from GitHub CLI if available"""
     try:
+        logger.debug("🔍 DEBUG: Running 'gh auth token' command...")
         result = subprocess.run(
             ["gh", "auth", "token"],
             capture_output=True,
             text=True,
             timeout=CLI_AUTH_TIMEOUT,
         )
+        logger.debug(f"🔍 DEBUG: gh auth token return code: {result.returncode}")
+        logger.debug(f"🔍 DEBUG: gh auth token stdout: {result.stdout[:50]}..." if result.stdout else "🔍 DEBUG: gh auth token stdout: EMPTY")
+        logger.debug(f"🔍 DEBUG: gh auth token stderr: {result.stderr}")
+        
         if result.returncode == 0:
             token = result.stdout.strip()
-            return token if token and len(token) >= MIN_TOKEN_LENGTH else None
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+            token_valid = token and len(token) >= MIN_TOKEN_LENGTH
+            logger.debug(f"🔍 DEBUG: Token valid: {token_valid}, length: {len(token) if token else 0}")
+            return token if token_valid else None
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.debug(f"🔍 DEBUG: gh command failed: {e}")
         pass
     return None
 
@@ -894,12 +902,17 @@ def git_push(
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
             github_token = os.getenv("GITHUB_TOKEN")
+            logger.debug(f"🔍 DEBUG: GITHUB_TOKEN from env: {'SET' if github_token else 'NOT SET'}")
+            logger.debug(f"🔍 DEBUG: All env vars: {list(os.environ.keys())}")
 
             # If no GITHUB_TOKEN, try to get token from GitHub CLI
             if not github_token:
+                logger.debug("🔍 DEBUG: Attempting GitHub CLI token extraction...")
                 github_token = _get_github_token_from_cli()
+                logger.debug(f"🔍 DEBUG: GitHub CLI token: {'SET' if github_token else 'NOT SET'}")
 
             if github_token:
+                logger.debug("🔍 DEBUG: Token found, proceeding with authenticated push")
                 # Inject token into URL
                 if "github.com" in remote_url:
                     # Format: https://token@github.com/user/repo.git
@@ -928,6 +941,7 @@ def git_push(
                         repo.remote(remote).set_url(remote_url)
             else:
                 # Fallback to system git with credential helpers
+                logger.debug("🔍 DEBUG: NO TOKEN FOUND - falling back to system git")
                 logger.info(
                     "No GitHub token available, falling back to system git authentication"
                 )
@@ -935,6 +949,8 @@ def git_push(
                     # Use subprocess to call system git with credential helpers
                     cmd = ["git", "push"]
                     cmd.extend(push_args)
+                    logger.debug(f"🔍 DEBUG: System git command: {' '.join(cmd)}")
+                    logger.debug(f"🔍 DEBUG: Working directory: {repo.working_dir}")
 
                     result = subprocess.run(
                         cmd,
@@ -943,6 +959,10 @@ def git_push(
                         text=True,
                         timeout=PUSH_OPERATION_TIMEOUT,
                     )
+                    
+                    logger.debug(f"🔍 DEBUG: System git return code: {result.returncode}")
+                    logger.debug(f"🔍 DEBUG: System git stdout: {result.stdout}")
+                    logger.debug(f"🔍 DEBUG: System git stderr: {result.stderr}")
 
                     if result.returncode == 0:
                         success_msg = f"✅ Successfully pushed {branch} to {remote}"
