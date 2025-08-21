@@ -300,7 +300,7 @@ class MCPGitServerCore(DebuggableComponent):
             Binding status information
         """
         try:
-            binding = await self.binding_manager.bind_repository(
+            await self.binding_manager.bind_repository(
                 repository_path, expected_remote_url, verify_remote, force
             )
             self._update_state_history()

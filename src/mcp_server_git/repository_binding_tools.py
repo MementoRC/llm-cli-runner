@@ -9,7 +9,6 @@ explicit repository binding management and prevent cross-session contamination.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from mcp.types import Tool
 from pydantic import BaseModel

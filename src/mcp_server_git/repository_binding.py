@@ -127,7 +127,7 @@ class RepositoryBindingManager:
                 raise RepositoryBindingError(f"Repository path does not exist: {repository_path}")
                 
             try:
-                repo = Repo(repository_path)
+                Repo(repository_path)
             except git.InvalidGitRepositoryError:
                 raise RepositoryBindingError(f"Invalid git repository: {repository_path}")
             

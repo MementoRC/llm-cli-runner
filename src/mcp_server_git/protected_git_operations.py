@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Optional
 
 # Safe git import that handles ClaudeCode redirector conflicts
-from .utils.git_import import git
 from git.repo import Repo
 
 from .git.operations import (
