@@ -169,6 +169,7 @@ install-editable = "python -c 'import sys; print(f\"PIXI environment active: {sy
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
+# NOTE: Tests require quality environment - run with: pixi run -e quality test
 test = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { CLAUDECODE = "0" } }
 test-cov = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=term-missing --cov-report=xml", env = { CLAUDECODE = "0" } }
 test-unit = { cmd = "pytest tests/unit/ -v", env = { CLAUDECODE = "0" } }
@@ -177,6 +178,7 @@ test-e2e = { cmd = "pytest tests/test_e2e_server.py -v", env = { CLAUDECODE = "0
 test-property = { cmd = "pytest tests/ -m property -v", env = { CLAUDECODE = "0" } }
 
 # Quality Gates (CRITICAL - MUST PASS)
+# NOTE: These require quality environment - run with: pixi run -e quality lint
 lint = "ruff check src/ tests/ --select=F,E9"
 lint-fix = "ruff check --fix src/ tests/"
 format = "ruff format src/ tests/"
@@ -188,10 +190,11 @@ typecheck = "pyright src/"
 quality = { depends-on = ["test", "lint", "typecheck"] }
 
 # Emergency Quality Fix - USE FOR "Found X errors" CI FAILURES
-emergency-fix = "pixi run lint-fix && pixi run format && pixi run test"
+emergency-fix = "pixi run -e quality lint-fix && pixi run -e quality format && pixi run -e quality test"
 
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
+# NOTE: These require quality-extended environment - run with: pixi run -e quality-extended security-scan
 security-scan = "bandit -r src/ --severity-level high"
 safety-check = "safety check"
 
@@ -199,6 +202,7 @@ safety-check = "safety check"
 static-analysis = { depends-on = ["security-scan", "safety-check"] }
 
 # Pre-commit Integration - with Claude Code git bypass
+# NOTE: These require quality-extended environment - run with: pixi run -e quality-extended pre-commit
 pre-commit = { cmd = "pre-commit run --all-files", env = { CLAUDECODE = "0" } }
 install-pre-commit = { cmd = "pre-commit install --install-hooks", env = { CLAUDECODE = "0" } }
 
@@ -207,12 +211,14 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants with environment simulation
+# NOTE: CI tests require ci environment - run with: pixi run -e ci ci-test
 ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=180 --ignore=tests/test_e2e_server.py -m 'not ci_skip' --tb=short --maxfail=10 --disable-warnings", env = { ENVIRONMENT = "ci", PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
 ci-test-debug = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-report=xml --timeout=180 --ignore=tests/test_e2e_server.py -m 'not ci_skip' --tb=long -v -s --capture=no", env = { ENVIRONMENT = "ci", PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
 
 # Stress testing with CI environment simulation
+# NOTE: These require quality environment - run with: pixi run -e quality test-stress-local
 test-stress-ci = { cmd = "pytest tests/stress/ -v --tb=short", env = { PYTEST_CI = "true", CI = "true", CLAUDECODE = "0" } }
 test-stress-local = { cmd = "pytest tests/stress/ -v --tb=short", env = { CLAUDECODE = "0" } }
 
@@ -230,15 +236,18 @@ pixi-git-server-debug = { cmd = "python -m mcp_server_git -vv --enable-file-logg
 mcp-server-git = { depends-on = ["install-editable"], cmd = "mcp-server-git" }
 
 # Production testing
+# NOTE: Requires quality environment - run with: pixi run -e quality test-production
 test-production = { depends-on = ["install-editable"], cmd = "pytest tests/test_e2e_server.py -v", env = { CLAUDECODE = "0" } }
 
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks - with Claude Code git bypass
-benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { CLAUDECODE = "0" } }
-test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { CLAUDECODE = "0" } }
+# NOTE: These require specific environments - see comments
+benchmark = { cmd = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean", env = { CLAUDECODE = "0" } }  # requires dev environment
+test-coverage = { cmd = "pytest tests/ --cov=src/mcp_server_git --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing", env = { CLAUDECODE = "0" } }  # requires quality-full environment
 
 # Environment-specific test variants
+# NOTE: These require quality environment - run with: pixi run -e quality test-quick
 test-ci-simulation = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py --tb=short", env = { PYTEST_CI = "true", CI = "true", GITHUB_ACTIONS = "true", CLAUDECODE = "0" } }
 test-local-full = { cmd = "pytest tests/ -v --ignore=tests/test_e2e_server.py", env = { CLAUDECODE = "0" } }
 
