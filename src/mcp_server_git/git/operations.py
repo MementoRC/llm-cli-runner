@@ -16,6 +16,36 @@ CLI_AUTH_TIMEOUT = 10  # seconds for GitHub CLI authentication
 PUSH_OPERATION_TIMEOUT = 300  # seconds (5 minutes) for push operations
 MIN_TOKEN_LENGTH = 10  # minimum length for a valid GitHub token
 
+__all__ = [
+    "git_status",
+    "git_diff_unstaged", 
+    "git_diff_staged",
+    "git_diff",
+    "git_commit",
+    "git_add",
+    "git_reset",
+    "git_log",
+    "git_show",
+    "git_init",
+    "git_push",
+    "git_pull",
+    "git_create_branch",
+    "git_checkout",
+    "git_merge",
+    "git_rebase",
+    "git_cherry_pick",
+    "git_abort",
+    "git_continue",
+    "git_fetch",
+    "git_remote_add",
+    "git_remote_remove",
+    "git_remote_list",
+    "git_remote_get_url",
+    "git_diff_branches",
+    "git_stash_push",
+    "git_stash_pop",
+]
+
 
 def _validate_commit_range(commit_range: str) -> tuple[bool, str]:
     """Validate commit range format and return (is_valid, error_message)
@@ -843,16 +873,24 @@ def git_init(repo_path: str) -> str:
 def _get_github_token_from_cli() -> str | None:
     """Extract token from GitHub CLI if available"""
     try:
+        logger.debug("🔍 DEBUG: Running 'gh auth token' command...")
         result = subprocess.run(
             ["gh", "auth", "token"],
             capture_output=True,
             text=True,
             timeout=CLI_AUTH_TIMEOUT,
         )
+        logger.debug(f"🔍 DEBUG: gh auth token return code: {result.returncode}")
+        logger.debug(f"🔍 DEBUG: gh auth token stdout: {result.stdout[:50]}..." if result.stdout else "🔍 DEBUG: gh auth token stdout: EMPTY")
+        logger.debug(f"🔍 DEBUG: gh auth token stderr: {result.stderr}")
+        
         if result.returncode == 0:
             token = result.stdout.strip()
-            return token if token and len(token) >= MIN_TOKEN_LENGTH else None
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+            token_valid = token and len(token) >= MIN_TOKEN_LENGTH
+            logger.debug(f"🔍 DEBUG: Token valid: {token_valid}, length: {len(token) if token else 0}")
+            return token if token_valid else None
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.debug(f"🔍 DEBUG: gh command failed: {e}")
         pass
     return None
 
@@ -894,13 +932,28 @@ def git_push(
 
         # GitHub HTTPS authentication handling
         if is_github and remote_url.startswith("https://"):
+            # Try to load .env from current repository first
+            from dotenv import load_dotenv
+            from pathlib import Path
+            
+            repo_env = Path(repo.working_dir) / ".env"
+            if repo_env.exists():
+                logger.info(f"🔍 DEBUG: Loading .env from repository: {repo_env}")
+                load_dotenv(repo_env, override=True)
+            
             github_token = os.getenv("GITHUB_TOKEN")
+            logger.info(f"🔍 DEBUG: GITHUB_TOKEN from env: {'SET' if github_token else 'NOT SET'}")
+            logger.info(f"🔍 DEBUG: Repository working dir: {repo.working_dir}")
+            logger.info(f"🔍 DEBUG: .env file exists: {repo_env.exists()}")
 
             # If no GITHUB_TOKEN, try to get token from GitHub CLI
             if not github_token:
+                logger.debug("🔍 DEBUG: Attempting GitHub CLI token extraction...")
                 github_token = _get_github_token_from_cli()
+                logger.debug(f"🔍 DEBUG: GitHub CLI token: {'SET' if github_token else 'NOT SET'}")
 
             if github_token:
+                logger.debug("🔍 DEBUG: Token found, proceeding with authenticated push")
                 # Inject token into URL
                 if "github.com" in remote_url:
                     # Format: https://token@github.com/user/repo.git
@@ -929,6 +982,7 @@ def git_push(
                         repo.remote(remote).set_url(remote_url)
             else:
                 # Fallback to system git with credential helpers
+                logger.debug("🔍 DEBUG: NO TOKEN FOUND - falling back to system git")
                 logger.info(
                     "No GitHub token available, falling back to system git authentication"
                 )
@@ -936,6 +990,8 @@ def git_push(
                     # Use subprocess to call system git with credential helpers
                     cmd = ["git", "push"]
                     cmd.extend(push_args)
+                    logger.debug(f"🔍 DEBUG: System git command: {' '.join(cmd)}")
+                    logger.debug(f"🔍 DEBUG: Working directory: {repo.working_dir}")
 
                     result = subprocess.run(
                         cmd,
@@ -944,6 +1000,10 @@ def git_push(
                         text=True,
                         timeout=PUSH_OPERATION_TIMEOUT,
                     )
+                    
+                    logger.debug(f"🔍 DEBUG: System git return code: {result.returncode}")
+                    logger.debug(f"🔍 DEBUG: System git stdout: {result.stdout}")
+                    logger.debug(f"🔍 DEBUG: System git stderr: {result.stderr}")
 
                     if result.returncode == 0:
                         success_msg = f"✅ Successfully pushed {branch} to {remote}"
@@ -957,9 +1017,16 @@ def git_push(
                             "Authentication failed" in error_output
                             or "401" in error_output
                         ):
+                            # Add debug info directly to error message
+                            repo_env = Path(repo.working_dir) / ".env"
+                            token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
                             return (
-                                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                                "or GitHub CLI authentication (gh auth login)"
+                                f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                                f"or GitHub CLI authentication (gh auth login)\n"
+                                f"🔍 DEBUG: GITHUB_TOKEN: {token_status}, "
+                                f".env exists: {repo_env.exists()}, "
+                                f"working_dir: {repo.working_dir}\n"
+                                f"🔍 System git error: {error_output}"
                             )
                         elif (
                             "403" in error_output or "Permission denied" in error_output
@@ -986,9 +1053,16 @@ def git_push(
             # If regular push fails and this is GitHub HTTPS, suggest auth options
             if is_github and remote_url.startswith("https://"):
                 if "Authentication failed" in str(e) or "401" in str(e):
+                    # Add debug info directly to error message - REGULAR PUSH PATH
+                    repo_env = Path(repo.working_dir) / ".env"
+                    token_status = "SET" if os.getenv("GITHUB_TOKEN") else "NOT SET"
                     return (
-                        "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                        "or GitHub CLI authentication (gh auth login)"
+                        f"❌ Authentication failed [DEBUG_VERSION_V3]. Configure GITHUB_TOKEN environment variable "
+                        f"or GitHub CLI authentication (gh auth login)\n"
+                        f"🔍 DEBUG [REGULAR_PUSH]: GITHUB_TOKEN: {token_status}, "
+                        f".env exists: {repo_env.exists()}, "
+                        f"working_dir: {repo.working_dir}\n"
+                        f"🔍 GitPython error: {str(e)}"
                     )
                 elif "403" in str(e) or "Permission denied" in str(e):
                     return "❌ Permission denied. Check repository access permissions"
@@ -1001,9 +1075,17 @@ def git_push(
 
     except GitCommandError as e:
         if "Authentication failed" in str(e) or "401" in str(e):
+            # Add debug info directly to error message - OUTER EXCEPTION PATH
+            repo_env = Path(repo.working_dir) / ".env"
+            token = os.getenv("GITHUB_TOKEN", "")
+            token_info = f"length={len(token)}, starts_with={token[:4]}..." if token else "NOT SET"
             return (
-                "❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
-                "or GitHub CLI authentication (gh auth login)"
+                f"❌ Authentication failed. Configure GITHUB_TOKEN environment variable "
+                f"or GitHub CLI authentication (gh auth login)\n"
+                f"🔍 DEBUG [OUTER_EXCEPTION]: GITHUB_TOKEN: {token_info}, "
+                f".env exists: {repo_env.exists()}, "
+                f"working_dir: {repo.working_dir}\n"
+                f"🔍 Outer GitPython error: {str(e)}"
             )
         elif "403" in str(e):
             return "❌ Permission denied. Check repository access permissions"
