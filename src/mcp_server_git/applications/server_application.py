@@ -1170,9 +1170,13 @@ class ServerApplication(DebuggableComponent):
 
                 result = await self._execute_tool_operation(name, arguments)
 
-                # TODO: Process through middleware chain for token limits
-                # For now, return result directly to ensure basic functionality works
-                return [{"type": "text", "text": str(result)}]
+                # Process through middleware chain for token limits and optimization
+                if self._middleware_manager:
+                    processed_result = await self._middleware_manager.process_request(result)
+                    return [{"type": "text", "text": str(processed_result)}]
+                else:
+                    # Fallback: return result directly if middleware not available
+                    return [{"type": "text", "text": str(result)}]
 
             except Exception as e:
                 logger.error(f"[CALL_TOOL] ERROR: {e}")
