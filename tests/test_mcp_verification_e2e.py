@@ -11,8 +11,8 @@ Test Phases:
 3. Advanced Git Operations (show, security validation)
 4. Error Handling and Edge Cases
 
-The tests use real MCP calls through the server_simple.py implementation
-to verify the routing fix and full functionality.
+The tests use direct tool calls through the modular implementation
+to verify the routing functionality and full server capabilities.
 """
 
 import os
@@ -31,21 +31,19 @@ from mcp_server_git.utils.git_import import Repo
 @pytest.fixture
 async def mcp_client():
     """Create an MCP client connected to the git server."""
-    # Instead of using server_simple in test mode, let's simulate the MCP tool calls
-    # by directly testing the tool routing functionality
-
-    # For E2E verification, we'll test the tools directly rather than through MCP protocol
-    # This gives us the same verification of the routing fix without MCP protocol complexity
+    # Simulate MCP tool calls by directly testing the tool routing functionality
+    # For E2E verification, we test the tools directly through the modular architecture
+    # This provides the same verification capabilities as the full MCP protocol
     from mcp_server_git.core.handlers import CallToolHandler
     from mcp_server_git.core.tools import ToolRegistry
 
-    # Initialize the tool infrastructure that server_simple.py uses
+    # Initialize the tool infrastructure using the current modular implementation
     tool_registry = ToolRegistry()
     tool_registry.initialize_default_tools()
 
     tool_handler = CallToolHandler()
 
-    # Create a mock client that uses the same routing logic as server_simple.py
+    # Create a mock client that uses the same routing logic as the server application
     class DirectToolClient:
         def __init__(self, handler):
             self.handler = handler
@@ -57,7 +55,7 @@ async def mcp_client():
                 arguments = params["arguments"]
 
                 try:
-                    # This is the exact same call that server_simple.py makes on line 82-83
+                    # This is the same call that the server application makes
                     result = await self.handler.router.route_tool_call(
                         tool_name, arguments
                     )
