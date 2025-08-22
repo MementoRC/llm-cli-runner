@@ -1,12 +1,9 @@
 """Tool call handlers for MCP Git Server"""
 
 import logging
-import os
-import time
 from pathlib import Path
 from typing import Any
 
-from mcp.types import TextContent
 
 # Safe git import that handles ClaudeCode redirector conflicts
 from ..utils.git_import import Repo, git
