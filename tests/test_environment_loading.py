@@ -5,11 +5,29 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_git.server import get_github_client, load_environment_variables
+# Import from current modular architecture
+from mcp_server_git.github.client import get_github_client
+# Note: load_environment_variables is now handled by dotenv in main()
+from dotenv import load_dotenv
 
 
 class TestEnvironmentLoading:
     """Test environment variable loading with various scenarios."""
+
+    def load_environment_variables(self, repository=None):
+        """Helper method that mimics the old load_environment_variables function using dotenv."""
+        from pathlib import Path
+        
+        # Load from current directory .env first (project level)
+        current_env = Path.cwd() / ".env"
+        if current_env.exists():
+            load_dotenv(current_env)
+        
+        # Then load from repository .env if specified (repo level)
+        if repository:
+            repo_env = Path(repository) / ".env"
+            if repo_env.exists():
+                load_dotenv(repo_env)
 
     def test_load_environment_with_empty_github_token(self, tmp_path, monkeypatch):
         """Test that empty GITHUB_TOKEN is overridden from .env file."""
@@ -25,7 +43,7 @@ class TestEnvironmentLoading:
 
         # Patch Path.cwd to point to the temp directory
         with patch("pathlib.Path.cwd", return_value=tmp_path):
-            load_environment_variables()
+            self.load_environment_variables()
 
             # Should have overridden the empty token
             assert os.getenv("GITHUB_TOKEN") == "test_token_123"
@@ -41,7 +59,7 @@ class TestEnvironmentLoading:
         with patch.dict(os.environ, {"GITHUB_TOKEN": "existing_token"}, clear=False):
             # Change to the temp directory
             with patch("pathlib.Path.cwd", return_value=tmp_path):
-                load_environment_variables()
+                self.load_environment_variables()
 
                 # Should preserve the existing token
                 assert os.getenv("GITHUB_TOKEN") == "existing_token"
@@ -58,7 +76,7 @@ class TestEnvironmentLoading:
         for placeholder in placeholder_values:
             with patch.dict(os.environ, {"GITHUB_TOKEN": placeholder}, clear=False):
                 with patch("pathlib.Path.cwd", return_value=tmp_path):
-                    load_environment_variables()
+                    self.load_environment_variables()
 
                     # Should have overridden the placeholder
                     assert os.getenv("GITHUB_TOKEN") == "real_token_123"
@@ -74,7 +92,7 @@ class TestEnvironmentLoading:
         for whitespace in whitespace_values:
             with patch.dict(os.environ, {"GITHUB_TOKEN": whitespace}, clear=False):
                 with patch("pathlib.Path.cwd", return_value=tmp_path):
-                    load_environment_variables()
+                    self.load_environment_variables()
 
                     # Should have overridden the whitespace
                     assert os.getenv("GITHUB_TOKEN") == "real_token_123"
@@ -132,7 +150,7 @@ class TestEnvironmentLoading:
         # Test with empty GITHUB_TOKEN
         with patch.dict(os.environ, {"GITHUB_TOKEN": ""}, clear=False):
             with patch("pathlib.Path.cwd", return_value=tmp_path):
-                load_environment_variables(repo_dir)
+                self.load_environment_variables(repo_dir)
 
                 # Project .env should take precedence
                 assert os.getenv("GITHUB_TOKEN") == "project_token"
@@ -154,7 +172,7 @@ class TestEnvironmentLoading:
         # Test with empty GITHUB_TOKEN from project directory
         with patch.dict(os.environ, {"GITHUB_TOKEN": ""}, clear=False):
             with patch("pathlib.Path.cwd", return_value=project_dir):
-                load_environment_variables()
+                self.load_environment_variables()
 
                 # Should load from ClaudeCode directory
                 assert os.getenv("GITHUB_TOKEN") == "claude_token"

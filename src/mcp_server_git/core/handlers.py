@@ -35,57 +35,31 @@ class CallToolHandler:
         self.router.set_handlers(git_handlers, github_handlers, security_handlers)
 
     def _get_git_handlers(self) -> dict[str, Any]:
-        """Get Git operation handlers (modular or original)"""
-        try:
-            from ..git.operations import (
-                git_abort,
-                git_add,
-                git_checkout,
-                git_cherry_pick,
-                git_commit,
-                git_continue,
-                git_create_branch,
-                git_diff,
-                git_diff_branches,
-                git_diff_staged,
-                git_diff_unstaged,
-                git_init,
-                git_log,
-                git_merge,
-                git_pull,
-                git_push,
-                git_rebase,
-                git_reset,
-                git_show,
-                git_status,
-            )
+        """Get Git operation handlers from modular implementation"""
+        from ..git.operations import (
+            git_abort,
+            git_add,
+            git_checkout,
+            git_cherry_pick,
+            git_commit,
+            git_continue,
+            git_create_branch,
+            git_diff,
+            git_diff_branches,
+            git_diff_staged,
+            git_diff_unstaged,
+            git_init,
+            git_log,
+            git_merge,
+            git_pull,
+            git_push,
+            git_rebase,
+            git_reset,
+            git_show,
+            git_status,
+        )
 
-            logger.debug("Using modular Git operations")
-        except ImportError:
-            from ..server import (
-                git_abort,
-                git_add,
-                git_checkout,
-                git_cherry_pick,
-                git_commit,
-                git_continue,
-                git_create_branch,
-                git_diff,
-                git_diff_branches,
-                git_diff_staged,
-                git_diff_unstaged,
-                git_init,
-                git_log,
-                git_merge,
-                git_pull,
-                git_push,
-                git_rebase,
-                git_reset,
-                git_show,
-                git_status,
-            )
-
-            logger.debug("Using original Git operations")
+        logger.debug("Using modular Git operations")
 
         return {
             "git_status": self._create_git_handler(git_status, requires_repo=True),
@@ -176,11 +150,8 @@ class CallToolHandler:
         }
 
     def _get_github_handlers(self) -> dict[str, Any]:
-        """Get GitHub API handlers (modular or original)"""
-        # GitHub API import with dynamic fallback
-        github_functions = {}
-
-        # Try modular API first
+        """Get GitHub API handlers from modular implementation"""
+        # Import all GitHub API functions from modular implementation
         try:
             from ..github.api import (
                 github_create_issue,
@@ -197,6 +168,7 @@ class CallToolHandler:
                 github_update_issue,
             )
 
+<<<<<<< HEAD
             github_functions.update(
                 {
                     "github_get_pr_checks": github_get_pr_checks,
@@ -306,14 +278,29 @@ class CallToolHandler:
         handler_edit_pr_description: Any = github_functions.get(
             "github_edit_pr_description", fallback_github_function
         )
+=======
+            logger.debug("Using modular GitHub API")
+        except ImportError:
+            logger.warning("GitHub API module not available, using fallback")
+            
+            # Define fallback function for when GitHub API is not available
+            async def fallback_github_function(*args, **kwargs):
+                return "❌ GitHub API not available"
+
+            # Use fallback for all functions
+            (github_create_issue, github_edit_pr_description, github_get_failing_jobs,
+             github_get_pr_checks, github_get_pr_details, github_get_pr_files,
+             github_get_pr_status, github_get_workflow_run, github_list_issues,
+             github_list_pull_requests, github_update_issue) = [fallback_github_function] * 11
+>>>>>>> 79f9f139 (feat: remove obsolete server implementations and update architecture)
 
         return {
             "github_get_pr_checks": self._create_github_handler(
-                handler_get_pr_checks,
+                github_get_pr_checks,
                 ["repo_owner", "repo_name", "pr_number", "status", "conclusion"],
             ),
             "github_get_failing_jobs": self._create_github_handler(
-                handler_get_failing_jobs,
+                github_get_failing_jobs,
                 [
                     "repo_owner",
                     "repo_name",
@@ -323,7 +310,7 @@ class CallToolHandler:
                 ],
             ),
             "github_get_workflow_run": self._create_github_handler(
-                handler_get_workflow_run,
+                github_get_workflow_run,
                 ["repo_owner", "repo_name", "run_id", "include_logs"],
             ),
             "github_list_workflow_runs": self._create_github_handler(
@@ -346,7 +333,7 @@ class CallToolHandler:
                 ],
             ),
             "github_get_pr_details": self._create_github_handler(
-                handler_get_pr_details,
+                github_get_pr_details,
                 [
                     "repo_owner",
                     "repo_name",
@@ -356,7 +343,7 @@ class CallToolHandler:
                 ],
             ),
             "github_list_pull_requests": self._create_github_handler(
-                handler_list_pull_requests,
+                github_list_pull_requests,
                 [
                     "repo_owner",
                     "repo_name",
@@ -370,10 +357,10 @@ class CallToolHandler:
                 ],
             ),
             "github_get_pr_status": self._create_github_handler(
-                handler_get_pr_status, ["repo_owner", "repo_name", "pr_number"]
+                github_get_pr_status, ["repo_owner", "repo_name", "pr_number"]
             ),
             "github_get_pr_files": self._create_github_handler(
-                handler_get_pr_files,
+                github_get_pr_files,
                 [
                     "repo_owner",
                     "repo_name",
@@ -384,7 +371,7 @@ class CallToolHandler:
                 ],
             ),
             "github_create_issue": self._create_github_handler(
-                handler_create_issue,
+                github_create_issue,
                 [
                     "repo_owner",
                     "repo_name",
@@ -396,7 +383,7 @@ class CallToolHandler:
                 ],
             ),
             "github_list_issues": self._create_github_handler(
-                handler_list_issues,
+                github_list_issues,
                 [
                     "repo_owner",
                     "repo_name",
@@ -414,7 +401,7 @@ class CallToolHandler:
                 ],
             ),
             "github_update_issue": self._create_github_handler(
-                handler_update_issue,
+                github_update_issue,
                 [
                     "repo_owner",
                     "repo_name",
@@ -428,7 +415,7 @@ class CallToolHandler:
                 ],
             ),
             "github_edit_pr_description": self._create_github_handler(
-                handler_edit_pr_description,
+                github_edit_pr_description,
                 [
                     "repo_owner",
                     "repo_name",
