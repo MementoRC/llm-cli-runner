@@ -633,10 +633,21 @@ class ToolAdapter:
         }
 
         # Provider-specific adaptations
+        supported_providers = ["openai", "anthropic", "gemini", "llama"]
+
+        if provider not in supported_providers:
+            from mcp_server_cheap_llm.core.errors import ValidationError
+
+            raise ValidationError(f"Unsupported provider: {provider}")
+
         if provider == "openai":
             adapted_tool["provider_specific"]["format"] = "openai_function"
         elif provider == "anthropic":
             adapted_tool["provider_specific"]["format"] = "anthropic_tool"
+        elif provider == "gemini":
+            adapted_tool["provider_specific"]["format"] = "gemini_tool"
+        elif provider == "llama":
+            adapted_tool["provider_specific"]["format"] = "llama_tool"
 
         return adapted_tool
 
@@ -652,20 +663,27 @@ class ToolVersionManager:
         """Initialize tool version manager."""
         self.logger = get_logger(__name__)
         self._versions: dict[str, list[str]] = {}
+        self._tool_specs: dict[str, dict[str, dict[str, Any]]] = {}
 
-    def register_version(self, tool_name: str, version: str) -> None:
+    def register_version(self, tool_spec: dict[str, Any]) -> None:
         """Register a tool version.
 
         Args:
-            tool_name: Name of the tool
-            version: Version string
+            tool_spec: Tool specification containing name and version
 
         """
+        tool_name = tool_spec.get("name", "unknown")
+        version = tool_spec.get("version", "1.0.0")
+
         if tool_name not in self._versions:
             self._versions[tool_name] = []
+            self._tool_specs[tool_name] = {}
+
         if version not in self._versions[tool_name]:
             self._versions[tool_name].append(version)
             self._versions[tool_name].sort()
+
+        self._tool_specs[tool_name][version] = tool_spec
 
     def get_versions(self, tool_name: str) -> list[str]:
         """Get available versions for a tool.
@@ -679,18 +697,86 @@ class ToolVersionManager:
         """
         return self._versions.get(tool_name, [])
 
-    def get_latest_version(self, tool_name: str) -> str | None:
+    def get_latest_version(self, tool_name: str) -> dict[str, Any] | None:
         """Get latest version for a tool.
 
         Args:
             tool_name: Name of the tool
 
         Returns:
-            Latest version or None if not found
+            Latest tool specification or None if not found
 
         """
         versions = self.get_versions(tool_name)
-        return versions[-1] if versions else None
+        if not versions:
+            return None
+
+        latest_version = versions[-1]
+        return self._tool_specs.get(tool_name, {}).get(latest_version)
+
+    def get_version(self, tool_name: str, version: str) -> dict[str, Any] | None:
+        """Get specific version of a tool.
+
+        Args:
+            tool_name: Name of the tool
+            version: Version string
+
+        Returns:
+            Tool specification or None if not found
+
+        """
+        return self._tool_specs.get(tool_name, {}).get(version)
+
+    def is_compatible(self, tool_name: str, version1: str, version2: str) -> bool:
+        """Check if two versions of a tool are compatible.
+
+        Args:
+            tool_name: Name of the tool
+            version1: First version
+            version2: Second version
+
+        Returns:
+            True if versions are compatible
+
+        """
+        # Simple compatibility check - same major version
+        try:
+            v1_major = int(version1.split(".")[0])
+            v2_major = int(version2.split(".")[0])
+            return v1_major == v2_major
+        except (ValueError, IndexError):
+            return False
+
+    def migrate_parameters(
+        self,
+        tool_name: str,
+        from_version: str,
+        to_version: str,
+        parameters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Migrate parameters between tool versions.
+
+        Args:
+            tool_name: Name of the tool
+            from_version: Source version
+            to_version: Target version
+            parameters: Parameters to migrate
+
+        Returns:
+            Migrated parameters
+
+        """
+        # Simple migration - preserve existing parameters and add defaults for new ones
+        migrated = parameters.copy()
+
+        to_spec = self.get_version(tool_name, to_version)
+        if to_spec and "inputSchema" in to_spec:
+            properties = to_spec["inputSchema"].get("properties", {})
+            for param_name, param_def in properties.items():
+                if param_name not in migrated and "default" in param_def:
+                    migrated[param_name] = param_def["default"]
+
+        return migrated
 
 
 class ProviderToolManager:
@@ -744,9 +830,52 @@ class ProviderToolManager:
         adapter_key = f"{self.provider_name}:{tool_name}"
         self._tool_adapters[adapter_key] = ToolAdapter(tool_spec)
 
-        self.logger.info(
-            f"Registered tool '{tool_name}' for provider '{self.provider_name}'",
-        )
+    def adapt_tool_for_provider(self, tool_name: str) -> dict[str, Any] | None:
+        """Adapt tool for provider-specific API format.
+
+        Args:
+            tool_name: Name of the tool to adapt
+
+        Returns:
+            Adapted tool specification or None if not found
+
+        """
+        if tool_name not in self._provider_tools:
+            return None
+
+        tool_spec = self._provider_tools[tool_name].copy()
+
+        # Add provider-specific adaptations
+        if self.provider_name == "openai":
+            # Add OpenAI-specific model parameter
+            if "inputSchema" in tool_spec and "properties" in tool_spec["inputSchema"]:
+                tool_spec["inputSchema"]["properties"]["model"] = {
+                    "type": "string",
+                    "default": "gpt-3.5-turbo",
+                }
+
+        return tool_spec
+
+    def create_execution_context(self, tool_name: str) -> dict[str, Any] | None:
+        """Create execution context for provider-specific tool.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            Execution context dictionary or None if tool not found
+
+        """
+        if tool_name not in self._provider_tools:
+            return None
+
+        return {
+            "provider": self.provider_name,
+            "config": self.config,
+            "tool_name": tool_name,
+            "provider_tools": self._provider_tools.get(tool_name, {}),
+            "execution_id": f"{self.provider_name}:{tool_name}:{id(self)}",
+        }
 
     def get_provider_tools(self, provider: str) -> dict[str, Any]:
         """Get tools for a specific provider.
