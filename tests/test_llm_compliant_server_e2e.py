@@ -167,6 +167,8 @@ async def llm_compliant_server():
             try:
                 if hasattr(client, 'process') and client.process.stdin:
                     client.process.stdin.close()
+                    # Wait a moment for stdin close to propagate
+                    await asyncio.sleep(0.1)
             except Exception:
                 pass  # Ignore cleanup errors
             
@@ -178,9 +180,22 @@ async def llm_compliant_server():
                 # Force kill if it doesn't terminate
                 process.kill()
                 try:
-                    await asyncio.wait_for(process.wait(), timeout=2.0)
+                    await asyncio.wait_for(process.wait(), timeout=3.0)
                 except asyncio.TimeoutError:
                     pass  # Give up, let it be cleaned up by OS
+        
+        # Ensure all streams are properly closed before fixture cleanup
+        try:
+            if process.stdin and not process.stdin.is_closing():
+                process.stdin.close()
+            if process.stdout and not process.stdout.is_closing():
+                process.stdout.close()  
+            if process.stderr and not process.stderr.is_closing():
+                process.stderr.close()
+            # Give event loop time to clean up transport
+            await asyncio.sleep(0.2)
+        except Exception:
+            pass  # Ignore final cleanup errors
 
 
 @pytest.mark.asyncio
@@ -197,7 +212,8 @@ async def test_llm_compliant_server_tools_list(llm_compliant_server):
     """Test that the LLM-compliant server lists tools correctly"""
     client = llm_compliant_server
 
-    tools_response = await client.list_tools()
+    # Add timeout to prevent hanging
+    tools_response = await asyncio.wait_for(client.list_tools(), timeout=15.0)
 
     # Should have successful response
     assert "result" in tools_response
@@ -239,7 +255,10 @@ async def test_git_status_method_found(llm_compliant_server):
         (repo_path / "test.txt").write_text("Hello World")
 
         # Call git_status tool
-        response = await client.call_tool("git_status", {"repo_path": str(repo_path)})
+        response = await asyncio.wait_for(
+            client.call_tool("git_status", {"repo_path": str(repo_path)}), 
+            timeout=15.0
+        )
 
         # Should NOT get "Method not found" error
         assert "error" not in response, f"git_status failed: {response}"
@@ -287,7 +306,9 @@ async def test_llm_compliant_architecture_validation(llm_compliant_server):
         ]
 
         for tool_name, args in operations:
-            response = await client.call_tool(tool_name, args)
+            response = await asyncio.wait_for(
+                client.call_tool(tool_name, args), timeout=15.0
+            )
 
             # Each operation should work without "Method not found"
             assert "error" not in response, f"{tool_name} failed: {response}"
@@ -300,7 +321,7 @@ async def test_server_component_health(llm_compliant_server):
     client = llm_compliant_server
 
     # Test basic tool listing (tests core framework)
-    tools_response = await client.list_tools()
+    tools_response = await asyncio.wait_for(client.list_tools(), timeout=15.0)
     assert "result" in tools_response
 
     # Test tool execution (tests handlers and operations)
@@ -308,8 +329,9 @@ async def test_server_component_health(llm_compliant_server):
         repo_path = Path(tmp_dir)
         _run_git_isolated(["git", "init"], cwd=repo_path, check=True, capture_output=True)
 
-        status_response = await client.call_tool(
-            "git_status", {"repo_path": str(repo_path)}
+        status_response = await asyncio.wait_for(
+            client.call_tool("git_status", {"repo_path": str(repo_path)}), 
+            timeout=15.0
         )
         assert "result" in status_response
 
