@@ -228,7 +228,7 @@ jobs:
 
         # Use pixi environment for MCP server test
         echo "Using pixi environment"
-        timeout 30s pixi run -e ci mcp-server-git --test-mode &
+        timeout 30s pixi run -e ci pixi-git-server --test-mode &
 
         SERVER_PID=$!
         sleep 5
@@ -237,6 +237,7 @@ jobs:
         if kill -0 $SERVER_PID 2>/dev/null; then
           echo "✅ MCP server started successfully"
           kill $SERVER_PID
+          echo "✅ Server stopped cleanly"
         else
           echo "❌ MCP server failed to start"
           exit 1
