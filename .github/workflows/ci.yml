@@ -2,7 +2,7 @@ name: CI - MCP Git Server Validation
 
 on:
   push:
-    branches: [ main, development, feature/* ]
+    branches: [ main, development, feature/*, feat/* ]
   pull_request:
     branches: [ main, development ]
   workflow_dispatch:
@@ -44,9 +44,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "🔧 Setting up CI environment with pixi..."
+        echo "🔧 Setting up quality environment with pixi..."
         pixi install -e quality
-        echo "✅ CI environment ready"
+        echo "✅ Quality environment ready"
 
     - name: Run ruff linting (critical violations)
       run: |
