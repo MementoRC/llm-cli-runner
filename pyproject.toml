@@ -165,7 +165,7 @@ ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
 # Installation & Setup
-install-editable = "python -c 'import sys; print(f\"PIXI environment active: {sys.executable}\"); print(\"Package available via PIXI - no pip needed\")'"
+install-editable = "python -c 'import sys; print(f\"PIXI environment active: {sys.executable}\", file=sys.stderr); print(\"Package available via PIXI - no pip needed\", file=sys.stderr)'"
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
