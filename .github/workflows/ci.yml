@@ -229,25 +229,15 @@ jobs:
         # Use pixi environment for MCP server test
         echo "Using pixi environment"
         
-        # Start server and capture PID
-        timeout 30s pixi run -e ci pixi-git-server --test-mode &
-        SERVER_PID=$!
-        
-        echo "Started server with PID: $SERVER_PID"
-        sleep 5
-        
-        # Check server status with debugging
-        echo "Checking server status..."
-        if kill -0 $SERVER_PID 2>/dev/null; then
-          echo "✅ Server process $SERVER_PID is running"
-          echo "Stopping server..."
-          kill $SERVER_PID 2>/dev/null || echo "Kill command failed"
-          sleep 1
+        # Test server startup directly - let it complete naturally
+        echo "Testing server can start and handle test mode..."
+        if timeout 10s pixi run -e ci pixi-git-server --test-mode; then
           echo "✅ MCP server startup test completed successfully"
+          echo "Server started, ran in test mode, and exited cleanly"
         else
-          echo "❌ Server process $SERVER_PID is not running"
-          echo "Process may have exited. Checking for any error output..."
-          jobs
+          SERVER_EXIT_CODE=$?
+          echo "❌ MCP server test failed with exit code: $SERVER_EXIT_CODE"
+          echo "This indicates the server failed to start or encountered an error"
           exit 1
         fi
 
