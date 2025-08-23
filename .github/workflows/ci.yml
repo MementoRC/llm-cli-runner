@@ -370,7 +370,7 @@ jobs:
         echo "🔔 Running notification tests..."
         # Use pixi environment
         echo "Using pixi environment"
-        pixi run -e ci python test_notifications.py
+        cd "$GITHUB_WORKSPACE" && PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH" pixi run -e ci python test_notifications.py
 
     - name: Run E2E MCP Git Server Verification
       run: |
