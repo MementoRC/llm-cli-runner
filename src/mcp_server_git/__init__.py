@@ -100,7 +100,11 @@ def main(
     # Use the new LLM-compliant server application instead of monolithic server
     from .applications.server_application import main as serve
 
-    asyncio.run(serve(repository, test_mode=test_mode))
+    # Check for test mode from environment variable as well as CLI flag
+    env_test_mode = os.environ.get("MCP_TEST_MODE", "").lower() in ("true", "1", "yes")
+    effective_test_mode = test_mode or env_test_mode
+
+    asyncio.run(serve(repository, test_mode=effective_test_mode))
 
 
 if __name__ == "__main__":
