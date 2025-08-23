@@ -101,7 +101,7 @@ async def mcp_server():
 
     if shutil.which("pixi") and not env.get("PYTEST_CI"):
         # Use pixi in development environment
-        server_cmd = ["pixi", "run", "-e", "quality", "mcp-server"]
+        server_cmd = ["pixi", "run", "-e", "quality", "mcp-server-git"]
     else:
         # Use direct python execution in CI or when pixi unavailable
         server_cmd = ["python", "-m", "mcp_server_git"]
