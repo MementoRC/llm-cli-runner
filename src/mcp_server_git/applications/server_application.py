@@ -1172,10 +1172,39 @@ class ServerApplication(DebuggableComponent):
 
                 # Process through middleware chain for token limits and optimization
                 if self._middleware_manager:
-                    processed_result = await self._middleware_manager.process_request(result)
-                    return [{"type": "text", "text": str(processed_result)}]
+                    try:
+                        # Create a proper MCP-style response that middleware can process
+                        from dataclasses import dataclass
+                        from typing import List
+                        
+                        @dataclass
+                        class TextContent:
+                            text: str
+                            type: str = "text"
+                        
+                        @dataclass 
+                        class MCPResponse:
+                            content: List[TextContent]
+                        
+                        # Create the response structure middleware expects
+                        mcp_response = MCPResponse(content=[TextContent(text=str(result))])
+                        
+                        # Process through middleware chain
+                        processed_response = await self._middleware_manager.process_request(mcp_response)
+                        
+                        # Extract the processed text and return in standard MCP format
+                        if hasattr(processed_response, 'content') and processed_response.content:
+                            processed_text = processed_response.content[0].text
+                            return [{"type": "text", "text": processed_text}]
+                        else:
+                            # If middleware didn't return expected format, use original result
+                            return [{"type": "text", "text": str(result)}]
+                            
+                    except Exception as e:
+                        logger.warning(f"Middleware processing failed, using original result: {e}")
+                        return [{"type": "text", "text": str(result)}]
                 else:
-                    # Fallback: return result directly if middleware not available
+                    # No middleware available, return result directly
                     return [{"type": "text", "text": str(result)}]
 
             except Exception as e:
