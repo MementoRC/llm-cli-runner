@@ -1,5 +1,7 @@
 # mcp-server-git: A git MCP server
 
+<!-- CI Test - investigating workflow trigger issues -->
+
 ## Overview
 
 A Model Context Protocol server for Git repository interaction and automation. This server provides tools to read, search, and manipulate Git repositories via Large Language Models.
