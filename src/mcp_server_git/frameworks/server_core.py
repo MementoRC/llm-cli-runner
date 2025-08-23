@@ -170,7 +170,9 @@ class MCPGitServerCore(DebuggableComponent):
                     logger.info("🛑 Server cancelled during client session")
                     raise
                 except Exception as e:
-                    # Log the error but continue to cleanup  
+                    # Log the error but continue to cleanup
+                    self.error_count += 1
+                    self.last_error = str(e)
                     logger.error(f"💥 Error during MCP server run: {e}")
                     
             # After exiting stdio context, client is definitely disconnected
