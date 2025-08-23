@@ -306,7 +306,7 @@ jobs:
 
         # Use pixi environment for MCP validation
         echo "Using pixi environment"
-        pixi run -e ci python mcp_validate.py
+        cd "$GITHUB_WORKSPACE" && PYTHONPATH="$GITHUB_WORKSPACE/src:$PYTHONPATH" pixi run -e ci python mcp_validate.py
 
     - name: Test notification handling
       run: |
