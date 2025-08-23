@@ -210,14 +210,8 @@ class MCPGitServerCore(DebuggableComponent):
         logger.info(f"Starting server in {'test' if test_mode else 'normal'} mode...")
 
         try:
-            if test_mode:
-                # Test mode: print success and exit after brief period
-                print("✅ MCP server started successfully", file=sys.stderr)
-                await asyncio.sleep(10)
-                logger.info("🧪 Test mode: Server stopping gracefully")
-                return
-
-            # Run the server with stdio transport
+            # Always run the server with stdio transport (test mode or normal mode)
+            # Test mode simply has different timeout/exit behavior
             async with stdio_server() as (read_stream, write_stream):
                 logger.info(
                     "🔗 STDIO server connected, starting main loop with enhanced error handling..."
@@ -226,10 +220,56 @@ class MCPGitServerCore(DebuggableComponent):
                 # Create initialization options with proper configuration
                 options = self.server.create_initialization_options()
 
-                # Run server with error isolation
-                await self.server.run(
-                    read_stream, write_stream, options, raise_exceptions=False
-                )
+                try:
+                    if test_mode:
+                        # Test mode: run server with timeout for E2E testing
+                        print("✅ MCP server started successfully", file=sys.stderr)
+                        logger.info("🧪 Test mode: MCP server ready for E2E testing")
+                        
+                        # Create timeout for test mode (longer timeout for E2E tests)
+                        timeout_task = asyncio.create_task(asyncio.sleep(60))  # 1 minute for E2E tests
+                        server_task = asyncio.create_task(
+                            self.server.run(read_stream, write_stream, options, raise_exceptions=False)
+                        )
+                        
+                        # Wait for either server completion or timeout
+                        done, pending = await asyncio.wait(
+                            {server_task, timeout_task}, return_when=asyncio.FIRST_COMPLETED
+                        )
+                        
+                        # Cancel remaining task
+                        for task in pending:
+                            task.cancel()
+                            try:
+                                await task
+                            except asyncio.CancelledError:
+                                pass
+                        
+                        # Check which task completed
+                        if timeout_task in done:
+                            logger.info("🧪 Test mode: Timeout reached, stopping server")
+                        else:
+                            logger.info("🧪 Test mode: Client disconnected, stopping server")
+                    else:
+                        # Normal mode: run server until client disconnects
+                        await self.server.run(
+                            read_stream, write_stream, options, raise_exceptions=False
+                        )
+                    
+                    # If server.run() exits normally, client has disconnected
+                    logger.info("🔌 Client disconnected - MCP server run loop completed normally")
+                    
+                except asyncio.CancelledError:
+                    logger.info("🛑 Server cancelled during client session")
+                    raise
+                except Exception as e:
+                    # Log the error but continue to cleanup
+                    self.error_count += 1
+                    self.last_error = str(e)
+                    logger.error(f"💥 Error during MCP server run: {e}")
+                    
+            # After exiting stdio context, client is definitely disconnected
+            logger.info("📡 STDIO transport closed - client session ended")
 
         except KeyboardInterrupt:
             logger.info("⌨️ Server interrupted by user")
