@@ -331,7 +331,6 @@ class MCPVerificationRunner:
 import sys
 sys.path.insert(0, 'src')
 try:
-    from mcp_server_git.server_simple import main_simple
     from mcp_server_git.core.tools import ToolRegistry
     registry = ToolRegistry()
     registry.initialize_default_tools()

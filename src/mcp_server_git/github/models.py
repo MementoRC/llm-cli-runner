@@ -1,6 +1,6 @@
 """Pydantic models for GitHub API tools"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class GitHubGetPRChecks(BaseModel):
@@ -24,6 +24,23 @@ class GitHubGetWorkflowRun(BaseModel):
     repo_name: str
     run_id: int
     include_logs: bool = False
+
+
+class GitHubListWorkflowRuns(BaseModel):
+    repo_owner: str
+    repo_name: str
+    workflow_id: str | None = None
+    actor: str | None = None
+    branch: str | None = None
+    event: str | None = None
+    status: str | None = None
+    conclusion: str | None = None
+    per_page: int = 30
+    page: int = 1
+    created: str | None = None
+    exclude_pull_requests: bool = False
+    check_suite_id: int | None = None
+    head_sha: str | None = None
 
 
 class GitHubGetPRDetails(BaseModel):
@@ -121,8 +138,26 @@ class GitHubCreateIssue(BaseModel):
     assignees: list[str] | None = None
     milestone: int | None = None
 
+    @field_validator("milestone")
+    @classmethod
+    def validate_milestone(cls, v: int | None) -> int | None:
+        """Validate milestone ID is positive (GitHub API expects positive integers)"""
+        if v is None:
+            return v
+        return v if v > 0 else None
+
 
 class GitHubListIssues(BaseModel):
+    """Model for GitHub List Issues API with comprehensive filtering options.
+
+    Complex filtering parameters:
+    - since: ISO 8601 timestamp format (e.g., '2023-01-01T00:00:00Z') to filter
+      issues updated after this time
+    - milestone: Use milestone number as string, '*' for any milestone, 'none'
+      for issues without milestone (e.g., '1', '*', 'none')
+    - labels: List of label names for AND filtering (e.g., ['bug', 'frontend'])
+    """
+
     repo_owner: str
     repo_name: str
     state: str = "open"  # open, closed, all
@@ -148,6 +183,14 @@ class GitHubUpdateIssue(BaseModel):
     labels: list[str] | None = None
     assignees: list[str] | None = None
     milestone: int | None = None
+
+    @field_validator("milestone")
+    @classmethod
+    def validate_milestone(cls, v: int | None) -> int | None:
+        """Validate milestone ID is positive (GitHub API expects positive integers)"""
+        if v is None:
+            return v
+        return v if v > 0 else None
 
 
 class GitHubEditPRDescription(BaseModel):

@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-# Safe git import for testing
-from mcp_server_git.server import GitTools, git_checkout, git_status
+# Import from current modular architecture
+from mcp_server_git.core.tools import GitTools
+from mcp_server_git.git.operations import git_checkout, git_status
 from mcp_server_git.utils.git_import import git
 
 
@@ -177,7 +178,7 @@ def test_git_status_porcelain_string_parameter(test_repository):
 
 def test_git_rebase_success(test_repository):
     """Test successful rebase operation"""
-    from mcp_server_git.server import git_checkout, git_create_branch, git_rebase
+    from mcp_server_git.git.operations import git_checkout, git_create_branch, git_rebase
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "feature-branch")
@@ -203,7 +204,7 @@ def test_git_rebase_success(test_repository):
 
 def test_git_merge_success(test_repository):
     """Test successful merge operation"""
-    from mcp_server_git.server import git_checkout, git_create_branch, git_merge
+    from mcp_server_git.git.operations import git_checkout, git_create_branch, git_merge
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "merge-feature")
@@ -225,7 +226,7 @@ def test_git_merge_success(test_repository):
 
 def test_git_merge_squash(test_repository):
     """Test squash merge strategy"""
-    from mcp_server_git.server import git_checkout, git_create_branch, git_merge
+    from mcp_server_git.git.operations import git_checkout, git_create_branch, git_merge
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "squash-feature")
@@ -245,7 +246,7 @@ def test_git_merge_squash(test_repository):
 
 def test_git_cherry_pick_success(test_repository):
     """Test successful cherry-pick operation"""
-    from mcp_server_git.server import git_checkout, git_cherry_pick, git_create_branch
+    from mcp_server_git.git.operations import git_checkout, git_cherry_pick, git_create_branch
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "cherry-source")
@@ -267,7 +268,7 @@ def test_git_cherry_pick_success(test_repository):
 
 def test_git_cherry_pick_no_commit(test_repository):
     """Test cherry-pick with --no-commit option"""
-    from mcp_server_git.server import git_checkout, git_cherry_pick, git_create_branch
+    from mcp_server_git.git.operations import git_checkout, git_cherry_pick, git_create_branch
 
     # Create and switch to feature branch
     git_create_branch(test_repository, "cherry-no-commit")
@@ -287,7 +288,7 @@ def test_git_cherry_pick_no_commit(test_repository):
 
 def test_git_abort_rebase(test_repository):
     """Test aborting a rebase operation"""
-    from mcp_server_git.server import git_abort
+    from mcp_server_git.git.operations import git_abort
 
     # Note: This test assumes we're not actually in a rebase state
     # In a real scenario, you'd start a rebase that has conflicts first
@@ -303,7 +304,7 @@ def test_git_abort_rebase(test_repository):
 
 def test_git_abort_merge(test_repository):
     """Test aborting a merge operation"""
-    from mcp_server_git.server import git_abort
+    from mcp_server_git.git.operations import git_abort
 
     # Note: This test assumes we're not actually in a merge state
     result = git_abort(test_repository, "merge")
@@ -318,7 +319,7 @@ def test_git_abort_merge(test_repository):
 
 def test_git_abort_invalid_operation(test_repository):
     """Test aborting with invalid operation"""
-    from mcp_server_git.server import git_abort
+    from mcp_server_git.git.operations import git_abort
 
     result = git_abort(test_repository, "invalid-operation")
 
@@ -328,7 +329,7 @@ def test_git_abort_invalid_operation(test_repository):
 
 def test_git_continue_rebase(test_repository):
     """Test continuing a rebase operation"""
-    from mcp_server_git.server import git_continue
+    from mcp_server_git.git.operations import git_continue
 
     # Note: This test assumes we're not actually in a rebase state
     result = git_continue(test_repository, "rebase")
@@ -343,7 +344,7 @@ def test_git_continue_rebase(test_repository):
 
 def test_git_continue_invalid_operation(test_repository):
     """Test continuing with invalid operation"""
-    from mcp_server_git.server import git_continue
+    from mcp_server_git.git.operations import git_continue
 
     result = git_continue(test_repository, "invalid-operation")
 

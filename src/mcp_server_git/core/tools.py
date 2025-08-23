@@ -41,6 +41,7 @@ class GitTools(str, Enum):
     GITHUB_GET_PR_CHECKS = "github_get_pr_checks"
     GITHUB_GET_FAILING_JOBS = "github_get_failing_jobs"
     GITHUB_GET_WORKFLOW_RUN = "github_get_workflow_run"
+    GITHUB_LIST_WORKFLOW_RUNS = "github_list_workflow_runs"
     GITHUB_GET_PR_DETAILS = "github_get_pr_details"
     GITHUB_LIST_PULL_REQUESTS = "github_list_pull_requests"
     GITHUB_GET_PR_STATUS = "github_get_pr_status"
@@ -154,6 +155,7 @@ class ToolRegistry:
             GitHubGetWorkflowRun,
             GitHubListIssues,
             GitHubListPullRequests,
+            GitHubListWorkflowRuns,
             GitHubUpdateIssue,
         )
 
@@ -350,6 +352,15 @@ class ToolRegistry:
                 category=ToolCategory.GITHUB,
                 description="Get detailed workflow run information",
                 schema=GitHubGetWorkflowRun,
+                handler=placeholder_handler,
+                requires_repo=False,
+                requires_github_token=True,
+            ),
+            ToolDefinition(
+                name=GitTools.GITHUB_LIST_WORKFLOW_RUNS,
+                category=ToolCategory.GITHUB,
+                description="List workflow runs for a repository with comprehensive filtering",
+                schema=GitHubListWorkflowRuns,
                 handler=placeholder_handler,
                 requires_repo=False,
                 requires_github_token=True,
