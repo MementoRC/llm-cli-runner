@@ -140,7 +140,11 @@ async def llm_compliant_server():
     finally:
         if process.returncode is None:
             process.terminate()
-            await process.wait()
+            try:
+                await asyncio.wait_for(process.wait(), timeout=3.0)
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
 
 
 @pytest.mark.asyncio
