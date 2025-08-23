@@ -497,10 +497,11 @@ jobs:
         # Run safety check
         echo "Using pixi list for safety check"
         pixi list -e ci --json | pixi run -e ci python -c "
-import json, sys
-data = json.load(sys.stdin)
-packages = [f'{pkg}=={info[\"version\"]}' for pkg, info in data.get('packages', {}).items()]
-print('\n'.join(packages))" | pixi run -e ci safety check --stdin || echo "Safety check completed with warnings"
+        import json, sys
+        data = json.load(sys.stdin)
+        packages = [f'{pkg}=={info[\"version\"]}' for pkg, info in data.get('packages', {}).items()]
+        print('\n'.join(packages))
+        " | pixi run -e ci safety check --stdin || echo "Safety check completed with warnings"
       continue-on-error: true
 
     - name: Audit dependencies
@@ -519,11 +520,12 @@ print('\n'.join(packages))" | pixi run -e ci safety check --stdin || echo "Safet
         if pixi run -e ci which pip-audit >/dev/null 2>&1; then
           echo "🔍 Running pip-audit..."
           pixi list -e ci --json | pixi run -e ci python -c "
-import json, sys
-data = json.load(sys.stdin)
-packages = [f'{pkg}=={info[\"version\"]}' for pkg, info in data.get('packages', {}).items()]
-with open('requirements-temp.txt', 'w') as f:
-    f.write('\n'.join(packages))" && \
+          import json, sys
+          data = json.load(sys.stdin)
+          packages = [f'{pkg}=={info[\"version\"]}' for pkg, info in data.get('packages', {}).items()]
+          with open('requirements-temp.txt', 'w') as f:
+              f.write('\n'.join(packages))
+          " && \
           pixi run -e ci pip-audit --requirement requirements-temp.txt --format=json --output="$AUDIT_FILE" 2>/dev/null || echo "⚠️ pip-audit had issues, keeping fallback file"
           rm -f requirements-temp.txt
         fi
