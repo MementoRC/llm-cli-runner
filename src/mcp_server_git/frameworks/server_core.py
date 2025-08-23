@@ -157,10 +157,24 @@ class MCPGitServerCore(DebuggableComponent):
                 # Create initialization options with proper configuration
                 options = self.server.create_initialization_options()
 
-                # Run server with error isolation
-                await self.server.run(
-                    read_stream, write_stream, options, raise_exceptions=False
-                )
+                try:
+                    # Run server with error isolation
+                    await self.server.run(
+                        read_stream, write_stream, options, raise_exceptions=False
+                    )
+                    
+                    # If server.run() exits normally, client has disconnected
+                    logger.info("🔌 Client disconnected - MCP server run loop completed normally")
+                    
+                except asyncio.CancelledError:
+                    logger.info("🛑 Server cancelled during client session")
+                    raise
+                except Exception as e:
+                    # Log the error but continue to cleanup  
+                    logger.error(f"💥 Error during MCP server run: {e}")
+                    
+            # After exiting stdio context, client is definitely disconnected
+            logger.info("📡 STDIO transport closed - client session ended")
 
         except KeyboardInterrupt:
             logger.info("⌨️ Server interrupted by user")

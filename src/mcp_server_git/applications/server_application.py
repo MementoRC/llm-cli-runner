@@ -640,16 +640,20 @@ class ServerApplication(DebuggableComponent):
 
             # Start the MCP server core
             if self._server_core:
+                self._running = True
+                logger.info("ServerApplication started successfully")
+
+                # Install signal handlers for graceful shutdown
+                self._install_signal_handlers()
+
+                # Start server core - this blocks until client disconnects or shutdown signal
                 await self._server_core.start_server(test_mode=self.config.test_mode)
-
-            self._running = True
-            logger.info("ServerApplication started successfully")
-
-            # Install signal handlers for graceful shutdown
-            self._install_signal_handlers()
-
-            # Wait for shutdown signal
-            await self._shutdown_event.wait()
+                
+                # If we reach here, server core completed (client disconnected)
+                logger.info("🔚 Server core completed - client disconnected, shutting down")
+                
+                # Set shutdown event to signal completion
+                self._shutdown_event.set()
 
         except Exception as e:
             logger.error(f"Failed to start ServerApplication: {e}")
