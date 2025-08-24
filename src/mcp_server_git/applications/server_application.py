@@ -215,6 +215,8 @@ class GitHubTools(str, Enum):
     GET_PR_STATUS = "github_get_pr_status"
     GET_PR_FILES = "github_get_pr_files"
     EDIT_PR_DESCRIPTION = "github_edit_pr_description"
+    GET_WORKFLOW_RUN = "github_get_workflow_run"
+    LIST_WORKFLOW_RUNS = "github_list_workflow_runs"
 
 
 class GitHubCreateIssue(BaseModel):
@@ -303,6 +305,30 @@ class GitHubEditPrDescription(BaseModel):
     repo_name: str
     pr_number: int
     description: str
+
+
+class GitHubGetWorkflowRun(BaseModel):
+    repo_owner: str
+    repo_name: str
+    run_id: int
+    include_logs: bool = False
+
+
+class GitHubListWorkflowRuns(BaseModel):
+    repo_owner: str
+    repo_name: str
+    workflow_id: str | None = None
+    actor: str | None = None
+    branch: str | None = None
+    event: str | None = None
+    status: str | None = None
+    conclusion: str | None = None
+    per_page: int = 30
+    page: int = 1
+    created: str | None = None
+    exclude_pull_requests: bool = False
+    check_suite_id: int | None = None
+    head_sha: str | None = None
 
 
 class ServerApplicationConfig:
@@ -1167,6 +1193,16 @@ class ServerApplication(DebuggableComponent):
                     description="Edit the description of a pull request",
                     inputSchema=GitHubEditPrDescription.model_json_schema(),
                 ),
+                Tool(
+                    name=GitHubTools.GET_WORKFLOW_RUN,
+                    description="Get detailed workflow run information",
+                    inputSchema=GitHubGetWorkflowRun.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.LIST_WORKFLOW_RUNS,
+                    description="List workflow runs for a repository with comprehensive filtering",
+                    inputSchema=GitHubListWorkflowRuns.model_json_schema(),
+                ),
             ]
 
         @server.call_tool()
@@ -1455,6 +1491,34 @@ class ServerApplication(DebuggableComponent):
                 repo_name=arguments["repo_name"],
                 pr_number=arguments["pr_number"],
                 description=arguments["description"],
+            )
+        elif name == GitHubTools.GET_WORKFLOW_RUN:
+            from ..github.api import github_get_workflow_run
+
+            result = await github_get_workflow_run(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                run_id=arguments["run_id"],
+                include_logs=arguments.get("include_logs", False),
+            )
+        elif name == GitHubTools.LIST_WORKFLOW_RUNS:
+            from ..github.api import github_list_workflow_runs
+
+            result = await github_list_workflow_runs(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                workflow_id=arguments.get("workflow_id"),
+                actor=arguments.get("actor"),
+                branch=arguments.get("branch"),
+                event=arguments.get("event"),
+                status=arguments.get("status"),
+                conclusion=arguments.get("conclusion"),
+                per_page=arguments.get("per_page", 30),
+                page=arguments.get("page", 1),
+                created=arguments.get("created"),
+                exclude_pull_requests=arguments.get("exclude_pull_requests", False),
+                check_suite_id=arguments.get("check_suite_id"),
+                head_sha=arguments.get("head_sha"),
             )
         else:
             raise ValueError(f"Unknown tool: {name}")
