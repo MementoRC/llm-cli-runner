@@ -148,9 +148,21 @@ jobs:
       gpg_signing: false  # Requires organization CI bot setup
     secrets: inherit
 
-  # Step 8: CI Summary and optimization reporting
-  ci-summary:
+  # Step 8: AI-powered insights (optional - requires GEMINI_API_KEY)
+  ai-insights:
     needs: [change-detection, quality-gates, performance-monitoring, security-comprehensive, cross-platform, build-validation]
+    if: always() && github.event_name == 'pull_request' && vars.ENABLE_AI_ANALYSIS == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger AI Analysis
+      run: |
+        echo "🤖 AI Analysis would be triggered here"
+        echo "Note: Requires GEMINI_API_KEY secret and ENABLE_AI_ANALYSIS variable"
+        echo "Gemini AI analysis will run in parallel via gemini-ai-analysis.yml workflow"
+
+  # Step 9: CI Summary and optimization reporting
+  ci-summary:
+    needs: [change-detection, quality-gates, performance-monitoring, security-comprehensive, cross-platform, build-validation, ai-insights]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -166,9 +178,11 @@ jobs:
         echo "| Security | ${{ needs.security-comprehensive.result }} | - |" >> $GITHUB_STEP_SUMMARY
         echo "| Cross-Platform | ${{ needs.cross-platform.result }} | - |" >> $GITHUB_STEP_SUMMARY
         echo "| Build | ${{ needs.build-validation.result }} | - |" >> $GITHUB_STEP_SUMMARY
+        echo "| AI Insights | ${{ needs.ai-insights.result || 'skipped' }} | - |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Optimization Impact" >> $GITHUB_STEP_SUMMARY
         echo "- **Total optimization score**: ${{ needs.change-detection.outputs.optimization-score || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Skipped tests**: ${{ needs.change-detection.outputs.skip-tests == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Skipped security**: ${{ needs.change-detection.outputs.skip-security == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Change patterns**: ${{ needs.change-detection.outputs.change-patterns || 'source,tests,config' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **AI Analysis**: ${{ vars.ENABLE_AI_ANALYSIS == 'true' && 'Enabled' || 'Disabled (set ENABLE_AI_ANALYSIS variable)' }}" >> $GITHUB_STEP_SUMMARY

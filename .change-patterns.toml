@@ -60,6 +60,12 @@ dev_artifacts = [
     "htmlcov"
 ]
 
+# AI analysis configuration (require AI analysis)
+ai_config = [
+    "GEMINI.md",
+    ".github/workflows/gemini-ai-analysis.yml"
+]
+
 [optimization]
 # Skip tests for documentation-only changes
 skip_tests_on_docs_only = true
