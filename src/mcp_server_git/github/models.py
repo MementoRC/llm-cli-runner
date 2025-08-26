@@ -198,3 +198,51 @@ class GitHubEditPRDescription(BaseModel):
     repo_name: str
     pr_number: int
     description: str
+
+
+class GitHubCreatePR(BaseModel):
+    repo_owner: str
+    repo_name: str
+    title: str
+    head: str
+    base: str
+    body: str | None = None
+    draft: bool = False
+
+
+class GitHubMergePR(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    commit_title: str | None = None
+    commit_message: str | None = None
+    merge_method: str = "merge"
+
+
+class GitHubAddPRComment(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    body: str
+
+
+class GitHubClosePR(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+
+
+class GitHubReopenPR(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+
+
+class GitHubUpdatePR(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    title: str | None = None
+    body: str | None = None
+    state: str | None = None
+    base: str | None = None

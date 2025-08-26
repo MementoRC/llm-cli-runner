@@ -217,6 +217,13 @@ class GitHubTools(str, Enum):
     EDIT_PR_DESCRIPTION = "github_edit_pr_description"
     GET_WORKFLOW_RUN = "github_get_workflow_run"
     LIST_WORKFLOW_RUNS = "github_list_workflow_runs"
+    CREATE_PR = "github_create_pr"
+    MERGE_PR = "github_merge_pr"
+    ADD_PR_COMMENT = "github_add_pr_comment"
+    CLOSE_PR = "github_close_pr"
+    REOPEN_PR = "github_reopen_pr"
+    UPDATE_PR = "github_update_pr"
+    GET_FAILING_JOBS = "github_get_failing_jobs"
 
 
 class GitHubCreateIssue(BaseModel):
@@ -329,6 +336,62 @@ class GitHubListWorkflowRuns(BaseModel):
     exclude_pull_requests: bool = False
     check_suite_id: int | None = None
     head_sha: str | None = None
+
+
+class GitHubCreatePr(BaseModel):
+    repo_owner: str
+    repo_name: str
+    title: str
+    head: str
+    base: str
+    body: str | None = None
+    draft: bool = False
+
+
+class GitHubMergePr(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    commit_title: str | None = None
+    commit_message: str | None = None
+    merge_method: str = "merge"
+
+
+class GitHubAddPrComment(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    body: str
+
+
+class GitHubClosePr(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+
+
+class GitHubReopenPr(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+
+
+class GitHubUpdatePr(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    title: str | None = None
+    body: str | None = None
+    state: str | None = None
+    base: str | None = None
+
+
+class GitHubGetFailingJobs(BaseModel):
+    repo_owner: str
+    repo_name: str
+    pr_number: int
+    include_logs: bool = True
+    include_annotations: bool = True
 
 
 class ServerApplicationConfig:
@@ -1203,6 +1266,41 @@ class ServerApplication(DebuggableComponent):
                     description="List workflow runs for a repository with comprehensive filtering",
                     inputSchema=GitHubListWorkflowRuns.model_json_schema(),
                 ),
+                Tool(
+                    name=GitHubTools.CREATE_PR,
+                    description="Create a new pull request",
+                    inputSchema=GitHubCreatePr.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.MERGE_PR,
+                    description="Merge a pull request",
+                    inputSchema=GitHubMergePr.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.ADD_PR_COMMENT,
+                    description="Add a comment to a pull request",
+                    inputSchema=GitHubAddPrComment.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.CLOSE_PR,
+                    description="Close a pull request",
+                    inputSchema=GitHubClosePr.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.REOPEN_PR,
+                    description="Reopen a closed pull request",
+                    inputSchema=GitHubReopenPr.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.UPDATE_PR,
+                    description="Update a pull request (title, body, state, or base)",
+                    inputSchema=GitHubUpdatePr.model_json_schema(),
+                ),
+                Tool(
+                    name=GitHubTools.GET_FAILING_JOBS,
+                    description="Get detailed information about failing CI jobs for a pull request",
+                    inputSchema=GitHubGetFailingJobs.model_json_schema(),
+                ),
             ]
 
         @server.call_tool()
@@ -1519,6 +1617,76 @@ class ServerApplication(DebuggableComponent):
                 exclude_pull_requests=arguments.get("exclude_pull_requests", False),
                 check_suite_id=arguments.get("check_suite_id"),
                 head_sha=arguments.get("head_sha"),
+            )
+        elif name == GitHubTools.CREATE_PR:
+            from ..github.api import github_create_pr
+
+            result = await github_create_pr(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                title=arguments["title"],
+                head=arguments["head"],
+                base=arguments["base"],
+                body=arguments.get("body"),
+                draft=arguments.get("draft", False),
+            )
+        elif name == GitHubTools.MERGE_PR:
+            from ..github.api import github_merge_pr
+
+            result = await github_merge_pr(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                commit_title=arguments.get("commit_title"),
+                commit_message=arguments.get("commit_message"),
+                merge_method=arguments.get("merge_method", "merge"),
+            )
+        elif name == GitHubTools.ADD_PR_COMMENT:
+            from ..github.api import github_add_pr_comment
+
+            result = await github_add_pr_comment(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                body=arguments["body"],
+            )
+        elif name == GitHubTools.CLOSE_PR:
+            from ..github.api import github_close_pr
+
+            result = await github_close_pr(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+            )
+        elif name == GitHubTools.REOPEN_PR:
+            from ..github.api import github_reopen_pr
+
+            result = await github_reopen_pr(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+            )
+        elif name == GitHubTools.UPDATE_PR:
+            from ..github.api import github_update_pr
+
+            result = await github_update_pr(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                title=arguments.get("title"),
+                body=arguments.get("body"),
+                state=arguments.get("state"),
+                base=arguments.get("base"),
+            )
+        elif name == GitHubTools.GET_FAILING_JOBS:
+            from ..github.api import github_get_failing_jobs
+
+            result = await github_get_failing_jobs(
+                repo_owner=arguments["repo_owner"],
+                repo_name=arguments["repo_name"],
+                pr_number=arguments["pr_number"],
+                include_logs=arguments.get("include_logs", True),
+                include_annotations=arguments.get("include_annotations", True),
             )
         else:
             raise ValueError(f"Unknown tool: {name}")
