@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp.types import Tool
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from ..frameworks.mcp_server_framework import MCPServerFramework
 from ..frameworks.server_configuration import ServerConfigurationManager
@@ -336,6 +336,40 @@ class GitHubListWorkflowRuns(BaseModel):
     exclude_pull_requests: bool = False
     check_suite_id: int | None = None
     head_sha: str | None = None
+
+    @field_validator("per_page")
+    @classmethod
+    def validate_per_page(cls, v: int) -> int:
+        """Enforce GitHub API limits for per_page parameter."""
+        return max(1, min(v, 100))
+
+    @field_validator("page")
+    @classmethod
+    def validate_page(cls, v: int) -> int:
+        """Ensure page number is positive."""
+        return max(1, v)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        """Validate workflow run status values."""
+        if v is None:
+            return v
+        valid_statuses = {"queued", "in_progress", "completed", "waiting", "requested", "pending"}
+        if v not in valid_statuses:
+            raise ValueError(f"status must be one of: {', '.join(sorted(valid_statuses))}")
+        return v
+
+    @field_validator("conclusion")
+    @classmethod
+    def validate_conclusion(cls, v: str | None) -> str | None:
+        """Validate workflow run conclusion values."""
+        if v is None:
+            return v
+        valid_conclusions = {"success", "failure", "neutral", "cancelled", "timed_out", "action_required", "stale", "startup_failure"}
+        if v not in valid_conclusions:
+            raise ValueError(f"conclusion must be one of: {', '.join(sorted(valid_conclusions))}")
+        return v
 
 
 class GitHubCreatePr(BaseModel):
