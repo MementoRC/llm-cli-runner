@@ -148,6 +148,7 @@ class CallToolHandler:
                 github_get_pr_files,
                 github_get_pr_status,
                 github_get_workflow_run,
+                github_list_workflow_runs,
                 github_list_issues,
                 github_list_pull_requests,
                 github_update_issue,
@@ -164,8 +165,8 @@ class CallToolHandler:
             # Use fallback for all functions
             (github_create_issue, github_edit_pr_description, github_get_failing_jobs,
              github_get_pr_checks, github_get_pr_details, github_get_pr_files,
-             github_get_pr_status, github_get_workflow_run, github_list_issues,
-             github_list_pull_requests, github_update_issue) = [fallback_github_function] * 11
+             github_get_pr_status, github_get_workflow_run, github_list_workflow_runs,
+             github_list_issues, github_list_pull_requests, github_update_issue) = [fallback_github_function] * 12
 
         return {
             "github_get_pr_checks": self._create_github_handler(
@@ -185,6 +186,25 @@ class CallToolHandler:
             "github_get_workflow_run": self._create_github_handler(
                 github_get_workflow_run,
                 ["repo_owner", "repo_name", "run_id", "include_logs"],
+            ),
+            "github_list_workflow_runs": self._create_github_handler(
+                github_list_workflow_runs,
+                [
+                    "repo_owner",
+                    "repo_name", 
+                    "workflow_id",
+                    "actor",
+                    "branch",
+                    "event",
+                    "status",
+                    "conclusion",
+                    "per_page",
+                    "page",
+                    "created",
+                    "exclude_pull_requests",
+                    "check_suite_id",
+                    "head_sha",
+                ],
             ),
             "github_get_pr_details": self._create_github_handler(
                 github_get_pr_details,
