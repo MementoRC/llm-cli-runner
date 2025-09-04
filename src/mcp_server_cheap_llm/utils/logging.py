@@ -256,6 +256,19 @@ class StructuredLogger:
             formatted_msg = self._format_log_entry("CRITICAL", message, **kwargs)
             self._logger.critical(formatted_msg)
 
+    def exception(self, message: str, **kwargs):
+        """Log exception with traceback and correlation ID.
+
+        Args:
+            message: Log message
+            **kwargs: Additional fields to include
+        """
+        if self._logger.isEnabledFor(logging.ERROR):
+            # Include exception info automatically
+            kwargs["exc_info"] = True
+            formatted_msg = self._format_log_entry("ERROR", message, **kwargs)
+            self._logger.error(formatted_msg)
+
 
 def setup_logging(debug: bool = False, json_output: bool = False) -> None:
     """Configure structured logging for the application.
@@ -839,7 +852,7 @@ class PerformanceLogger:
                 return result
             except Exception as e:
                 success = False
-                error_msg = f"{type(e).__name__}: {str(e)}"
+                error_msg = e.args[0] if e.args else str(e)
                 raise
             finally:
                 end_time = time.time()
