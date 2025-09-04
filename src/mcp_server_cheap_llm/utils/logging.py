@@ -139,6 +139,10 @@ class StructuredLogger:
         self._logger = logging.getLogger(name)
         self._setup_logger()
 
+        # Initialize event storage for security logging compatibility
+        self._events: list[dict[str, Any]] = []
+        self._events_lock = threading.Lock()
+
     def _setup_logger(self):
         """Set up the underlying logger with proper configuration."""
         # Get log level from environment or default to INFO
@@ -268,6 +272,67 @@ class StructuredLogger:
             kwargs["exc_info"] = True
             formatted_msg = self._format_log_entry("ERROR", message, **kwargs)
             self._logger.error(formatted_msg)
+
+    def log_security_event(
+        self,
+        event_type: str,
+        description: str,
+        source: str,
+        error: Exception | None = None,
+        severity: str = "medium",
+        **kwargs,
+    ) -> None:
+        """Log a security event with structured data for test compatibility.
+
+        This method provides compatibility with security logging tests while
+        maintaining the structured logging approach of this class.
+
+        Args:
+            event_type: Type of security event (e.g., "unauthorized_access")
+            description: Human-readable description
+            source: Source of the event (e.g., "api_endpoint")
+            error: Optional exception object for error details
+            severity: Event severity ("low", "medium", "high")
+            **kwargs: Additional context fields
+        """
+        # Build event data similar to SecurityLogger but simpler
+        event_data = {
+            "timestamp": time.time(),
+            "event_type": event_type,
+            "description": description,
+            "source": source,
+            "severity": severity,
+            "logger": self.name,
+        }
+
+        # Add correlation ID if available
+        correlation_id = _correlation_id_context.get()
+        if correlation_id:
+            event_data["correlation_id"] = correlation_id
+
+        # Add error details if provided
+        if error:
+            event_data["error_type"] = type(error).__name__
+            event_data["error_message"] = str(error)
+
+            # Add error code if available (for custom exceptions)
+            if isinstance(error, CheapLLMError) and error.error_code:
+                event_data["error_code"] = error.error_code
+
+        # Add additional context
+        for key, value in kwargs.items():
+            event_data[key] = value
+
+        # Store event for test compatibility (thread-safe)
+        with self._events_lock:
+            self._events.append(event_data.copy())
+
+        # Log the event using warning level for security events
+        if self._logger.isEnabledFor(logging.WARNING):
+            formatted_msg = self._format_log_entry(
+                "WARNING", "Security event detected", **event_data
+            )
+            self._logger.warning(formatted_msg)
 
 
 def setup_logging(debug: bool = False, json_output: bool = False) -> None:
