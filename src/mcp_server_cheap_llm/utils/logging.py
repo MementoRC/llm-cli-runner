@@ -917,7 +917,7 @@ class PerformanceLogger:
                 return result
             except Exception as e:
                 success = False
-                error_msg = e.args[0] if e.args else str(e)
+                error_msg = str(e)
                 raise
             finally:
                 end_time = time.time()
