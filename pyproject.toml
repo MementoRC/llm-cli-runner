@@ -67,7 +67,7 @@ ignore = ["E501"]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-line-ending = "auto"
+line-ending = "lf"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
@@ -189,20 +189,20 @@ dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
 # UPDATED: Exclude E2E test file from unit test runs to achieve 100% unit test compliance
-test = "pixi run -e quality pytest tests/ -v --ignore=tests/test_llm_compliant_server_e2e.py"
-test-cov = "pixi run -e quality pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml --ignore=tests/test_llm_compliant_server_e2e.py"
-test-unit = "pixi run -e quality pytest tests/unit/ -v"
-test-integration = "pixi run -e quality pytest tests/integration/ -v"
-test-e2e = "pixi run -e quality pytest tests/test_llm_compliant_server_e2e.py -v"
-test-property = "pixi run -e quality pytest tests/ -m property -v"
+test = "pytest tests/ -v --ignore=tests/test_llm_compliant_server_e2e.py"
+test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml --ignore=tests/test_llm_compliant_server_e2e.py"
+test-unit = "pytest tests/unit/ -v"
+test-integration = "pytest tests/integration/ -v"
+test-e2e = "pytest tests/test_llm_compliant_server_e2e.py -v"
+test-property = "pytest tests/ -m property -v"
 
 # Quality Gates (CRITICAL - MUST PASS)
-lint = "pixi run -e quality ruff check src/ tests/ --select=F,E9"
-lint-fix = "pixi run -e quality ruff check --fix src/ tests/"
-format = "pixi run -e quality ruff format src/ tests/"
-format-check = "pixi run -e quality ruff format --check src/ tests/"
-format-diff = "pixi run -e quality ruff format --diff src/ tests/"
-typecheck = "pixi run -e quality pyright src/"
+lint = "ruff check src/ tests/ --select=F,E9"
+lint-fix = "ruff check --fix src/ tests/"
+format = "ruff format src/ tests/"
+format-check = "ruff format --check src/ tests/"
+format-diff = "ruff format --diff src/ tests/"
+typecheck = "pyright src/"
 
 # Combined Quality Check
 quality = { depends-on = ["test", "lint", "typecheck"] }
