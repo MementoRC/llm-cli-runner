@@ -9,12 +9,18 @@ Modules:
     errors: Custom exception classes
 
 Example:
-    >>> from mcp_server_cheap_llm.utils import get_logger, ConfigManager
+    >>> from mcp_server_cheap_llm.utils import get_logger, ConfigManager, SecurityConfig
     >>> logger = get_logger(__name__)
     >>> config = ConfigManager()
+    >>> security = SecurityConfig()
 """
 
-from mcp_server_cheap_llm.utils.config import ConfigManager
+from mcp_server_cheap_llm.utils.config import (
+    APIKeyManager,
+    CacheConfig,
+    ConfigManager,
+    SecurityConfig,
+)
 from mcp_server_cheap_llm.utils.errors import (
     CheapLLMError,
     ConfigurationError,
@@ -28,6 +34,9 @@ from mcp_server_cheap_llm.utils.logging import get_logger, setup_logging
 
 __all__ = [
     "ConfigManager",
+    "SecurityConfig",
+    "APIKeyManager",
+    "CacheConfig",
     "CheapLLMError",
     "ConfigurationError",
     "ProviderError",

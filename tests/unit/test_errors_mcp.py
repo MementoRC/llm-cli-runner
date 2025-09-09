@@ -53,7 +53,9 @@ class TestMCPProtocolCompliance:
     def test_serialize_cheap_llm_error_mcp_format(self):
         """Test serialization of CheapLLMError to MCP format."""
         error = CheapLLMError(
-            "Test error", error_code="TEST001", context={"key": "value"}
+            "Test error",
+            error_code="TEST001",
+            context={"key": "value"},
         )
         serializer = ErrorSerializer()
 
@@ -95,7 +97,9 @@ class TestMCPProtocolCompliance:
     def test_serialize_validation_error_mcp_format(self):
         """Test serialization of ValidationError to MCP format."""
         error = ValidationError(
-            "Invalid input", error_code="VAL001", context={"field": "prompt"}
+            "Invalid input",
+            error_code="VAL001",
+            context={"field": "prompt"},
         )
         serializer = ErrorSerializer()
 
@@ -234,7 +238,9 @@ class TestSerializationDeserialization:
     def test_round_trip_cheap_llm_error(self):
         """Test round-trip serialization/deserialization of CheapLLMError."""
         original_error = CheapLLMError(
-            "Test error", error_code="TEST001", context={"key": "value"}
+            "Test error",
+            error_code="TEST001",
+            context={"key": "value"},
         )
         serializer = ErrorSerializer()
 

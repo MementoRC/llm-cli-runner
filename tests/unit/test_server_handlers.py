@@ -88,12 +88,15 @@ class TestCheapLLMServerTDD:
 
         # Mock the gemini call
         with patch.object(
-            server, "_call_gemini", return_value="Test response"
+            server,
+            "_call_gemini",
+            return_value="Test response",
         ) as mock_gemini:
             request = CallToolRequest(
                 method="tools/call",
                 params=CallToolRequestParams(
-                    name="gemini_generate", arguments={"prompt": "Hello"}
+                    name="gemini_generate",
+                    arguments={"prompt": "Hello"},
                 ),
             )
 
@@ -117,7 +120,8 @@ class TestCheapLLMServerTDD:
         request = CallToolRequest(
             method="tools/call",
             params=CallToolRequestParams(
-                name="unknown_tool", arguments={"prompt": "Hello"}
+                name="unknown_tool",
+                arguments={"prompt": "Hello"},
             ),
         )
 
@@ -187,12 +191,15 @@ class TestCheapLLMServerTDD:
 
         # Mock gemini to raise an exception
         with patch.object(
-            server, "_call_gemini", side_effect=RuntimeError("Test error")
+            server,
+            "_call_gemini",
+            side_effect=RuntimeError("Test error"),
         ) as mock_gemini:
             request = CallToolRequest(
                 method="tools/call",
                 params=CallToolRequestParams(
-                    name="gemini_generate", arguments={"prompt": "Hello"}
+                    name="gemini_generate",
+                    arguments={"prompt": "Hello"},
                 ),
             )
 

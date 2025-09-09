@@ -77,7 +77,7 @@ class TestConfigurationIntegration:
                     "enabled": True,
                     "api_key": "sk-ant-test-key",
                     "model": "claude-3-sonnet",
-                }
+                },
             },
         }
 
@@ -143,7 +143,7 @@ class TestConfigurationIntegration:
                 "openai": {
                     "enabled": True,
                     "api_key": "invalid-key",  # Should fail validation
-                }
+                },
             },
         }
 
@@ -233,16 +233,17 @@ class TestConfigurationIntegration:
         finally:
             os.unlink(config_file)
 
+    @patch.dict(os.environ, {}, clear=True)  # Clear environment to avoid real API keys
     def test_encrypted_api_keys_integration(self):
         """Test integration with encrypted API key storage."""
         config_data = {
             "providers": {
                 "openai": {
                     "enabled": True,
-                    "api_key": "sk-test-integration-key",
+                    "api_key": "sk-testintegrationkey12345678",
                     "encrypt_keys": True,
-                }
-            }
+                },
+            },
         }
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
@@ -258,7 +259,7 @@ class TestConfigurationIntegration:
 
             # But should be retrievable in plaintext
             openai_config = manager.get_provider_config("openai")
-            assert openai_config["api_key"] == "sk-test-integration-key"
+            assert openai_config["api_key"] == "sk-testintegrationkey12345678"
 
         finally:
             os.unlink(config_file)
@@ -280,7 +281,7 @@ class TestConfigurationIntegration:
                 },
                 "anthropic": {"enabled": False, "api_key": "sk-ant-key"},
                 "llama": {"enabled": True, "model_path": "/path/to/llama/model.gguf"},
-            }
+            },
         }
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
@@ -330,7 +331,8 @@ class TestConfigurationIntegration:
         try:
             manager = ConfigManager(yaml_file)
             with pytest.raises(
-                ConfigurationError, match="Unsupported configuration file format"
+                ConfigurationError,
+                match="Unsupported configuration file format",
             ):
                 manager.load_configuration()
         finally:

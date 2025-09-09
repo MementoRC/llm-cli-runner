@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, master, develop, development]
 
+env:
+  PYTHONNOUSERSITE: 1
+  PIXI_VERSION: v0.49.0
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,19 +19,41 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Ensure proper line endings for consistency
+        fetch-depth: 1
 
     - name: Setup pixi
       uses: prefix-dev/setup-pixi@v0.8.11
       with:
-        pixi-version: v0.49.0
-        cache: false
+        pixi-version: ${{ env.PIXI_VERSION }}
+        cache: true
         manifest-path: pyproject.toml
 
-    - name: Install dependencies
+    - name: Clean environment
+      run: |
+        echo "🧹 Cleaning up any existing environment..."
+        rm -rf .pixi/envs || true
+
+    - name: Install dependencies and editable package
       run: |
         echo "📦 Installing pixi dependencies for quality environment..."
         pixi install -e quality --verbose
-        echo "✅ Dependencies installed successfully"
+        echo "📦 Installing project in editable mode..."
+        pixi run -e quality install-editable
+        echo "✅ Dependencies and project installed successfully"
+
+    - name: Verify installation
+      run: |
+        echo "🔍 Verifying package installation..."
+        pixi run -e quality python -c \
+          "import mcp_server_cheap_llm; print('Package import successful')"
+        echo "Installation verification completed"
+
+    - name: Run format check
+      run: |
+        echo "🎨 Running format check..."
+        pixi run -e quality format-check
 
     - name: Run quality checks - Lint (ZERO-TOLERANCE)
       run: |
@@ -37,20 +63,24 @@ jobs:
 
     - name: Run tests
       run: |
+        echo "🧪 Running tests..."
         pixi run -e quality test
 
     - name: Check repository hygiene
       run: |
         echo "🔍 Checking repository hygiene..."
 
-        # Check for __pycache__ in git
-        if git ls-files | grep -q "__pycache__"; then
+        # Set git config to avoid warnings
+        git config --global --add safe.directory $PWD || true
+
+        # Check for __pycache__ in git with error handling
+        if git ls-files 2>/dev/null | grep -q "__pycache__" || false; then
           echo "❌ ERROR: __pycache__ directories tracked in git!"
           exit 1
         fi
 
-        # Check for .pyc files in git
-        if git ls-files | grep -q "\.pyc$"; then
+        # Check for .pyc files in git with error handling
+        if git ls-files 2>/dev/null | grep -q "\.pyc$" || false; then
           echo "❌ ERROR: .pyc files tracked in git!"
           exit 1
         fi
