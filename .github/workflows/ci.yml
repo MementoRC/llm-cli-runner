@@ -73,10 +73,8 @@ jobs:
       - name: Verify installation
         run: |
           echo "🔍 Verifying package installation..."
-          pixi run -e quality python -c \
-            "import mcp_server_cheap_llm; print(\"Package import successful\")"
-          pixi run -e quality python -c \
-            "import click; print(\"Click dependency available\")"
+          pixi run -e quality python -c 'import mcp_server_cheap_llm; print("Package import successful")'
+          pixi run -e quality python -c 'import click; print("Click dependency available")'
           echo "Installation verification completed"
 
       - name: Run format check
@@ -143,8 +141,7 @@ jobs:
       - name: Test package functionality
         run: |
           echo "🧪 Testing package functionality..."
-          pixi run -e dev python -c \
-            "import mcp_server_cheap_llm; print(\"Package imported\")"
+          pixi run -e dev python -c 'import mcp_server_cheap_llm; print("Package imported")'
           echo "🏃 Testing MCP server execution..."
           pixi run -e dev python -m mcp_server_cheap_llm --help
 
