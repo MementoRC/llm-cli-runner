@@ -6,24 +6,26 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.config import APIKeyManager
+from mcp_server_cheap_llm.utils.config import (
+    SecurityConfig,  # Import SecurityConfig alias
+)
 from mcp_server_cheap_llm.utils.errors import ConfigurationError
 
 
-class TestAPIKeyManager:
-    """Test suite for APIKeyManager functionality."""
+class TestSecurityConfig:
+    """Test suite for SecurityConfig functionality."""
 
     def test_generate_encryption_key(self):
         """Test encryption key generation."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
         key = manager.generate_encryption_key()
         assert isinstance(key, bytes)
         assert len(key) == 44  # Base64 encoded Fernet key length
 
     def test_encrypt_decrypt_api_key(self):
         """Test API key encryption and decryption."""
-        manager = APIKeyManager()
-        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
+        manager = SecurityConfig()
+        original_key = "sk-FAKE_TEST_KEY_1234567890abcdef12345678"
 
         # Encrypt the key
         encrypted_key = manager.encrypt_key(original_key)
@@ -36,8 +38,8 @@ class TestAPIKeyManager:
 
     def test_encrypt_decrypt_with_custom_key(self):
         """Test encryption/decryption with custom encryption key."""
-        encryption_key = APIKeyManager.generate_encryption_key()
-        manager = APIKeyManager(encryption_key=encryption_key)
+        encryption_key = SecurityConfig.generate_encryption_key()
+        manager = SecurityConfig(encryption_key=encryption_key)
 
         original_key = "FAKE-TEST-API-KEY-12345"
         encrypted_key = manager.encrypt_key(original_key)
@@ -47,7 +49,7 @@ class TestAPIKeyManager:
 
     def test_validate_openai_api_key_valid(self):
         """Test OpenAI API key validation with valid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         valid_keys = [
             "sk-FAKE_TEST_KEY_1234567890abcdef12345678",
@@ -59,7 +61,7 @@ class TestAPIKeyManager:
 
     def test_validate_openai_api_key_invalid(self):
         """Test OpenAI API key validation with invalid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         invalid_keys = [
             "invalid-key",
@@ -74,7 +76,7 @@ class TestAPIKeyManager:
 
     def test_validate_google_api_key_valid(self):
         """Test Google API key validation with valid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         valid_keys = [
             "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567",
@@ -86,7 +88,7 @@ class TestAPIKeyManager:
 
     def test_validate_google_api_key_invalid(self):
         """Test Google API key validation with invalid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         invalid_keys = [
             "invalid-key",
@@ -101,7 +103,7 @@ class TestAPIKeyManager:
 
     def test_validate_anthropic_api_key_valid(self):
         """Test Anthropic API key validation with valid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         valid_keys = [
             "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef",
@@ -113,7 +115,7 @@ class TestAPIKeyManager:
 
     def test_validate_anthropic_api_key_invalid(self):
         """Test Anthropic API key validation with invalid keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         invalid_keys = [
             "invalid-key",
@@ -128,16 +130,16 @@ class TestAPIKeyManager:
 
     def test_validate_unsupported_provider(self):
         """Test API key validation for unsupported provider."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         with pytest.raises(ValueError, match="Unsupported provider"):
             manager.validate_api_key("any-key", "unsupported")
 
     def test_store_and_retrieve_encrypted_key(self):
         """Test storing and retrieving encrypted API keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
-        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
+        original_key = "sk-FAKE_TEST_KEY_1234567890abcdef12345678"
         provider = "openai"
 
         # Store encrypted key
@@ -149,21 +151,21 @@ class TestAPIKeyManager:
 
     def test_store_invalid_key_raises_error(self):
         """Test that storing an invalid key raises an error."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         with pytest.raises(ConfigurationError, match="Invalid API key"):
             manager.store_encrypted_key("openai", "invalid-key")
 
     def test_get_nonexistent_key_returns_none(self):
         """Test retrieving a non-existent key returns None."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         result = manager.get_decrypted_key("nonexistent")
         assert result is None
 
     def test_rotate_encryption_key(self):
         """Test encryption key rotation."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Store a key with original encryption
         original_api_key = "sk-FAKE_TEST_KEY_123456789abcdef"
@@ -183,7 +185,7 @@ class TestAPIKeyManager:
 
     def test_list_stored_providers(self):
         """Test listing providers with stored keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Initially empty
         assert manager.list_stored_providers() == []
@@ -197,7 +199,7 @@ class TestAPIKeyManager:
 
     def test_remove_stored_key(self):
         """Test removing a stored encrypted key."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Store a key
         manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
@@ -214,7 +216,7 @@ class TestAPIKeyManager:
 
     def test_clear_all_keys(self):
         """Test clearing all stored encrypted keys."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Store multiple keys
         manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
@@ -228,7 +230,7 @@ class TestAPIKeyManager:
 
     def test_key_exists(self):
         """Test checking if a key exists for a provider."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         assert manager.key_exists("openai") is False
 
@@ -242,15 +244,15 @@ class TestAPIKeyManager:
 
         try:
             # Create manager and save key
-            manager1 = APIKeyManager()
+            manager1 = SecurityConfig()
             manager1.save_encryption_key(key_file)
 
             # Create new manager and load key
-            manager2 = APIKeyManager()
+            manager2 = SecurityConfig()
             manager2.load_encryption_key(key_file)
 
             # Test that they can encrypt/decrypt each other's data
-            original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
+            original_key = "sk-FAKE_TEST_KEY_1234567890abcdef12345678"
             encrypted = manager1.encrypt_key(original_key)
             decrypted = manager2.decrypt_key(encrypted)
 
@@ -261,7 +263,7 @@ class TestAPIKeyManager:
 
     def test_encryption_error_handling(self):
         """Test error handling in encryption operations."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Test decryption with invalid data
         with pytest.raises(ConfigurationError, match="Failed to decrypt"):
@@ -269,11 +271,11 @@ class TestAPIKeyManager:
 
     def test_secure_memory_operations(self):
         """Test that sensitive data is handled securely."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # This is a basic test - in real implementation,
         # we'd test memory zeroing and secure cleanup
-        original_key = "sk-FAKE_TEST_KEY_123456789abcdef"
+        original_key = "sk-FAKE_TEST_KEY_1234567890abcdef12345678"
         encrypted = manager.encrypt_key(original_key)
 
         # Verify the original key isn't stored in plaintext anywhere
@@ -282,7 +284,7 @@ class TestAPIKeyManager:
 
     def test_environment_integration(self):
         """Test integration with environment variable loading."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         # Mock environment with encrypted keys
         encrypted_openai = manager.encrypt_key("sk-FAKE_TEST_KEY_123456789abcdef")
@@ -299,7 +301,7 @@ class TestAPIKeyManager:
 
     def test_multiple_provider_key_management(self):
         """Test managing keys for multiple providers simultaneously."""
-        manager = APIKeyManager()
+        manager = SecurityConfig()
 
         providers_and_keys = {
             "openai": "sk-FAKE_TEST_KEY_123456789abcdef",

@@ -1,5 +1,6 @@
 """Test configuration and shared fixtures for MCP Server Cheap LLM."""
 
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,72 @@ import pytest
 
 from mcp_server_cheap_llm.server.handlers import CheapLLMServer
 from mcp_server_cheap_llm.utils.config import ConfigManager
+
+
+def _run_git_isolated(cmd, *, cwd=None, check=False, capture_output=False, **kwargs):
+    """Run git command in isolated environment (similar to subprocess.run).
+
+    This function provides git execution in a clean environment for testing,
+    avoiding interference from ClaudeCode redirectors or mocked environments.
+
+    Args:
+        cmd: Command list (e.g., ["git", "init"])
+        cwd: Working directory for the command
+        check: Raise exception if command fails
+        capture_output: Capture stdout/stderr
+        **kwargs: Additional subprocess arguments
+
+    Returns:
+        subprocess.CompletedProcess object
+    """
+    import os
+
+    # Create clean environment for git execution
+    env = os.environ.copy()
+
+    # Remove any test-specific environment variables that could interfere
+    test_vars_to_remove = [
+        "MCP_TEST_MODE",
+        "PYTEST_CURRENT_TEST",
+        "GITHUB_TOKEN",  # Use system git, not mocked
+    ]
+
+    for var in test_vars_to_remove:
+        env.pop(var, None)
+
+    # Ensure git has proper user configuration for test operations
+    if "git" in cmd and any(op in cmd for op in ["commit", "merge", "rebase"]):
+        # For git operations that require user info, ensure they're set
+        user_name = env.get("GIT_AUTHOR_NAME", "Test User")
+        user_email = env.get("GIT_AUTHOR_EMAIL", "test@example.com")
+        env["GIT_AUTHOR_NAME"] = user_name
+        env["GIT_AUTHOR_EMAIL"] = user_email
+        env["GIT_COMMITTER_NAME"] = user_name
+        env["GIT_COMMITTER_EMAIL"] = user_email
+
+    # Run the command with clean environment
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            check=check,
+            capture_output=capture_output,
+            env=env,
+            text=True,  # Handle text encoding properly
+            **kwargs,
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        if check:
+            # Re-raise with more context for debugging
+            raise subprocess.CalledProcessError(
+                e.returncode, e.cmd, output=e.stdout, stderr=e.stderr
+            ) from e
+        return e
+    except Exception as e:
+        if check:
+            raise RuntimeError(f"Git command failed: {cmd}") from e
+        return subprocess.CompletedProcess(cmd, 1, "", str(e))
 
 
 @pytest.fixture
@@ -52,11 +119,33 @@ def temp_config_file(mock_config_dict: dict[str, Any]) -> Path:
 
 @pytest.fixture
 def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
-    """Mock ConfigManager instance."""
+    """Mock ConfigManager instance with proper method signatures."""
     manager = Mock(spec=ConfigManager)
-    manager.get_config.return_value = mock_config_dict
+
+    # Configure the mock to return appropriate values for actual ConfigManager methods
     manager.get_enabled_providers.return_value = ["gemini"]
     manager.get_provider_config.return_value = mock_config_dict["providers"]["gemini"]
+    manager.get_default_provider.return_value = "gemini"
+    manager.get_server_config.return_value = mock_config_dict["server"]
+    manager.get_debug_state.return_value = {
+        "config_path": None,
+        "server_config": mock_config_dict["server"],
+        "provider_details": [
+            {
+                "name": "gemini",
+                "type": "gemini",
+                "enabled": True,
+                "model": "gemini-1.5-flash",
+                "has_api_key": False,
+            }
+        ],
+    }
+
+    # Add key_manager property mock
+    key_manager_mock = Mock()
+    key_manager_mock.list_stored_providers.return_value = []
+    manager.key_manager = key_manager_mock
+
     return manager
 
 

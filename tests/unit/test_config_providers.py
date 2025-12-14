@@ -3,8 +3,9 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp_server_cheap_llm.utils.config import (  # type: ignore[import-not-found]
+from mcp_server_cheap_llm.core.models import (  # type: ignore[import-not-found]
     ProviderConfig,
+    ProviderType,
 )
 
 
@@ -13,23 +14,30 @@ class TestProviderConfig:
 
     def test_provider_config_basic(self):
         """Test basic provider configuration."""
-        config = ProviderConfig(name="test", rate_limit=60, quota_limit=100000)
+        config = ProviderConfig(
+            name="test",
+            provider_type=ProviderType.GEMINI,
+            models=["gemini-pro"],
+            rate_limit={"requests_per_minute": 60},
+        )
 
         assert config.name == "test"
-        assert config.rate_limit == 60
-        assert config.quota_limit == 100000
+        assert config.provider_type == ProviderType.GEMINI
+        assert config.models == ["gemini-pro"]
+        assert config.rate_limit == {"requests_per_minute": 60}
         assert config.enabled is True
         assert config.timeout == 30
 
     def test_provider_config_validation(self):
         """Test provider configuration validation."""
-        # Test rate limit validation
+        # Test invalid timeout validation
         with pytest.raises(ValidationError):
-            ProviderConfig(name="test", rate_limit=0)
-
-        # Test quota limit validation
-        with pytest.raises(ValidationError):
-            ProviderConfig(name="test", quota_limit=0)
+            ProviderConfig(
+                name="test",
+                provider_type=ProviderType.GEMINI,
+                models=["gemini-pro"],
+                timeout=0,  # Invalid: must be >= 1
+            )
 
     def test_provider_config_endpoint_validation(self):
         """Test endpoint URL validation."""
@@ -41,17 +49,27 @@ class TestProviderConfig:
         ]
 
         for endpoint in valid_endpoints:
-            config = ProviderConfig(name="test", endpoint=endpoint)
-            assert config.endpoint == endpoint
+            config = ProviderConfig(
+                name="test",
+                provider_type=ProviderType.OPENAI,
+                models=["gpt-3.5-turbo"],
+                base_url=endpoint,
+            )
+            assert config.base_url == endpoint
 
     def test_provider_config_model_settings(self):
         """Test model settings configuration."""
-        model_settings = {
+        provider_specific = {
             "gpt-4": {"max_tokens": 8192},
             "gpt-3.5-turbo": {"max_tokens": 4096},
         }
 
-        config = ProviderConfig(name="test", model_settings=model_settings)
+        config = ProviderConfig(
+            name="test",
+            provider_type=ProviderType.OPENAI,
+            models=["gpt-4"],
+            provider_specific=provider_specific,
+        )
 
-        assert config.model_settings == model_settings
-        assert len(config.model_settings) == 2
+        assert config.provider_specific == provider_specific
+        assert len(config.provider_specific) == 2

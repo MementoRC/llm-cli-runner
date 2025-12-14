@@ -116,7 +116,9 @@ class TestConfigurationError:
         """Test ConfigurationError to_dict method."""
         context = {"field": "model_name"}
         error = ConfigurationError(
-            "Invalid model", error_code="CFG002", context=context
+            "Invalid model",
+            error_code="CFG002",
+            context=context,
         )
         error_dict = error.to_dict()
 
@@ -184,7 +186,10 @@ class TestProviderError:
         """Test ProviderError to_dict method."""
         context = {"status_code": 500}
         error = ProviderError(
-            "Server error", provider="gemini", error_code="PRV002", context=context
+            "Server error",
+            provider="gemini",
+            error_code="PRV002",
+            context=context,
         )
         error_dict = error.to_dict()
 
@@ -200,7 +205,9 @@ class TestProviderError:
         """Test that ProviderError can be raised and caught."""
         with pytest.raises(ProviderError) as exc_info:
             raise ProviderError(
-                "Provider error", provider="gemini", error_code="PRV001"
+                "Provider error",
+                provider="gemini",
+                error_code="PRV001",
             )
 
         assert exc_info.value.message == "Provider error"
@@ -233,7 +240,10 @@ class TestRateLimitError:
     def test_rate_limit_error_with_error_code(self):
         """Test RateLimitError with error code."""
         error = RateLimitError(
-            "Rate limit", provider="openai", retry_after=120, error_code="RTE001"
+            "Rate limit",
+            provider="openai",
+            retry_after=120,
+            error_code="RTE001",
         )
         assert error.message == "Rate limit"
         assert error.provider == "openai"
@@ -244,7 +254,10 @@ class TestRateLimitError:
         """Test RateLimitError with additional context."""
         context = {"quota_remaining": 0, "reset_time": "2024-01-01T12:00:00Z"}
         error = RateLimitError(
-            "Quota exceeded", provider="gemini", retry_after=300, context=context
+            "Quota exceeded",
+            provider="gemini",
+            retry_after=300,
+            context=context,
         )
         assert error.message == "Quota exceeded"
         assert error.provider == "gemini"
@@ -257,7 +270,10 @@ class TestRateLimitError:
     def test_rate_limit_error_to_dict(self):
         """Test RateLimitError to_dict method."""
         error = RateLimitError(
-            "Rate limit", provider="gemini", retry_after=60, error_code="RTE001"
+            "Rate limit",
+            provider="gemini",
+            retry_after=60,
+            error_code="RTE001",
         )
         error_dict = error.to_dict()
 
@@ -273,7 +289,10 @@ class TestRateLimitError:
         """Test that RateLimitError can be raised and caught."""
         with pytest.raises(RateLimitError) as exc_info:
             raise RateLimitError(
-                "Rate limit", provider="gemini", retry_after=60, error_code="RTE001"
+                "Rate limit",
+                provider="gemini",
+                retry_after=60,
+                error_code="RTE001",
             )
 
         assert exc_info.value.message == "Rate limit"
@@ -319,7 +338,9 @@ class TestValidationError:
         """Test ValidationError to_dict method."""
         context = {"field": "temperature", "value": 2.0, "max": 1.0}
         error = ValidationError(
-            "Invalid temperature", error_code="VAL002", context=context
+            "Invalid temperature",
+            error_code="VAL002",
+            context=context,
         )
         error_dict = error.to_dict()
 
@@ -377,7 +398,9 @@ class TestSecurityError:
         """Test SecurityError to_dict method."""
         context = {"threat_level": "high", "blocked": True}
         error = SecurityError(
-            "Security violation", error_code="SEC002", context=context
+            "Security violation",
+            error_code="SEC002",
+            context=context,
         )
         error_dict = error.to_dict()
 
@@ -445,12 +468,17 @@ class TestExceptionHierarchy:
 
         config_error = ConfigurationError("Config error", error_code="CFG001")
         provider_error = ProviderError(
-            "Provider error", provider="gemini", error_code="PRV001"
+            "Provider error",
+            provider="gemini",
+            error_code="PRV001",
         )
         validation_error = ValidationError("Validation error", error_code="VAL001")
         security_error = SecurityError("Security error", error_code="SEC001")
         rate_limit_error = RateLimitError(
-            "Rate limit", provider="gemini", retry_after=60, error_code="RTE001"
+            "Rate limit",
+            provider="gemini",
+            retry_after=60,
+            error_code="RTE001",
         )
 
         # Error codes should be different
@@ -477,7 +505,9 @@ class TestExceptionHierarchy:
         # Test that error data is properly structured
         context = {"field": "api_key", "provider": "gemini", "status": "missing"}
         error = ConfigurationError(
-            "Missing API key", error_code="CFG001", context=context
+            "Missing API key",
+            error_code="CFG001",
+            context=context,
         )
 
         error_dict = error.to_dict()
@@ -506,14 +536,18 @@ class TestExceptionHierarchy:
 
         for provider in providers:
             error = ProviderError(
-                f"{provider} error", provider=provider, error_code="PRV001"
+                f"{provider} error",
+                provider=provider,
+                error_code="PRV001",
             )
             assert error.provider == provider
             assert error.context["provider"] == provider
 
             # Test RateLimitError for each provider
             rate_error = RateLimitError(
-                f"{provider} rate limit", provider=provider, retry_after=60
+                f"{provider} rate limit",
+                provider=provider,
+                retry_after=60,
             )
             assert rate_error.provider == provider
             assert rate_error.context["provider"] == provider

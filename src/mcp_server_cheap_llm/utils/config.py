@@ -7,6 +7,8 @@ Key classes:
     ConfigManager: Main configuration management
     ConfigValidator: Validates configuration data
     EnvironmentLoader: Loads environment variables
+    SecurityConfig: API key encryption and security management (alias for APIKeyManager)
+    CacheConfig: Cache configuration management
 
 Example:
     >>> manager = ConfigManager("/path/to/config.toml")
@@ -43,6 +45,71 @@ logger = structlog.get_logger(__name__)
 # Define allowed log levels and providers
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 ProviderType = Literal["openai", "google", "anthropic", "llama", "codex"]
+
+
+class CacheConfig(BaseModel):
+    """Configuration for cache settings.
+
+    This model manages cache configuration including TTL settings,
+    size limits, and cache backend selection.
+
+    Attributes:
+        enabled: Whether caching is enabled
+        backend: Cache backend type ('memory', 'redis', 'file')
+        ttl_seconds: Time to live for cache entries in seconds
+        max_entries: Maximum number of cache entries
+        cleanup_interval_seconds: Interval between cache cleanup operations
+
+    Example:
+        >>> cache_config = CacheConfig(
+        ...     enabled=True,
+        ...     backend='memory',
+        ...     ttl_seconds=3600,
+        ...     max_entries=1000
+        ... )
+    """
+
+    enabled: bool = Field(default=True, description="Whether caching is enabled")
+    backend: Literal["memory", "redis", "file"] = Field(
+        default="memory", description="Cache backend type"
+    )
+    ttl_seconds: int = Field(
+        default=3600,
+        description="Time to live for cache entries in seconds",
+        ge=0,
+        le=86400,
+    )
+    max_entries: int = Field(
+        default=1000, description="Maximum number of cache entries", ge=1, le=100000
+    )
+    cleanup_interval_seconds: int = Field(
+        default=300,
+        description="Interval between cache cleanup operations",
+        ge=10,
+        le=3600,
+    )
+    redis_url: str | None = Field(
+        default=None, description="Redis connection URL (if using redis backend)"
+    )
+    file_path: str | None = Field(
+        default=None, description="File cache path (if using file backend)"
+    )
+
+    @field_validator("redis_url")
+    @classmethod
+    def validate_redis_url(cls, v: str | None, info) -> str | None:
+        """Validate Redis URL if using redis backend."""
+        if info.data.get("backend") == "redis" and not v:
+            raise ValueError("redis_url is required when using redis backend")
+        return v
+
+    @field_validator("file_path")
+    @classmethod
+    def validate_file_path(cls, v: str | None, info) -> str | None:
+        """Validate file path if using file backend."""
+        if info.data.get("backend") == "file" and not v:
+            raise ValueError("file_path is required when using file backend")
+        return v
 
 
 class ConfigModel(BaseModel):
@@ -563,6 +630,10 @@ class APIKeyManager:
                 return None
 
         return None
+
+
+# Create alias for SecurityConfig for backward compatibility and test support
+SecurityConfig = APIKeyManager
 
 
 class EnvironmentLoader:
@@ -1167,8 +1238,8 @@ class ConfigManager:
                     "enabled": provider.enabled,
                     "api_key": provider.api_key,
                     "model": getattr(provider, "model_name", "default-model"),
-                    "max_tokens": getattr(provider, "default_max_tokens", 1000),
-                    "model_name": provider.model_name,
+                    "max_tokens": getattr(provider, "max_tokens", 1000),
+                    "model_name": getattr(provider, "model_name", None),
                 }
 
                 # Add provider-specific fields from provider_specific dict
