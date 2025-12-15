@@ -1,18 +1,14 @@
-"""Server handlers and protocol implementation.
+"""Server handlers and protocol implementation."""
 
+import asyncio
 import json
+import time
+import uuid
+from datetime import datetime
+from threading import Lock
 from typing import Any
 
-from mcp.server import Server  # type: ignore[import-not-found]
-from mcp.types import (  # type: ignore[import-not-found]
-    CallToolRequest,
-    CallToolResult,
-    TextContent,
-    Tool,
-)
-
 from mcp_server_cheap_llm.core.errors import ValidationError
-from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -21,100 +17,56 @@ logger = get_logger(__name__)
 # Type compatibility layer for MCP types
 try:
     # Try to import MCP types if available
-    from mcp.types import CallToolRequest, CallToolResult, TextContent, Tool
+    from mcp.types import (  # type: ignore
+        CallToolRequest,
+        CallToolResult,
+        TextContent,
+        Tool,
+    )
+
+    _MCP_TYPES_AVAILABLE = True
 
 except ImportError:
-    # Protocol definitions for type checking when MCP types unavailable
-    @runtime_checkable
-    class Tool(Protocol):
-        """Tool protocol for type safety."""
+    # Fallback implementations when MCP types unavailable
+    _MCP_TYPES_AVAILABLE = False
 
-        name: str
-        description: str
-        inputSchema: dict[str, Any]
+    class Tool:
+        """Fallback Tool implementation compatible with MCP."""
 
         def __init__(
             self,
+            *,
             name: str,
-            description: str,
+            description: str | None = None,
             inputSchema: dict[str, Any],
-        ) -> None:
-            """Initialize Tool."""
-            ...
-
-    @runtime_checkable
-    class TextContent(Protocol):
-        """TextContent protocol for type safety."""
-
-        text: str
-        type: str
-
-        def __init__(self, text: str, type: str = "text") -> None:
-            """Initialize TextContent."""
-            ...
-
-    @runtime_checkable
-    class CallToolResult(Protocol):
-        """CallToolResult protocol for type safety."""
-
-        content: list[Any]
-        isError: bool
-
-        def __init__(self, content: list[Any], isError: bool = False) -> None:
-            """Initialize CallToolResult."""
-            ...
-
-    @runtime_checkable
-    class CallToolRequest(Protocol):
-        """CallToolRequest protocol for type safety."""
-
-        method: str
-        params: Any
-
-        def __init__(self, method: str, params: Any) -> None:
-            """Initialize CallToolRequest."""
-            ...
-
-    # Fallback implementations for runtime
-    class _Tool:
-        """Fallback Tool implementation."""
-
-        def __init__(
-            self,
-            name: str,
-            description: str,
-            inputSchema: dict[str, Any],
+            **kwargs: Any,  # Accept additional MCP-specific parameters
         ) -> None:
             self.name = name
-            self.description = description
+            self.description = description or ""
             self.inputSchema = inputSchema
 
-    class _TextContent:
-        """Fallback TextContent implementation."""
+    class TextContent:
+        """Fallback TextContent implementation compatible with MCP."""
 
-        def __init__(self, text: str, type: str = "text") -> None:
+        def __init__(self, *, text: str, type: str = "text", **kwargs: Any) -> None:
             self.text = text
             self.type = type
 
-    class _CallToolResult:
-        """Fallback CallToolResult implementation."""
+    class CallToolResult:
+        """Fallback CallToolResult implementation compatible with MCP."""
 
-        def __init__(self, content: list[Any], isError: bool = False) -> None:
+        def __init__(
+            self, *, content: list[Any], isError: bool = False, **kwargs: Any
+        ) -> None:
             self.content = content
             self.isError = isError
 
-    class _CallToolRequest:
-        """Fallback CallToolRequest implementation."""
+    class CallToolRequest:
+        """Fallback CallToolRequest implementation compatible with MCP."""
 
-        def __init__(self, method: str, params: Any) -> None:
+        def __init__(self, *, method: str, params: Any, **kwargs: Any) -> None:
             self.method = method
             self.params = params
-
-    # Use fallback implementations at runtime
-    Tool = _Tool  # type: ignore[misc,assignment]  # noqa: F811
-    TextContent = _TextContent  # type: ignore[misc,assignment]  # noqa: F811
-    CallToolResult = _CallToolResult  # type: ignore[misc,assignment]  # noqa: F811
-    CallToolRequest = _CallToolRequest  # type: ignore[misc,assignment]  # noqa: F811
 
 
 class MCPProtocolHandler:
@@ -160,6 +112,7 @@ class MCPProtocolHandler:
             JSON-RPC response string
 
         """
+        data = None  # Initialize data variable to avoid unbound issues
         try:
             # Parse JSON
             data = json.loads(message)
@@ -188,20 +141,30 @@ class MCPProtocolHandler:
 
         except ValidationError as e:
             self._metrics["errors_encountered"] += 1
+            # Safely extract id from parsed data if available
+            request_id = None
+            if data is not None and isinstance(data, dict):
+                request_id = data.get("id")
+
             error_response = {
                 "jsonrpc": "2.0",
                 "error": {"code": -32600, "message": f"Invalid Request: {str(e)}"},
-                "id": data.get("id") if "data" in locals() else None,
+                "id": request_id,
             }
             return json.dumps(error_response)
 
         except Exception as e:
             self._metrics["errors_encountered"] += 1
             self.logger.exception(f"Unexpected error processing message: {e}")
+            # Safely extract id from parsed data if available
+            request_id = None
+            if data is not None and isinstance(data, dict):
+                request_id = data.get("id")
+
             error_response = {
                 "jsonrpc": "2.0",
                 "error": {"code": -32603, "message": "Internal error"},
-                "id": data.get("id") if "data" in locals() else None,
+                "id": request_id,
             }
             return json.dumps(error_response)
 
@@ -334,14 +297,14 @@ class MCPProtocolHandler:
             for item in obj:
                 self._validate_nesting_depth(item, max_depth, current_depth + 1)
 
-    async def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
+    async def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
         """Handle parsed JSON-RPC request.
 
         Args:
             request: Parsed JSON-RPC request dictionary
 
         Returns:
-            Response dictionary
+            Response dictionary or None for notifications
 
         """
         message_id = request.get("id")
@@ -1834,8 +1797,8 @@ class SessionManager:
         return False
 
 
-class MCPProtocolHandler:
-    """MCP Protocol handler for JSON-RPC 2.0 message processing.
+class MCPProtocolHandlerV2:
+    """MCP Protocol handler for JSON-RPC 2.0 message processing (v2).
 
     This class handles the core MCP protocol infrastructure including:
     - JSON-RPC 2.0 message parsing and validation
@@ -2386,7 +2349,7 @@ class CheapLLMServer:
             List of Tool objects
 
         """
-        from mcp.types import Tool  # type: ignore[import-not-found]
+        # Use our Tool class directly
 
         tools = []
         if not self.config_manager:
@@ -2476,11 +2439,19 @@ class CheapLLMServer:
                     "required": ["prompt"],
                 }
 
-            tool = Tool(
-                name=tool_name,
-                description=description,
-                inputSchema=input_schema,
-            )
+            # Create tool using appropriate constructor based on MCP availability
+            if _MCP_TYPES_AVAILABLE:
+                tool = Tool(
+                    name=tool_name,
+                    description=description,
+                    inputSchema=input_schema,
+                )
+            else:
+                tool = Tool(
+                    name=tool_name,
+                    description=description,
+                    inputSchema=input_schema,
+                )
             tools.append(tool)
 
         return tools
@@ -2495,10 +2466,7 @@ class CheapLLMServer:
             CallToolResult object
 
         """
-        from mcp.types import (  # type: ignore[import-not-found]
-            CallToolResult,
-            TextContent,
-        )
+        # Use our classes directly
 
         try:
             tool_name = request.params.name
@@ -2512,23 +2480,46 @@ class CheapLLMServer:
             elif tool_name == "llama_generate":
                 result = await self._call_llama(arguments)
             else:
+                # Create response using appropriate constructor based on MCP availability
+                if _MCP_TYPES_AVAILABLE:
+                    return CallToolResult(
+                        content=[
+                            TextContent(type="text", text=f"Unknown tool: {tool_name}")
+                        ],
+                        isError=True,
+                    )
+                else:
+                    return CallToolResult(
+                        content=[
+                            TextContent(type="text", text=f"Unknown tool: {tool_name}")
+                        ],
+                        isError=True,
+                    )
+
+            # Create response using appropriate constructor based on MCP availability
+            if _MCP_TYPES_AVAILABLE:
                 return CallToolResult(
-                    content=[
-                        TextContent(type="text", text=f"Unknown tool: {tool_name}")
-                    ],
-                    isError=True,
+                    content=[TextContent(type="text", text=result)],
+                    isError=False,
+                )
+            else:
+                return CallToolResult(
+                    content=[TextContent(type="text", text=result)],
+                    isError=False,
                 )
 
-            return CallToolResult(
-                content=[TextContent(type="text", text=result)],
-                isError=False,
-            )
-
         except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"Error: {str(e)}")],
-                isError=True,
-            )
+            # Create response using appropriate constructor based on MCP availability
+            if _MCP_TYPES_AVAILABLE:
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Error: {str(e)}")],
+                    isError=True,
+                )
+            else:
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Error: {str(e)}")],
+                    isError=True,
+                )
 
     async def _call_gemini(self, arguments: dict[str, Any]) -> str:
         """Call Gemini provider (placeholder implementation).

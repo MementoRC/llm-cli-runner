@@ -6,7 +6,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
+from mcp_server_cheap_llm.core.errors import ValidationError
 from mcp_server_cheap_llm.core.models import (
     CostEstimate,
     LLMRequest,
@@ -18,56 +20,33 @@ from mcp_server_cheap_llm.core.models import (
 )
 from mcp_server_cheap_llm.utils.logging import get_logger
 
-from .base import LLMProvider
-
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from mcp_server_cheap_llm.core.models import LLMRequest, LLMResponse
 
 logger = get_logger(__name__)
 
 
-class OpenAIProvider(LLMProvider):
-    """OpenAI API provider implementation."""
+class OpenAIProvider:
+    """OpenAI provider for cheap LLM access."""
 
-    def __init__(self, config: ProviderConfig | None = None) -> None:
-        """Initialize the OpenAI provider."""
-        if config is None:
-            # Create default config without api_key for testing
-            config = ProviderConfig(
-                name="openai",
-                provider_type=ProviderType.OPENAI,
-                enabled=True,
-                models=[
-                    "gpt-3.5-turbo",
-                    "gpt-4",
-                    "gpt-4-turbo",
-                    "gpt-4o",
-                    "gpt-4o-mini",
-                ],
-            )
+    def __init__(self, config: ProviderConfig):
+        """Initialize the OpenAI provider.
 
-        # Store config before calling super to handle validation properly
-        self._temp_config = config
-
-        # Use the config name (allows for different OpenAI instances)
+        Args:
+            config: Provider configuration
+        """
+        self.config = config
         self.name = config.name
         self.provider_type = ProviderType.OPENAI
-        self.config = config
-
-        # Initialize circuit breaker and logger manually to avoid base class validation
-        from mcp_server_cheap_llm.providers.circuit_breaker import (
-            ProviderCircuitBreaker,
-        )
-        from mcp_server_cheap_llm.utils.logging import StructuredLogger
-
-        self.circuit_breaker = ProviderCircuitBreaker(provider_name=config.name)
-        self.logger = StructuredLogger(__name__)
-        self.capabilities: set = set()
-        self.metadata: dict = {}
-
         self.client: AsyncOpenAI | None = None
         self._initialized = False
-        self._usage_stats = UsageStats(provider_name=self.name)
+
+        # Extract API key from config
+        self.api_key = config.api_key
+        if not self.api_key:
+            logger.warning(f"No API key provided for OpenAI provider '{self.name}'")
+
+        logger.info(f"Initialized OpenAI provider: {self.name}")
 
     async def initialize(self) -> None:
         """Initialize the OpenAI client."""
@@ -75,30 +54,52 @@ class OpenAIProvider(LLMProvider):
             return
 
         try:
-            # Initialize OpenAI client
-            api_key = self.config.api_key or self._get_env_var("OPENAI_API_KEY")
-            if not api_key:
-                msg = "OpenAI API key is required"
-                raise ValueError(msg)
+            if not self.api_key:
+                logger.error(
+                    f"Cannot initialize OpenAI provider '{self.name}': No API key"
+                )
+                return
 
-            base_url = self.config.base_url or self._get_env_var("OPENAI_BASE_URL")
-
-            self.client = AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                timeout=self.config.timeout,
-            )
-
+            self.client = AsyncOpenAI(api_key=self.api_key)
             self._initialized = True
-            logger.info("OpenAI provider initialized successfully")
+            logger.info(f"OpenAI provider '{self.name}' initialized successfully")
 
         except Exception as e:
-            logger.exception(f"Failed to initialize OpenAI provider: {e}")
-            raise
+            logger.error(f"Failed to initialize OpenAI provider '{self.name}': {e}")
+            self._initialized = False
+
+    async def close(self) -> None:
+        """Close the OpenAI client."""
+        if self.client:
+            await self.client.close()
+            self.client = None
+            self._initialized = False
+            logger.info(f"OpenAI provider '{self.name}' closed")
+
+    def _convert_to_openai_messages(
+        self, prompt: str, system_prompt: str | None = None
+    ) -> list[ChatCompletionMessageParam]:
+        """Convert prompt to OpenAI message format.
+
+        Args:
+            prompt: User prompt
+            system_prompt: Optional system prompt
+
+        Returns:
+            List of OpenAI message dictionaries
+        """
+        messages: list[ChatCompletionMessageParam] = []
+
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+
+        messages.append({"role": "user", "content": prompt})
+
+        return messages
 
     async def generate(
         self,
-        request: LLMRequest | str | None = None,
+        request: LLMRequest | None = None,
         *,
         prompt: str | None = None,
         model: str | None = None,
@@ -107,15 +108,20 @@ class OpenAIProvider(LLMProvider):
         system_prompt: str | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
-        """Generate a response using OpenAI API.
+        """Generate text using OpenAI.
 
-        Supports both LLMRequest objects and keyword arguments for backwards compatibility.
+        Args:
+            request: Optional LLMRequest object
+            prompt: Text prompt (if request not provided)
+            model: Model name override
+            max_tokens: Maximum tokens to generate
+            temperature: Temperature for randomness
+            system_prompt: System prompt to use
+            **kwargs: Additional parameters
+
+        Returns:
+            LLMResponse with generated text or error
         """
-        # Handle backwards compatibility
-        if isinstance(request, str):
-            prompt = request
-            request = None
-
         if request is None:
             # Only pass non-None values to avoid overriding Pydantic defaults
             request_kwargs: dict[str, Any] = {"prompt": prompt or ""}
@@ -130,10 +136,12 @@ class OpenAIProvider(LLMProvider):
             request_kwargs.update(kwargs)
             request = LLMRequest(**request_kwargs)
 
-        # At this point, request is always an LLMRequest
-        assert isinstance(request, LLMRequest), (
-            "Request should be LLMRequest at this point"
-        )
+        # Security fix: Replace assert with proper validation
+        if not isinstance(request, LLMRequest):
+            raise ValidationError(
+                "Invalid request type: expected LLMRequest",
+                details={"received_type": type(request).__name__},
+            )
 
         if not self._initialized:
             await self.initialize()
@@ -146,333 +154,109 @@ class OpenAIProvider(LLMProvider):
                 error_message="Provider not initialized",
             )
 
-        start_time = datetime.now()
-        self._usage_stats.total_requests += 1
-
         try:
-            # Use provided model or default
-            model = request.model or (
+            # Use configured model or default
+            model_name = request.model or (
                 self.config.models[0] if self.config.models else "gpt-3.5-turbo"
             )
             max_tokens = request.max_tokens or self.config.max_tokens
-            temperature = request.temperature
+            temperature = request.temperature or 0.7
 
-            # Create messages format for chat completion
-            messages: list[ChatCompletionMessageParam] = [
-                {"role": "user", "content": request.prompt},
-            ]
+            # Convert to OpenAI message format
+            messages = self._convert_to_openai_messages(
+                request.prompt, request.system_prompt
+            )
 
-            # Add system prompt if provided
-            if request.system_prompt:
-                messages.insert(
-                    0,
-                    {"role": "system", "content": request.system_prompt},
-                )
+            # Make the API call
+            logger.debug(f"Making OpenAI API call with model: {model_name}")
 
-            response = await self.client.chat.completions.create(
-                model=model,
+            completion = await self.client.chat.completions.create(
+                model=model_name,
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                **request.metadata,
+                **kwargs,
             )
 
-            # Calculate response time
-            response_time = (datetime.now() - start_time).total_seconds() * 1000
-
             # Extract response content
-            content = response.choices[0].message.content or ""
-            tokens_used = response.usage.total_tokens if response.usage else 0
+            content = ""
+            if completion.choices and completion.choices[0].message.content:
+                content = completion.choices[0].message.content
 
-            # Update usage stats
-            self._usage_stats.successful_requests += 1
-            self._usage_stats.total_tokens += tokens_used
-            self._update_response_time(response_time)
+            # Calculate usage stats if available
+            usage_stats = None
+            if completion.usage:
+                usage_stats = UsageStats(
+                    input_tokens=completion.usage.prompt_tokens,
+                    output_tokens=completion.usage.completion_tokens,
+                    total_tokens=completion.usage.total_tokens,
+                )
 
             return LLMResponse(
                 content=content,
                 provider=self.name,
-                model=model,
+                model=model_name,
                 success=True,
-                tokens_used=tokens_used,
-                response_time_ms=int(response_time),
-                metadata={
-                    "completion_tokens": response.usage.completion_tokens
-                    if response.usage
-                    else 0,
-                    "prompt_tokens": response.usage.prompt_tokens
-                    if response.usage
-                    else 0,
-                },
+                usage_stats=usage_stats,
+                timestamp=datetime.now(),
             )
 
         except Exception as e:
-            response_time = (datetime.now() - start_time).total_seconds() * 1000
-            logger.exception(f"OpenAI generation failed: {e}")
-
-            # Update failure stats
-            self._usage_stats.failed_requests += 1
-            self._update_response_time(response_time)
+            error_msg = f"OpenAI API error: {e}"
+            logger.error(error_msg)
 
             return LLMResponse(
                 content="",
                 provider=self.name,
-                model=request.model or "unknown",
                 success=False,
-                error_message=str(e),
-                response_time_ms=int(response_time),
-                tokens_used=0,
+                error_message=error_msg,
+                timestamp=datetime.now(),
             )
 
-    async def generate_stream(
-        self,
-        prompt: str,
-        model: str | None = None,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
-        **kwargs: Any,
-    ) -> AsyncIterator[dict[str, Any]]:
-        """Generate a streaming response using OpenAI API."""
+    async def list_models(self) -> list[str]:
+        """List available models.
+
+        Returns:
+            List of available model names
+        """
         if not self._initialized:
             await self.initialize()
 
         if not self.client:
-            yield self._create_error_response("Provider not initialized")
-            return
+            logger.warning(f"OpenAI provider '{self.name}' not initialized")
+            return []
 
         try:
-            # Use provided model or default
-            model = model or (
-                self.config.models[0] if self.config.models else "gpt-3.5-turbo"
-            )
-            max_tokens = max_tokens or self.config.max_tokens
-            temperature = temperature or kwargs.get("temperature", 0.7)
-
-            # Create messages format for chat completion
-            messages: list[ChatCompletionMessageParam] = [
-                {"role": "user", "content": prompt}
-            ]
-
-            # Add system prompt if provided
-            if kwargs.get("system_prompt"):
-                messages.insert(
-                    0,
-                    {"role": "system", "content": kwargs["system_prompt"]},
-                )
-
-            stream = await self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                stream=True,
-                **{
-                    k: v
-                    for k, v in kwargs.items()
-                    if k not in ["system_prompt", "temperature"]
-                },
-            )
-
-            chunk_index = 0
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield {
-                        "content": chunk.choices[0].delta.content,
-                        "provider": self.name,
-                        "model": model,
-                        "success": True,
-                        "is_final": False,
-                        "chunk_index": chunk_index,
-                    }
-                    chunk_index += 1
-
-            # Send final chunk
-            yield {
-                "content": "",
-                "provider": self.name,
-                "model": model,
-                "success": True,
-                "is_final": True,
-                "chunk_index": chunk_index,
-            }
+            models = await self.client.models.list()
+            model_names = [model.id for model in models.data]
+            logger.debug(f"Retrieved {len(model_names)} models from OpenAI")
+            return model_names
 
         except Exception as e:
-            logger.exception(f"OpenAI streaming failed: {e}")
-            yield {
-                "content": "",
-                "provider": self.name,
-                "model": model or "unknown",
-                "success": False,
-                "error_message": str(e),
-                "is_final": True,
-            }
+            logger.error(f"Failed to list OpenAI models: {e}")
+            return []
 
-    def _get_env_var(self, var_name: str) -> str | None:
-        """Get environment variable."""
-        import os
-
-        return os.getenv(var_name)
-
-    def _create_error_response(self, error_message: str) -> dict[str, Any]:
-        """Create a standardized error response."""
-        return {
-            "content": "",
-            "provider": self.name,
-            "success": False,
-            "error_message": error_message,
-            "tokens_used": 0,
-            "response_time_ms": 0,
-        }
-
-    def _update_response_time(self, response_time: float) -> None:
-        """Update average response time."""
-        total_requests = self._usage_stats.total_requests
-        if total_requests == 1:
-            self._usage_stats.average_response_time = response_time
-        else:
-            # Calculate running average
-            current_avg = self._usage_stats.average_response_time
-            self._usage_stats.average_response_time = (
-                (current_avg * (total_requests - 1)) + response_time
-            ) / total_requests
-
-    def get_available_models(self) -> list[str]:
-        """Get list of available models."""
-        return self.config.models or [
-            "gpt-3.5-turbo",
-            "gpt-4",
-            "gpt-4-turbo",
-            "gpt-4o",
-            "gpt-4o-mini",
-        ]
-
-    async def get_model_info(self, model: str) -> dict[str, Any]:
-        """Get information about a specific model."""
-        # Check against both configured models and standard OpenAI models
-        available_models = self.get_available_models()
-        standard_models = [
-            "gpt-3.5-turbo",
-            "gpt-4",
-            "gpt-4-turbo",
-            "gpt-4o",
-            "gpt-4o-mini",
-        ]
-
-        # Model is available if it's in config OR it's a standard OpenAI model
-        is_available = model in available_models or model in standard_models
-
-        if not is_available:
-            return {
-                "model": model,
-                "available": False,
-                "error": "Model not available",
-            }
-
-        # Basic model information
-        model_info = {
-            "model": model,
-            "available": True,
-            "provider": self.name,
-            "type": "chat",
-        }
-
-        # Add model-specific details
-        if "gpt-4" in model:
-            model_info.update(
-                {
-                    "context_window": 8192 if "turbo" not in model else 128000,
-                    "max_tokens": 4096,
-                    "description": "Advanced language model with high reasoning capabilities",
-                },
-            )
-        elif "gpt-3.5" in model:
-            model_info.update(
-                {
-                    "context_window": 4096,
-                    "max_tokens": 4096,
-                    "description": "Fast and efficient language model",
-                },
-            )
-
-        return model_info
-
-    def validate_config(self, config: ProviderConfig) -> bool:
-        """Validate OpenAI provider configuration."""
-        try:
-            if config.provider_type != ProviderType.OPENAI:
-                return False
-            if not config.api_key:
-                return False
-            # Check if models list has at least one model
-            return not (not config.models or len(config.models) == 0)
-        except Exception:
-            return False
-
-    async def is_available(self) -> bool:
-        """Check if OpenAI API is available."""
-        try:
-            if not self._initialized:
-                await self.initialize()
-
-            if not self.client:
-                return False
-
-            # Simple test request
-            await self.client.models.list()
-            return True
-
-        except Exception as e:
-            logger.warning(f"OpenAI availability check failed: {e}")
-            return False
-
-    async def get_usage(self) -> UsageStats:
-        """Get current usage statistics."""
-        self._usage_stats.last_updated = datetime.now()
-        return self._usage_stats
-
-    async def check_quota(self) -> QuotaStatusInfo:
-        """Check quota status."""
-        try:
-            # Basic quota check - could be enhanced with actual API quota checks
-            current_usage = self._usage_stats.total_requests
-            quota_limit = 1000  # Default limit, should be configured
-
-            return QuotaStatusInfo(
-                provider_name=self.name,
-                quota_type="requests",
-                current_usage=current_usage,
-                quota_limit=quota_limit,
-                quota_remaining=max(0, quota_limit - current_usage),
-            )
-
-        except Exception as e:
-            logger.warning(f"Failed to check OpenAI quota: {e}")
-            return QuotaStatusInfo(
-                provider_name=self.name,
-                quota_type="requests",
-                current_usage=0,
-                quota_limit=1000,
-                quota_remaining=1000,
-            )
-
-    async def estimate_cost(
+    async def get_cost_estimate(
         self,
-        request: LLMRequest | str | None = None,
+        request: LLMRequest | None = None,
         *,
         prompt: str | None = None,
         model: str | None = None,
         max_tokens: int | None = None,
         **kwargs: Any,
     ) -> CostEstimate:
-        """Estimate the cost of a request.
+        """Get cost estimate for a request.
 
-        Supports both LLMRequest objects and keyword arguments for backwards compatibility.
+        Args:
+            request: Optional LLMRequest object
+            prompt: Text prompt (if request not provided)
+            model: Model name override
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional parameters
+
+        Returns:
+            Cost estimate information
         """
-        # Handle backwards compatibility
-        if isinstance(request, str):
-            prompt = request
-            request = None
-
         if request is None:
             # Only pass non-None values to avoid overriding Pydantic defaults
             request_kwargs: dict[str, Any] = {"prompt": prompt or ""}
@@ -483,10 +267,12 @@ class OpenAIProvider(LLMProvider):
             request_kwargs.update(kwargs)
             request = LLMRequest(**request_kwargs)
 
-        # At this point, request is always an LLMRequest
-        assert isinstance(request, LLMRequest), (
-            "Request should be LLMRequest at this point"
-        )
+        # Security fix: Replace assert with proper validation
+        if not isinstance(request, LLMRequest):
+            raise ValidationError(
+                "Invalid request type: expected LLMRequest",
+                details={"received_type": type(request).__name__},
+            )
 
         model = request.model or (
             self.config.models[0] if self.config.models else "gpt-3.5-turbo"
@@ -496,77 +282,83 @@ class OpenAIProvider(LLMProvider):
         # Rough token estimation (4 characters per token average)
         estimated_input_tokens = len(request.prompt) // 4
         estimated_output_tokens = max_tokens or 1000
-        total_tokens = estimated_input_tokens + estimated_output_tokens
 
-        # Basic pricing (as of 2024, prices may vary)
-        pricing = {
-            "gpt-3.5-turbo": {"input": 0.0015, "output": 0.002},  # per 1K tokens
-            "gpt-4": {"input": 0.03, "output": 0.06},
-            "gpt-4-turbo": {"input": 0.01, "output": 0.03},
-            "gpt-4o": {"input": 0.005, "output": 0.015},
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
-        }
+        # Rough cost estimation based on OpenAI pricing (as of 2024)
+        # These are approximate rates - actual rates may vary
+        cost_per_1k_input = 0.0015  # $0.0015 per 1K input tokens for GPT-3.5
+        cost_per_1k_output = 0.002  # $0.002 per 1K output tokens for GPT-3.5
 
-        if model not in pricing:
-            model = "gpt-3.5-turbo"  # fallback
+        if "gpt-4" in model.lower():
+            cost_per_1k_input = 0.03  # $0.03 per 1K input tokens for GPT-4
+            cost_per_1k_output = 0.06  # $0.06 per 1K output tokens for GPT-4
 
-        rates = pricing[model]
-        estimated_cost = (estimated_input_tokens / 1000) * rates["input"] + (
-            estimated_output_tokens / 1000
-        ) * rates["output"]
-
-        # Calculate average cost per token for the estimate
-        cost_per_token = estimated_cost / total_tokens if total_tokens > 0 else 0
+        estimated_input_cost = (estimated_input_tokens / 1000) * cost_per_1k_input
+        estimated_output_cost = (estimated_output_tokens / 1000) * cost_per_1k_output
+        total_cost = estimated_input_cost + estimated_output_cost
 
         return CostEstimate(
-            provider_name=self.name,
-            estimated_tokens=total_tokens,
-            cost_per_token=cost_per_token,
-            estimated_cost_usd=round(estimated_cost, 6),
-            confidence_score=0.8,
-            estimation_method="token_based",
-            cost_breakdown={
-                "model": model,
-                "estimated_input_tokens": estimated_input_tokens,
-                "estimated_output_tokens": estimated_output_tokens,
-                "input_cost_per_1k": rates["input"],
-                "output_cost_per_1k": rates["output"],
-            },
+            provider=self.name,
+            model=model,
+            estimated_input_tokens=estimated_input_tokens,
+            estimated_output_tokens=estimated_output_tokens,
+            estimated_total_tokens=estimated_input_tokens + estimated_output_tokens,
+            estimated_cost=total_cost,
+            currency="USD",
         )
 
-    async def health_check(self) -> dict[str, Any]:
-        """Perform a health check on the provider."""
-        health_status = {
-            "provider": self.name,
-            "initialized": self._initialized,
-            "available": False,
-            "models_configured": len(self.config.models) if self.config.models else 0,
-            "timestamp": datetime.now().isoformat(),
-        }
+    async def get_quota_status(self) -> QuotaStatusInfo:
+        """Get quota status information.
+
+        Returns:
+            Quota status information
+        """
+        # OpenAI doesn't provide direct quota API access
+        # Return basic status based on initialization
+        return QuotaStatusInfo(
+            provider=self.name,
+            quota_used=0,
+            quota_remaining=float("inf"),  # Unknown limit
+            quota_total=float("inf"),
+            reset_date=None,
+            requests_made=0,
+            requests_remaining=float("inf"),
+            is_quota_exceeded=False,
+        )
+
+    async def health_check(self) -> bool:
+        """Check provider health.
+
+        Returns:
+            True if provider is healthy, False otherwise
+        """
+        if not self._initialized:
+            await self.initialize()
+
+        if not self.client:
+            return False
 
         try:
-            health_status["available"] = await self.is_available()
-
-            if health_status["available"]:
-                # Test a simple generation
-                test_request = LLMRequest(
-                    prompt="Hello", max_tokens=5, system_prompt=None
-                )
-                test_response = await self.generate(test_request)
-                health_status["test_generation"] = test_response.success
-            else:
-                health_status["test_generation"] = False
+            # Try to list models as a health check
+            await self.client.models.list()
+            return True
 
         except Exception as e:
-            health_status["error"] = str(e)
-            health_status["test_generation"] = False
+            logger.warning(f"OpenAI provider '{self.name}' health check failed: {e}")
+            return False
 
-        return health_status
+    def get_provider_info(self) -> dict[str, Any]:
+        """Get provider information.
 
-    async def cleanup(self) -> None:
-        """Cleanup resources."""
-        if self.client:
-            await self.client.close()
-            self.client = None
-        self._initialized = False
-        logger.info("OpenAI provider cleaned up")
+        Returns:
+            Dictionary containing provider information
+        """
+        return {
+            "name": self.name,
+            "type": self.provider_type.value,
+            "initialized": self._initialized,
+            "models": self.config.models,
+            "max_tokens": self.config.max_tokens,
+            "supports_streaming": False,  # OpenAI streaming not yet implemented
+            "supports_system_prompt": True,
+            "supports_temperature": True,
+        }

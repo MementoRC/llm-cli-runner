@@ -87,7 +87,7 @@ class TestStructuredLogger:
         """Test that StructuredLogger can log messages."""
         logger = StructuredLogger("test_logger")
 
-        with patch.object(logger.logger, "info") as mock_info:
+        with patch.object(logger._logger, "info") as mock_info:
             logger.info("Test message", extra_field="test_value")
 
             # Should call the underlying logger
@@ -133,7 +133,7 @@ class TestStructuredLogger:
         """Test that StructuredLogger supports custom fields."""
         logger = StructuredLogger("test_logger")
 
-        with patch.object(logger.logger, "info") as mock_info:
+        with patch.object(logger._logger, "info") as mock_info:
             logger.info(
                 "Test message",
                 user_id="user123",
@@ -157,13 +157,13 @@ class TestStructuredLogger:
             # Custom fields should be in the JSON structure
             assert "user_id" in log_data, f"user_id not found in log_data: {log_data}"
             assert log_data["user_id"] == "user123"
-            assert "request_id" in log_data, (
-                f"request_id not found in log_data: {log_data}"
-            )
+            assert (
+                "request_id" in log_data
+            ), f"request_id not found in log_data: {log_data}"
             assert log_data["request_id"] == "req456"
-            assert "extra_data" in log_data, (
-                f"extra_data not found in log_data: {log_data}"
-            )
+            assert (
+                "extra_data" in log_data
+            ), f"extra_data not found in log_data: {log_data}"
             assert log_data["extra_data"] == {"key": "value"}
 
     def test_structured_logger_thread_safety(self):
@@ -223,7 +223,7 @@ class TestLoggingIntegration:
         """Test LogContext integration with StructuredLogger."""
         logger = StructuredLogger("integration_test")
 
-        with patch.object(logger.logger, "info") as mock_info:
+        with patch.object(logger._logger, "info") as mock_info:
             with LogContext() as context:
                 logger.info("Integration test message")
 

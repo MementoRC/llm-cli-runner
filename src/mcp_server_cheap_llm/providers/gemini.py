@@ -384,47 +384,6 @@ class GeminiProvider(LLMProvider):
             logger.exception(error_msg, error=e)
             raise ProviderError(error_msg, provider="gemini") from e
 
-    async def generate_streaming_response(self, request: LLMRequest):
-        """Generate streaming response by simulating chunked delivery.
-
-        This method provides streaming capability by splitting the regular
-        response into chunks for compatibility with streaming tests.
-
-        Args:
-            request: The LLM request
-
-        Yields:
-            StreamingResponse: Response chunks
-
-        """
-        try:
-            # Get the full response first
-            response = await self.generate(request)
-
-            # Split response into words for streaming simulation
-            words = response.content.split()
-
-            # Stream each chunk
-            for i, word in enumerate(words):
-                chunk = StreamingResponse(
-                    content=word,
-                    provider=response.provider,
-                    model=response.model,
-                    is_final=(i == len(words) - 1),
-                    chunk_index=i,
-                    metadata={
-                        "total_chunks": len(words),
-                        "chunk_index": i,
-                        "original_model": response.model,
-                    },
-                )
-                yield chunk
-
-        except Exception as e:
-            error_msg = f"Streaming response generation failed: {e}"
-            logger.exception(error_msg, error=str(e))
-            raise ProviderError(error_msg, provider="gemini") from e
-
     async def estimate_cost(self, request: LLMRequest) -> CostEstimate:
         """Estimate cost for Gemini request.
 
