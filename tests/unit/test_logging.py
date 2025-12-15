@@ -157,13 +157,13 @@ class TestStructuredLogger:
             # Custom fields should be in the JSON structure
             assert "user_id" in log_data, f"user_id not found in log_data: {log_data}"
             assert log_data["user_id"] == "user123"
-            assert (
-                "request_id" in log_data
-            ), f"request_id not found in log_data: {log_data}"
+            assert "request_id" in log_data, (
+                f"request_id not found in log_data: {log_data}"
+            )
             assert log_data["request_id"] == "req456"
-            assert (
-                "extra_data" in log_data
-            ), f"extra_data not found in log_data: {log_data}"
+            assert "extra_data" in log_data, (
+                f"extra_data not found in log_data: {log_data}"
+            )
             assert log_data["extra_data"] == {"key": "value"}
 
     def test_structured_logger_thread_safety(self):
