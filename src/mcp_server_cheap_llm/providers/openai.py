@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
@@ -16,12 +15,11 @@ from mcp_server_cheap_llm.core.models import (
     ProviderConfig,
     ProviderType,
     QuotaStatusInfo,
-    UsageStats,
 )
 from mcp_server_cheap_llm.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from mcp_server_cheap_llm.core.models import LLMRequest, LLMResponse
+    pass  # All needed imports are above
 
 logger = get_logger(__name__)
 
@@ -183,22 +181,17 @@ class OpenAIProvider:
             if completion.choices and completion.choices[0].message.content:
                 content = completion.choices[0].message.content
 
-            # Calculate usage stats if available
-            usage_stats = None
+            # Calculate tokens used if available
+            tokens_used = 0
             if completion.usage:
-                usage_stats = UsageStats(
-                    input_tokens=completion.usage.prompt_tokens,
-                    output_tokens=completion.usage.completion_tokens,
-                    total_tokens=completion.usage.total_tokens,
-                )
+                tokens_used = completion.usage.total_tokens or 0
 
             return LLMResponse(
                 content=content,
                 provider=self.name,
                 model=model_name,
                 success=True,
-                usage_stats=usage_stats,
-                timestamp=datetime.now(),
+                tokens_used=tokens_used,
             )
 
         except Exception as e:
@@ -210,7 +203,6 @@ class OpenAIProvider:
                 provider=self.name,
                 success=False,
                 error_message=error_msg,
-                timestamp=datetime.now(),
             )
 
     async def list_models(self) -> list[str]:
@@ -296,14 +288,21 @@ class OpenAIProvider:
         estimated_output_cost = (estimated_output_tokens / 1000) * cost_per_1k_output
         total_cost = estimated_input_cost + estimated_output_cost
 
+        total_tokens = estimated_input_tokens + estimated_output_tokens
+        # Calculate average cost per token for the estimate
+        avg_cost_per_token = total_cost / total_tokens if total_tokens > 0 else 0.0
+
         return CostEstimate(
-            provider=self.name,
-            model=model,
-            estimated_input_tokens=estimated_input_tokens,
-            estimated_output_tokens=estimated_output_tokens,
-            estimated_total_tokens=estimated_input_tokens + estimated_output_tokens,
-            estimated_cost=total_cost,
-            currency="USD",
+            provider_name=self.name,
+            estimated_tokens=total_tokens,
+            cost_per_token=avg_cost_per_token,
+            estimated_cost_usd=total_cost,
+            cost_breakdown={
+                "model": model,
+                "input_tokens": estimated_input_tokens,
+                "output_tokens": estimated_output_tokens,
+                "currency": "USD",
+            },
         )
 
     async def get_quota_status(self) -> QuotaStatusInfo:
@@ -315,14 +314,12 @@ class OpenAIProvider:
         # OpenAI doesn't provide direct quota API access
         # Return basic status based on initialization
         return QuotaStatusInfo(
-            provider=self.name,
-            quota_used=0,
-            quota_remaining=float("inf"),  # Unknown limit
-            quota_total=float("inf"),
-            reset_date=None,
-            requests_made=0,
-            requests_remaining=float("inf"),
-            is_quota_exceeded=False,
+            provider_name=self.name,
+            quota_type="requests",
+            current_usage=0,
+            quota_limit=float("inf"),
+            quota_remaining=float("inf"),
+            reset_time=None,
         )
 
     async def health_check(self) -> bool:

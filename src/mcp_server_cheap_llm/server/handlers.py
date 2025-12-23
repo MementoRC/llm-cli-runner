@@ -15,58 +15,73 @@ logger = get_logger(__name__)
 
 
 # Type compatibility layer for MCP types
+# Define fallback implementations first
+class _FallbackTool:
+    """Fallback Tool implementation compatible with MCP."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        inputSchema: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
+        self.name = name
+        self.description = description or ""
+        self.inputSchema = inputSchema
+
+
+class _FallbackTextContent:
+    """Fallback TextContent implementation compatible with MCP."""
+
+    def __init__(self, *, text: str, type: str = "text", **kwargs: Any) -> None:
+        self.text = text
+        self.type = type
+
+
+class _FallbackCallToolResult:
+    """Fallback CallToolResult implementation compatible with MCP."""
+
+    def __init__(
+        self, *, content: list[Any], isError: bool = False, **kwargs: Any
+    ) -> None:
+        self.content = content
+        self.isError = isError
+
+
+class _FallbackCallToolRequest:
+    """Fallback CallToolRequest implementation compatible with MCP."""
+
+    def __init__(self, *, method: str, params: Any, **kwargs: Any) -> None:
+        self.method = method
+        self.params = params
+
+
+# Try to import MCP types, fall back to our implementations
 try:
-    # Try to import MCP types if available
-    from mcp.types import (  # type: ignore
-        CallToolRequest,
-        CallToolResult,
-        TextContent,
-        Tool,
+    from mcp.types import (
+        CallToolRequest as _MCPCallToolRequest,  # type: ignore[import-not-found]
     )
+    from mcp.types import (
+        CallToolResult as _MCPCallToolResult,  # type: ignore[import-not-found]
+    )
+    from mcp.types import (
+        TextContent as _MCPTextContent,  # type: ignore[import-not-found]
+    )
+    from mcp.types import Tool as _MCPTool  # type: ignore[import-not-found]
 
     _MCP_TYPES_AVAILABLE = True
-
+    Tool = _MCPTool
+    TextContent = _MCPTextContent
+    CallToolResult = _MCPCallToolResult
+    CallToolRequest = _MCPCallToolRequest
 except ImportError:
-    # Fallback implementations when MCP types unavailable
     _MCP_TYPES_AVAILABLE = False
-
-    class Tool:
-        """Fallback Tool implementation compatible with MCP."""
-
-        def __init__(
-            self,
-            *,
-            name: str,
-            description: str | None = None,
-            inputSchema: dict[str, Any],
-            **kwargs: Any,  # Accept additional MCP-specific parameters
-        ) -> None:
-            self.name = name
-            self.description = description or ""
-            self.inputSchema = inputSchema
-
-    class TextContent:
-        """Fallback TextContent implementation compatible with MCP."""
-
-        def __init__(self, *, text: str, type: str = "text", **kwargs: Any) -> None:
-            self.text = text
-            self.type = type
-
-    class CallToolResult:
-        """Fallback CallToolResult implementation compatible with MCP."""
-
-        def __init__(
-            self, *, content: list[Any], isError: bool = False, **kwargs: Any
-        ) -> None:
-            self.content = content
-            self.isError = isError
-
-    class CallToolRequest:
-        """Fallback CallToolRequest implementation compatible with MCP."""
-
-        def __init__(self, *, method: str, params: Any, **kwargs: Any) -> None:
-            self.method = method
-            self.params = params
+    Tool = _FallbackTool  # type: ignore[assignment,misc]
+    TextContent = _FallbackTextContent  # type: ignore[assignment,misc]
+    CallToolResult = _FallbackCallToolResult  # type: ignore[assignment,misc]
+    CallToolRequest = _FallbackCallToolRequest  # type: ignore[assignment,misc]
 
 
 class MCPProtocolHandler:
@@ -2480,46 +2495,25 @@ class CheapLLMServer:
             elif tool_name == "llama_generate":
                 result = await self._call_llama(arguments)
             else:
-                # Create response using appropriate constructor based on MCP availability
-                if _MCP_TYPES_AVAILABLE:
-                    return CallToolResult(
-                        content=[
-                            TextContent(type="text", text=f"Unknown tool: {tool_name}")
-                        ],
-                        isError=True,
-                    )
-                else:
-                    return CallToolResult(
-                        content=[
-                            TextContent(type="text", text=f"Unknown tool: {tool_name}")
-                        ],
-                        isError=True,
-                    )
+                return CallToolResult(
+                    content=[
+                        TextContent(  # type: ignore[list-item]
+                            type="text", text=f"Unknown tool: {tool_name}"
+                        )
+                    ],
+                    isError=True,
+                )
 
-            # Create response using appropriate constructor based on MCP availability
-            if _MCP_TYPES_AVAILABLE:
-                return CallToolResult(
-                    content=[TextContent(type="text", text=result)],
-                    isError=False,
-                )
-            else:
-                return CallToolResult(
-                    content=[TextContent(type="text", text=result)],
-                    isError=False,
-                )
+            return CallToolResult(
+                content=[TextContent(type="text", text=result)],  # type: ignore[list-item]
+                isError=False,
+            )
 
         except Exception as e:
-            # Create response using appropriate constructor based on MCP availability
-            if _MCP_TYPES_AVAILABLE:
-                return CallToolResult(
-                    content=[TextContent(type="text", text=f"Error: {str(e)}")],
-                    isError=True,
-                )
-            else:
-                return CallToolResult(
-                    content=[TextContent(type="text", text=f"Error: {str(e)}")],
-                    isError=True,
-                )
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Error: {str(e)}")],  # type: ignore[list-item]
+                isError=True,
+            )
 
     async def _call_gemini(self, arguments: dict[str, Any]) -> str:
         """Call Gemini provider (placeholder implementation).

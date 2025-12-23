@@ -435,8 +435,8 @@ class MemoryBackend(CacheBackend):
 
             except asyncio.CancelledError:
                 break
-            except Exception:
-                # Continue cleanup on errors
+            except Exception:  # nosec B112
+                # Continue cleanup on errors - intentional for background task resilience
                 continue
 
     def close(self) -> None:
@@ -614,11 +614,11 @@ class FileBackend(CacheBackend):
                         data = json.load(f)
                     if data.get("expires_at") and current_time > data["expires_at"]:
                         file_path.unlink(missing_ok=True)
-                except Exception:
-                    # Skip files that cant be read
+                except Exception:  # nosec B112
+                    # Skip files that cant be read - intentional for cleanup resilience
                     continue
-        except Exception:
-            # Continue on errors
+        except Exception:  # nosec B110
+            # Continue on errors - intentional for cleanup resilience
             pass
 
     def close(self) -> None:

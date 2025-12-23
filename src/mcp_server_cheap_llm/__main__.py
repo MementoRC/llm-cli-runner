@@ -45,9 +45,8 @@ def create_server(config_path: str | None = None, debug: bool = False) -> Any:
         >>> # Server ready for stdio_server()
 
     """
-    # Convert debug boolean to log level string
-    log_level = "DEBUG" if debug else "INFO"
-    setup_logging(level=log_level)
+    # Configure logging with debug flag
+    setup_logging(debug=debug)
     logger = structlog.get_logger(__name__)
 
     try:
