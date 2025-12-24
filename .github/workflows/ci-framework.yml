@@ -1,188 +1,40 @@
 name: CI Framework
 
-# Enhanced CI/CD using Claire-s-Monster ci-framework
-# Provides intelligent optimization, performance monitoring, and enterprise security
+# CI/CD using Claire-s-Monster/ci-framework reusable workflow
+# Provides change detection, quality gates, cross-platform testing,
+# security scanning, performance benchmarks, and release automation
 
 on:
   push:
     branches: [main, master, development]
   pull_request:
     branches: [main, master, development]
-  schedule:
-    - cron: '0 2 * * *'  # Daily maintenance at 2 AM UTC
   workflow_dispatch:
     inputs:
-      force_full_ci:
-        description: 'Force full CI (skip change detection optimization)'
+      enable-performance:
+        description: 'Enable performance benchmarks'
         required: false
-        default: 'false'
+        default: true
         type: boolean
 
-# Required permissions for CI Framework automation
 permissions:
-  contents: write        # Allow commits and branches
-  pull-requests: write   # Allow PR creation/management
-  issues: write         # Required for PR creation
-  security-events: write # For SARIF uploads
-  actions: read         # For workflow status
-
-env:
-  PYTHONNOUSERSITE: 1
-  PYTHONDONTWRITEBYTECODE: 1
-  PIXI_VERSION: v0.49.0
+  contents: write
+  pull-requests: write
+  issues: write
+  security-events: write
+  actions: read
+  id-token: write
 
 jobs:
-  # Step 1: Intelligent CI optimization - determines what needs to run
-  change-detection:
-    uses: Claire-s-Monster/ci-framework/.github/workflows/change-detection.yml@v1.0.0
+  ci:
+    name: "CI Pipeline"
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.1.0
     with:
-      detection-level: 'standard'  # quick/standard/comprehensive
-      enable-test-optimization: true
-      enable-job-skipping: true
-      monorepo-mode: false
-      force-full-ci: ${{ github.event.inputs.force_full_ci == 'true' }}
+      pixi-environment: 'quality'
+      python-versions: '["3.12"]'
+      os-matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+      enable-performance: ${{ github.event.inputs.enable-performance == 'true' || github.event_name != 'workflow_dispatch' }}
+      enable-release: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+      allowed-licenses: 'MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, PSF-2.0, ISC, LGPL-3.0'
+      package-path: '.'
     secrets: inherit
-
-  # Step 2: Zero-tolerance quality gates (essential tier)
-  quality-gates:
-    needs: change-detection
-    if: needs.change-detection.outputs.skip-tests != 'true'
-    uses: Claire-s-Monster/ci-framework/.github/workflows/quality-gates.yml@v1.0.0
-    with:
-      tier: 'essential'  # essential/comprehensive/extended
-      environment: 'quality'
-      fail-fast: true
-      parallel: true
-      # Custom quality commands for cheap-llm
-      test-command: 'pixi run -e quality test-fast'
-      lint-command: 'pixi run -e quality lint'
-      typecheck-command: 'pixi run -e quality typecheck'
-      format-command: 'pixi run -e quality format-check'
-    secrets: inherit
-
-  # Step 3: Performance monitoring and regression detection
-  performance-monitoring:
-    needs: [change-detection, quality-gates]
-    if: needs.change-detection.outputs.skip-performance != 'true'
-    uses: Claire-s-Monster/ci-framework/.github/workflows/performance-benchmark.yml@v1.0.0
-    with:
-      suite: 'quick'  # quick/full/load
-      regression-threshold: '15.0'  # 15% performance regression threshold
-      baseline-branch: 'main'
-      fail-on-regression: false  # Warning only for now
-      parallel: true
-      # Custom benchmark command for cheap-llm
-      benchmark-command: 'pixi run -e quality-extended test-benchmark'
-    secrets: inherit
-
-  # Step 4: Enhanced multi-layer security scanning
-  security-comprehensive:
-    needs: [change-detection, quality-gates]
-    if: needs.change-detection.outputs.skip-security != 'true'
-    uses: Claire-s-Monster/ci-framework/.github/workflows/security-scan.yml@v1.0.0
-    with:
-      security-level: 'high'  # low/medium/high/critical
-      parallel: true
-      enable-bandit: true
-      enable-safety: true
-      # enable-semgrep: false  # Disabled due to Python 3.13 compatibility
-      enable-trivy: true
-      sarif-upload: true
-      sbom-generation: true
-      # Custom security commands for cheap-llm
-      security-command: 'pixi run -e quality-extended static-analysis'
-    secrets: inherit
-
-  # Step 5: Cross-platform validation (enhanced native approach)
-  cross-platform:
-    needs: [change-detection, quality-gates]
-    if: needs.change-detection.outputs.skip-tests != 'true'
-    uses: Claire-s-Monster/ci-framework/.github/workflows/cross-platform-validation.yml@v1.0.0
-    with:
-      platforms: '["ubuntu-latest", "windows-latest", "macos-latest"]'
-      environments: '["quality", "quality-extended"]'
-      unlocked-mode: true  # 10x faster than Docker-based approach
-      platform-specific-pyproject: true  # Dynamic platform modification
-      timeout-minutes: 30
-    secrets: inherit
-
-  # Step 6: Build validation
-  build-validation:
-    needs: [change-detection, quality-gates]
-    if: needs.change-detection.outputs.skip-tests != 'true'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup pixi
-      uses: prefix-dev/setup-pixi@v0.8.11
-      with:
-        pixi-version: ${{ env.PIXI_VERSION }}
-        cache: true
-        cache-key: ci-framework-build-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
-        manifest-path: pyproject.toml
-
-    - name: Install dependencies and build
-      run: |
-        pixi install -e quality-extended
-        pixi run -e quality-extended build
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: dist/
-        retention-days: 7
-
-  # Step 7: Repository cleanup (enhanced enterprise approach)
-  cleanup:
-    uses: Claire-s-Monster/ci-framework/.github/workflows/cleanup-dev-files.yml@v1.0.0
-    with:
-      cleanup_patterns: >
-        ["CLAUDE.md", ".claude/**", ".taskmaster/**", ".mcp.json",
-         ".cursor/**", ".aider*", "*.tmp", "*.dev", ".DS_Store",
-         "**/__pycache__", "*.pyc", "*.pyo", ".pytest_cache",
-         ".ruff_cache", "htmlcov"]
-      target_branches: '["main", "master", "development"]'
-      schedule_cron: '0 2 * * *'
-      gpg_signing: false  # Requires organization CI bot setup
-    secrets: inherit
-
-  # Step 8: AI-powered insights (optional - requires GEMINI_API_KEY)
-  ai-insights:
-    needs: [change-detection, quality-gates, performance-monitoring, security-comprehensive, cross-platform, build-validation]
-    if: always() && github.event_name == 'pull_request' && vars.ENABLE_AI_ANALYSIS == 'true'
-    runs-on: ubuntu-latest
-    steps:
-    - name: Trigger AI Analysis
-      run: |
-        echo "🤖 AI Analysis would be triggered here"
-        echo "Note: Requires GEMINI_API_KEY secret and ENABLE_AI_ANALYSIS variable"
-        echo "Gemini AI analysis will run in parallel via gemini-ai-analysis.yml workflow"
-
-  # Step 9: CI Summary and optimization reporting
-  ci-summary:
-    needs: [change-detection, quality-gates, performance-monitoring, security-comprehensive, cross-platform, build-validation, ai-insights]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-    - name: Generate CI Summary
-      run: |
-        echo "## 🚀 CI Framework Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Component | Status | Time Saved |" >> $GITHUB_STEP_SUMMARY
-        echo "|-----------|--------|------------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Change Detection | ${{ needs.change-detection.result }} | ${{ needs.change-detection.outputs.time-saved || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Quality Gates | ${{ needs.quality-gates.result }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "| Performance | ${{ needs.performance-monitoring.result }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "| Security | ${{ needs.security-comprehensive.result }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "| Cross-Platform | ${{ needs.cross-platform.result }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "| Build | ${{ needs.build-validation.result }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "| AI Insights | ${{ needs.ai-insights.result || 'skipped' }} | - |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Optimization Impact" >> $GITHUB_STEP_SUMMARY
-        echo "- **Total optimization score**: ${{ needs.change-detection.outputs.optimization-score || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Skipped tests**: ${{ needs.change-detection.outputs.skip-tests == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Skipped security**: ${{ needs.change-detection.outputs.skip-security == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Change patterns**: ${{ needs.change-detection.outputs.change-patterns || 'source,tests,config' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **AI Analysis**: ${{ vars.ENABLE_AI_ANALYSIS == 'true' && 'Enabled' || 'Disabled (set ENABLE_AI_ANALYSIS variable)' }}" >> $GITHUB_STEP_SUMMARY
