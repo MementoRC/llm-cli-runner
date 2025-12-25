@@ -162,6 +162,9 @@ dev = {features = ["quality", "quality-extended", "quality-ci", "dev-specialized
 # CI environment (quality + CI reporting)
 ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 
+# CI environment alias for ci-framework compatibility
+quality-ci = {features = ["quality", "quality-ci"], solve-group = "default"}
+
 # Minimal CI environment (for GitHub Actions compatibility)
 ci-minimal = {features = ["ci-minimal"], solve-group = "default"}
 
