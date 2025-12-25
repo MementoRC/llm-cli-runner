@@ -124,6 +124,9 @@ pip-audit = ">=2.6.0"
 # CI Reporting
 coverage = ">=7.0.0"
 
+# Build tools
+python-build = ">=1.0.0"
+
 # CI minimal feature for GitHub Actions compatibility
 [tool.pixi.feature.ci-minimal.dependencies]
 # Minimal testing (with required pytest plugins)
