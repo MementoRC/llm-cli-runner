@@ -24,7 +24,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
@@ -307,11 +307,11 @@ class AsyncConnectionPool[T]:
         # Call factory (may be async or sync)
         result = self._connection_factory()
         if asyncio.iscoroutine(result):
-            connection = await result
+            connection = cast(T, await result)
         else:
-            connection = result
+            connection = cast(T, result)
 
-        pooled_conn = PooledConnection(
+        pooled_conn: PooledConnection[T] = PooledConnection(
             connection=connection,
             pool_id=pool_id,
         )
