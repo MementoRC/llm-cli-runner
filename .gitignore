@@ -47,6 +47,8 @@ dist/
 # Test and coverage artifacts
 .pytest_cache/
 .coverage
+coverage.xml
+coverage.json
 htmlcov/
 
 # Ruff cache
@@ -88,3 +90,9 @@ models/
 .claude_backup/
 .claude/
 .serena/
+
+# Temporary documentation and reports
+GEMINI.md
+PHASE3.md
+*-report.md
+*.backup
