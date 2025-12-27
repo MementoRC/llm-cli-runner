@@ -56,11 +56,11 @@ jobs:
       - name: Run quality checks - Lint (Critical)
         run: |
           # ZERO-TOLERANCE: F,E9 violations fail the build
-          ruff check src/ tests/ --select=F,E9
+          pixi run -e quality ruff check src/ tests/ --select=F,E9
 
       - name: Run quality checks - Format
         run: |
-          ruff format --check src/ tests/
+          pixi run -e quality ruff format --check src/ tests/
 
       - name: Verify installation
         run: |
@@ -71,7 +71,7 @@ jobs:
 
       - name: Run test coverage
         run: |
-          pytest tests/unit/ --cov=src/mcp_server_cheap_llm --cov-report=xml --cov-report=term
+          pixi run -e quality pytest tests/unit/ --cov=src/mcp_server_cheap_llm --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
