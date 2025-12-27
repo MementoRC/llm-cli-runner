@@ -2,6 +2,7 @@
 
 import asyncio
 import gc
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -138,6 +139,10 @@ class TestGCOptimizer:
         assert "generation_1" in stats["counts"]
         assert "generation_2" in stats["counts"]
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 14),
+        reason="Python 3.14+ changed GC threshold behavior (gen1/gen2 may be ignored)",
+    )
     def test_configure_thresholds(self):
         """Test configuring GC thresholds."""
         optimizer = GCOptimizer()
