@@ -29,7 +29,8 @@ permissions:
 jobs:
   ci:
     name: "CI Pipeline"
-    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.1.0
+    # TEMPORARY: Using development branch until MementoRC/ci-framework is set up
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@development
     with:
       pixi-environment: 'quality'
       python-versions: '["3.12"]'
