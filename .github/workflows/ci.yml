@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pixi install -e quality
 
+      - name: Install package in editable mode
+        run: pixi run -e quality install-editable
+
       - name: Run quality checks - Lint (Critical)
         run: |
           # ZERO-TOLERANCE: F,E9 violations fail the build
