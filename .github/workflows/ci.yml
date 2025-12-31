@@ -85,7 +85,9 @@ jobs:
           fail_ci_if_error: false
 
   # Docker-based cross-platform testing
+  # DISABLED: Docker images (llm-cli-test-*) not yet built - see platform-validation.yml for cross-platform testing
   cross-platform-test:
+    if: false  # Disabled until Docker images are set up
     runs-on: ubuntu-latest
     needs: [quality-gates]
     strategy:
