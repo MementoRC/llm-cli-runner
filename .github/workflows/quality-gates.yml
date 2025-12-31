@@ -1,7 +1,8 @@
 name: Quality Gates
 
-# Enhanced quality gates aligned with CI Framework standards
-# Maintains zero-tolerance approach while adding CI Framework compatibility
+# Zero-tolerance quality gates for PR validation
+# Provides fast feedback on critical quality issues before ci-framework runs
+# Complements ci-framework with repo hygiene and format checks
 
 on:
   pull_request:
@@ -37,7 +38,7 @@ jobs:
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true
-        cache-key: quality-gates-${{ inputs.tier || 'essential' }}-${{ runner.os }}-${{ github.run_id }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
+        cache-key: quality-gates-${{ inputs.tier || 'essential' }}-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'pixi.lock') }}
         manifest-path: pyproject.toml
 
     - name: Install dependencies (Essential Tier)
@@ -48,41 +49,49 @@ jobs:
       if: inputs.tier == 'comprehensive' || inputs.tier == 'extended'
       run: pixi install -e quality-extended
 
+    - name: Install package in editable mode
+      run: pixi run -e quality install-editable
+
     - name: 🚨 CRITICAL - F,E9 Violations Check
       run: |
         echo "🚨 ZERO-TOLERANCE: Checking for F,E9 violations..."
-        pixi run -e quality lint
-        if [ $? -ne 0 ]; then
-          echo "❌ CRITICAL FAILURE: F,E9 violations detected!"
-          echo "Fix all import and syntax errors before proceeding."
-          exit 1
-        fi
+        pixi run -e quality ruff check src/ tests/ --select=F,E9
         echo "✅ No F,E9 violations found"
 
-    - name: 📋 Test Coverage Check
+    - name: 🎨 Format Check
       run: |
-        echo "📋 Running test coverage analysis..."
+        echo "🎨 Checking code formatting..."
+        pixi run -e quality ruff format --check src/ tests/
+        echo "✅ Code formatting OK"
+
+    - name: 📦 Verify Package Import
+      run: |
+        echo "📦 Verifying package installation..."
+        pixi run -e quality python -c 'import mcp_server_cheap_llm; print("✅ Package import successful")'
+
+    - name: 🧪 Run Tests
+      run: |
+        echo "🧪 Running test suite..."
         pixi run -e quality test-cov
-        if [ $? -ne 0 ]; then
-          echo "⚠️ WARNING: Test coverage issues"
-          echo "Check test results and improve coverage."
-        fi
 
     - name: 🔍 Repository Hygiene Check
       run: |
         echo "🔍 Checking repository hygiene..."
 
-        # Check for __pycache__ directories (excluding .pixi/)
-        if find . -type d -name "__pycache__" -not -path "./.pixi/*" | grep -q .; then
-          echo "❌ ERROR: __pycache__ directories found!"
-          echo "These should not be committed. Add to .gitignore."
+        # Configure git
+        git config --global --add safe.directory $PWD || true
+
+        # Check for __pycache__ tracked in git
+        if git ls-files 2>/dev/null | grep -q "__pycache__"; then
+          echo "❌ ERROR: __pycache__ directories tracked in git!"
+          git ls-files | grep "__pycache__"
           exit 1
         fi
 
-        # Check for .pyc files (excluding .pixi/)
-        if find . -name "*.pyc" -not -path "./.pixi/*" | grep -q .; then
-          echo "❌ ERROR: .pyc files found!"
-          echo "These should not be committed. Add to .gitignore."
+        # Check for .pyc files tracked in git
+        if git ls-files 2>/dev/null | grep -q "\.pyc$"; then
+          echo "❌ ERROR: .pyc files tracked in git!"
+          git ls-files | grep "\.pyc$"
           exit 1
         fi
 
@@ -92,6 +101,13 @@ jobs:
           exit 1
         fi
 
+        # Check for common files that shouldn't be committed
+        for pattern in ".env" "*.log" ".DS_Store" "Thumbs.db"; do
+          if git ls-files 2>/dev/null | grep -q "$pattern"; then
+            echo "⚠️ WARNING: $pattern files tracked in git"
+          fi
+        done
+
         echo "✅ Repository hygiene check passed"
 
     - name: 📊 Quality Summary
@@ -99,14 +115,13 @@ jobs:
       run: |
         echo "📊 Quality Gate Summary - ${{ inputs.tier || 'essential' }} tier"
         echo "============================================"
-        echo "✅ Critical lint checks (F,E9): PASSED"
-        echo "📋 Test coverage: See above"
-        echo "🔍 Repository hygiene: See above"
+        echo "🚨 Critical lint (F,E9): See above"
+        echo "🎨 Format check: See above"
+        echo "📦 Package import: See above"
+        echo "🧪 Test suite: See above"
+        echo "🔍 Repo hygiene: See above"
         echo ""
-        echo "🎯 CI Framework Tier: ${{ inputs.tier || 'essential' }}"
         echo "🛡️ Zero-Tolerance Policy: ENFORCED"
-        echo ""
-        echo "Remember: ZERO-TOLERANCE for F,E9 violations!"
 
     # CI Framework compatibility outputs
     outputs:
