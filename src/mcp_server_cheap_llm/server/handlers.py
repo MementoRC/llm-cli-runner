@@ -137,7 +137,15 @@ class MCPProtocolHandler:
             validated_data = self._validate_jsonrpc(data)
 
             # Route message based on method
-            response = await self._route_message(validated_data)
+            result = await self._route_message(validated_data)
+
+            # Wrap result in JSON-RPC 2.0 response format
+            request_id = validated_data.get("id")
+            response = {
+                "jsonrpc": "2.0",
+                "result": result,
+                "id": request_id,
+            }
 
             # Format response
             response_str = json.dumps(response)
@@ -161,9 +169,18 @@ class MCPProtocolHandler:
             if data is not None and isinstance(data, dict):
                 request_id = data.get("id")
 
+            # Use appropriate error code based on error type
+            error_message = str(e)
+            if "Method not found" in error_message:
+                error_code = -32601
+                error_msg = f"Method not found: {error_message}"
+            else:
+                error_code = -32600
+                error_msg = f"Invalid Request: {error_message}"
+
             error_response = {
                 "jsonrpc": "2.0",
-                "error": {"code": -32600, "message": f"Invalid Request: {str(e)}"},
+                "error": {"code": error_code, "message": error_msg},
                 "id": request_id,
             }
             return json.dumps(error_response)
