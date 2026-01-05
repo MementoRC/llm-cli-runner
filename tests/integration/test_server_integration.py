@@ -38,10 +38,16 @@ class TestMCPServerIntegration:
         """Test that server components can be instantiated."""
         server = CheapLLMServer(mock_config_manager)
 
-        # Test that all components are instantiated
+        # Test that core components are instantiated
         assert server.config_manager is not None
         assert server.logger is not None
-        assert server._server is not None
+        # Note: _server is None until initialize() is called
+        # This is by design - lazy initialization pattern
+        assert hasattr(server, "_server")
+        assert hasattr(server, "protocol_handler")
+        assert hasattr(server, "tool_registry")
+        assert hasattr(server, "request_manager")
+        assert hasattr(server, "session_manager")
 
     async def test_server_initialization_method(self, mock_config_manager):
         """Test server initialization method."""

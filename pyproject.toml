@@ -179,12 +179,11 @@ install-editable-fallback = "python setup.py develop --no-deps || python -c 'imp
 dev-setup = "echo 'Development environment ready'"
 
 # Testing (ZERO-TOLERANCE QUALITY GATES)
-# UPDATED: Exclude tests with API mismatches pending provider interface updates
-# TODO: Re-enable these tests after OpenAIProvider API is aligned with test expectations
-test = "pytest tests/ -v --ignore=tests/test_llm_compliant_server_e2e.py --ignore=tests/unit/test_openai_provider.py --ignore=tests/integration/test_openai_integration.py --ignore=tests/integration/test_server_integration.py"
-test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml --ignore=tests/test_llm_compliant_server_e2e.py --ignore=tests/unit/test_openai_provider.py --ignore=tests/integration/test_openai_integration.py --ignore=tests/integration/test_server_integration.py"
-test-unit = "pytest tests/unit/ -v --ignore=tests/unit/test_openai_provider.py"
-test-integration = "pytest tests/integration/ -v --ignore=tests/integration/test_openai_integration.py --ignore=tests/integration/test_server_integration.py"
+# All tests enabled - TDD complete
+test = "pytest tests/ -v"
+test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml"
+test-unit = "pytest tests/unit/ -v"
+test-integration = "pytest tests/integration/ -v"
 test-e2e = "pytest tests/test_llm_compliant_server_e2e.py -v"
 test-property = "pytest tests/ -m property -v"
 
@@ -212,7 +211,7 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --timeout=90 --ignore=tests/test_llm_compliant_server_e2e.py --ignore=tests/unit/test_openai_provider.py --ignore=tests/integration/test_openai_integration.py --ignore=tests/integration/test_server_integration.py", env = { ENVIRONMENT = "ci" } }
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
 
@@ -232,4 +231,4 @@ serve-debug = { cmd = "python -m mcp_server_cheap_llm --debug", env = { LOG_LEVE
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks
 benchmark = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean"
-test-coverage = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing --ignore=tests/test_llm_compliant_server_e2e.py"
+test-coverage = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing"

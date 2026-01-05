@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
@@ -15,6 +16,7 @@ from mcp_server_cheap_llm.core.models import (
     ProviderConfig,
     ProviderType,
     QuotaStatusInfo,
+    UsageStats,
 )
 from mcp_server_cheap_llm.utils.logging import get_logger
 
@@ -38,6 +40,7 @@ class OpenAIProvider:
         self.provider_type = ProviderType.OPENAI
         self.client: AsyncOpenAI | None = None
         self._initialized = False
+        self._usage_stats = UsageStats(provider_name=config.name)
 
         # Extract API key from config
         self.api_key = config.api_key
@@ -65,6 +68,7 @@ class OpenAIProvider:
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI provider '{self.name}': {e}")
             self._initialized = False
+            raise  # Re-raise the exception for the caller to handle
 
     async def close(self) -> None:
         """Close the OpenAI client."""
@@ -97,7 +101,7 @@ class OpenAIProvider:
 
     async def generate(
         self,
-        request: LLMRequest | None = None,
+        prompt_or_request: str | LLMRequest | None = None,
         *,
         prompt: str | None = None,
         model: str | None = None,
@@ -109,8 +113,8 @@ class OpenAIProvider:
         """Generate text using OpenAI.
 
         Args:
-            request: Optional LLMRequest object
-            prompt: Text prompt (if request not provided)
+            prompt_or_request: Either a string prompt or LLMRequest object
+            prompt: Text prompt (if prompt_or_request not provided)
             model: Model name override
             max_tokens: Maximum tokens to generate
             temperature: Temperature for randomness
@@ -120,9 +124,14 @@ class OpenAIProvider:
         Returns:
             LLMResponse with generated text or error
         """
-        if request is None:
-            # Only pass non-None values to avoid overriding Pydantic defaults
-            request_kwargs: dict[str, Any] = {"prompt": prompt or ""}
+        # Handle different input types for the first argument
+        request: LLMRequest
+        if isinstance(prompt_or_request, LLMRequest):
+            request = prompt_or_request
+        elif isinstance(prompt_or_request, str):
+            # First argument is a string prompt
+            actual_prompt = prompt_or_request
+            request_kwargs: dict[str, Any] = {"prompt": actual_prompt}
             if model is not None:
                 request_kwargs["model"] = model
             if max_tokens is not None:
@@ -133,12 +142,24 @@ class OpenAIProvider:
                 request_kwargs["system_prompt"] = system_prompt
             request_kwargs.update(kwargs)
             request = LLMRequest(**request_kwargs)
-
-        # Security fix: Replace assert with proper validation
-        if not isinstance(request, LLMRequest):
+        elif prompt_or_request is None:
+            # Build request from keyword arguments
+            request_kwargs = {"prompt": prompt or ""}
+            if model is not None:
+                request_kwargs["model"] = model
+            if max_tokens is not None:
+                request_kwargs["max_tokens"] = max_tokens
+            if temperature is not None:
+                request_kwargs["temperature"] = temperature
+            if system_prompt is not None:
+                request_kwargs["system_prompt"] = system_prompt
+            request_kwargs.update(kwargs)
+            request = LLMRequest(**request_kwargs)
+        else:
+            # Invalid type
             raise ValidationError(
-                "Invalid request type: expected LLMRequest",
-                details={"received_type": type(request).__name__},
+                "Invalid request type: expected str, LLMRequest, or None",
+                context={"received_type": type(prompt_or_request).__name__},
             )
 
         if not self._initialized:
@@ -263,7 +284,7 @@ class OpenAIProvider:
         if not isinstance(request, LLMRequest):
             raise ValidationError(
                 "Invalid request type: expected LLMRequest",
-                details={"received_type": type(request).__name__},
+                context={"received_type": type(request).__name__},
             )
 
         model = request.model or (
@@ -322,26 +343,41 @@ class OpenAIProvider:
             reset_time=None,
         )
 
-    async def health_check(self) -> bool:
+    async def health_check(self) -> dict[str, Any]:
         """Check provider health.
 
         Returns:
-            True if provider is healthy, False otherwise
+            Dictionary with health status information
         """
         if not self._initialized:
             await self.initialize()
 
+        result = {
+            "provider": self.name,
+            "available": False,
+            "test_generation": False,
+        }
+
         if not self.client:
-            return False
+            return result
 
         try:
             # Try to list models as a health check
             await self.client.models.list()
-            return True
+            result["available"] = True
+
+            # Try a simple generation to verify full functionality
+            try:
+                test_response = await self.generate("test", max_tokens=5)
+                result["test_generation"] = test_response.success
+            except Exception:
+                result["test_generation"] = False
+
+            return result
 
         except Exception as e:
             logger.warning(f"OpenAI provider '{self.name}' health check failed: {e}")
-            return False
+            return result
 
     def get_provider_info(self) -> dict[str, Any]:
         """Get provider information.
@@ -355,7 +391,148 @@ class OpenAIProvider:
             "initialized": self._initialized,
             "models": self.config.models,
             "max_tokens": self.config.max_tokens,
-            "supports_streaming": False,  # OpenAI streaming not yet implemented
+            "supports_streaming": True,
             "supports_system_prompt": True,
             "supports_temperature": True,
         }
+
+    async def generate_stream(
+        self,
+        prompt: str,
+        model: str | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Generate text using OpenAI with streaming.
+
+        Args:
+            prompt: Text prompt
+            model: Model name override
+            **kwargs: Additional parameters
+
+        Yields:
+            Dictionary chunks with content and is_final flag
+        """
+        if not self._initialized:
+            await self.initialize()
+
+        if not self.client:
+            yield {"content": "", "is_final": True, "error": "Provider not initialized"}
+            return
+
+        try:
+            model_name = model or (
+                self.config.models[0] if self.config.models else "gpt-3.5-turbo"
+            )
+            max_tokens = kwargs.get("max_tokens", self.config.max_tokens)
+            temperature = kwargs.get("temperature", 0.7)
+            system_prompt = kwargs.get("system_prompt")
+
+            messages = self._convert_to_openai_messages(prompt, system_prompt)
+
+            stream = await self.client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=True,
+            )
+
+            total_content = ""
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    total_content += content
+                    yield {"content": content, "is_final": False}
+
+            yield {"is_final": True, "total_content": total_content}
+
+        except Exception as e:
+            logger.error(f"OpenAI streaming error: {e}")
+            yield {"content": "", "is_final": True, "error": str(e)}
+
+    def get_available_models(self) -> list[str]:
+        """Get list of available models from config.
+
+        Returns:
+            List of model names configured for this provider
+        """
+        return self.config.models
+
+    async def get_model_info(self, model: str) -> dict[str, Any]:
+        """Get information about a specific model.
+
+        Args:
+            model: Model name to get info for
+
+        Returns:
+            Dictionary with model information
+        """
+        # Check if model is known/available
+        # OpenAI models starting with gpt- are generally available
+        is_available = model.startswith("gpt-") or model in self.config.models
+
+        if is_available:
+            return {
+                "available": True,
+                "model": model,
+                "provider": self.name,
+                "max_tokens": self.config.max_tokens,
+            }
+        else:
+            return {
+                "available": False,
+                "model": model,
+                "provider": self.name,
+                "error": f"Model '{model}' is not recognized",
+            }
+
+    async def estimate_cost(
+        self,
+        prompt: str,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> CostEstimate:
+        """Estimate cost for a prompt.
+
+        Args:
+            prompt: Text prompt
+            model: Model name override
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Cost estimate information
+        """
+        return await self.get_cost_estimate(
+            prompt=prompt,
+            model=model,
+            max_tokens=max_tokens,
+        )
+
+    async def get_usage(self) -> UsageStats:
+        """Get usage statistics for this provider.
+
+        Returns:
+            Usage statistics
+        """
+        return self._usage_stats
+
+    async def cleanup(self) -> None:
+        """Clean up provider resources.
+
+        Closes the client and resets initialization state.
+        """
+        await self.close()
+        self.client = None
+        self._initialized = False
+
+    def validate_config(self, config: ProviderConfig) -> bool:
+        """Validate provider configuration.
+
+        Args:
+            config: Configuration to validate
+
+        Returns:
+            True if configuration is valid
+        """
+        # Basic validation - config is valid if it has required fields
+        return bool(config.name)
