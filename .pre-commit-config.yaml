@@ -80,6 +80,6 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: pixi run -e quality pytest tests/unit/ -x --tb=short --ignore=tests/unit/test_openai_provider.py --ignore=tests/unit/test_gemini_provider.py --ignore=tests/unit/test_llama_provider.py --ignore=tests/unit/test_config_minimal.py
+        entry: pixi run -e quality pytest tests/unit/ -x --tb=short
         language: system
         pass_filenames: false
