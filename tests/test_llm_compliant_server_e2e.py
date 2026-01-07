@@ -21,7 +21,7 @@ from typing import Any, Optional
 
 import pytest
 
-from .conftest import _run_git_isolated
+from .conftest import _run_git_isolated, requires_git
 
 
 class LLMComplianceTestClient:
@@ -244,6 +244,7 @@ async def test_llm_compliant_server_tools_list(llm_compliant_server):
 
 
 @pytest.mark.asyncio
+@requires_git
 async def test_git_status_method_found(llm_compliant_server):
     """Test that git_status method works (was previously 'Method not found')"""
     client = llm_compliant_server
@@ -287,12 +288,13 @@ async def test_git_status_method_found(llm_compliant_server):
             if isinstance(result["content"], list)
             else result["content"]
         )
-        assert "test.txt" in str(content), (
-            f"Expected 'test.txt' in git status output: {content}"
-        )
+        assert "test.txt" in str(
+            content
+        ), f"Expected 'test.txt' in git status output: {content}"
 
 
 @pytest.mark.asyncio
+@requires_git
 async def test_llm_compliant_architecture_validation(llm_compliant_server):
     """Validate that we're using the LLM-compliant architecture, not monolithic server"""
     client = llm_compliant_server
@@ -331,6 +333,7 @@ async def test_llm_compliant_architecture_validation(llm_compliant_server):
 
 
 @pytest.mark.asyncio
+@requires_git
 async def test_server_component_health(llm_compliant_server):
     """Test that the LLM-compliant server components are healthy"""
     client = llm_compliant_server
