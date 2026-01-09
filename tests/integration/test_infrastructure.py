@@ -18,10 +18,10 @@ class TestInfrastructureIntegration:
     def test_package_structure_exists(self, project_root: Path):
         """Verify all required package directories exist."""
         required_dirs = [
-            "src/mcp_server_cheap_llm",
-            "src/mcp_server_cheap_llm/core",
-            "src/mcp_server_cheap_llm/server",
-            "src/mcp_server_cheap_llm/utils",
+            "src/mcp_server_llm_cli_runner",
+            "src/mcp_server_llm_cli_runner/core",
+            "src/mcp_server_llm_cli_runner/server",
+            "src/mcp_server_llm_cli_runner/utils",
             "tests",
             "tests/unit",
             "tests/integration",
@@ -30,9 +30,9 @@ class TestInfrastructureIntegration:
 
         for dir_path in required_dirs:
             assert (project_root / dir_path).exists(), f"Missing directory: {dir_path}"
-            assert (project_root / dir_path / "__init__.py").exists(), (
-                f"Missing __init__.py in {dir_path}"
-            )
+            assert (
+                project_root / dir_path / "__init__.py"
+            ).exists(), f"Missing __init__.py in {dir_path}"
 
     def test_configuration_files_exist(self, project_root: Path):
         """Verify all configuration files are present."""
@@ -68,12 +68,12 @@ class TestInfrastructureIntegration:
     def test_package_imports(self):
         """Verify package modules can be imported."""
         imports = [
-            "mcp_server_cheap_llm",
-            "mcp_server_cheap_llm.core.models",
-            "mcp_server_cheap_llm.server.handlers",
-            "mcp_server_cheap_llm.utils.config",
-            "mcp_server_cheap_llm.utils.errors",
-            "mcp_server_cheap_llm.utils.logging",
+            "mcp_server_llm_cli_runner",
+            "mcp_server_llm_cli_runner.core.models",
+            "mcp_server_llm_cli_runner.server.handlers",
+            "mcp_server_llm_cli_runner.utils.config",
+            "mcp_server_llm_cli_runner.utils.errors",
+            "mcp_server_llm_cli_runner.utils.logging",
         ]
 
         for module in imports:
@@ -92,9 +92,9 @@ class TestInfrastructureIntegration:
 
         for tool_cmd in tools:
             result = subprocess.run(tool_cmd, capture_output=True, text=True)
-            assert result.returncode == 0, (
-                f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
-            )
+            assert (
+                result.returncode == 0
+            ), f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
 
         # Test pre-commit availability directly without nested subprocess calls
         pre_commit_test = subprocess.run(
@@ -102,9 +102,9 @@ class TestInfrastructureIntegration:
             capture_output=True,
             text=True,
         )
-        assert pre_commit_test.returncode == 0, (
-            f"Failed to verify pre-commit availability: {pre_commit_test.stderr}"
-        )
+        assert (
+            pre_commit_test.returncode == 0
+        ), f"Failed to verify pre-commit availability: {pre_commit_test.stderr}"
 
     def test_quality_commands_work(self):
         """Verify all quality check commands execute successfully."""

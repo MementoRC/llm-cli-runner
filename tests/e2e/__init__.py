@@ -1,1 +1,1 @@
-"""End-to-end tests for MCP Server Cheap LLM."""
+"""End-to-end tests for MCP Server LLM CLI Runner."""

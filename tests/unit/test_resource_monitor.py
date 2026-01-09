@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.resource_monitor import (
+from mcp_server_llm_cli_runner.utils.resource_monitor import (
     AlertType,
     GCOptimizer,
     ResourceAlert,

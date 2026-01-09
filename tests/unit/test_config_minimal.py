@@ -6,8 +6,8 @@ from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.errors import ConfigurationError
-from src.mcp_server_cheap_llm.core.models import ProviderType
+from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
+from src.mcp_server_llm_cli_runner.core.models import ProviderType
 
 # from tests.test_helpers import ConfigBuilder  # TODO: Create test helpers
 
@@ -17,13 +17,13 @@ class TestConfigManagerTDD:
 
     def test_config_manager_import(self):
         """Test that we can import ConfigManager."""
-        from mcp_server_cheap_llm.utils.config import ConfigManager
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
         assert ConfigManager is not None
 
     def test_config_manager_load_config_method_exists(self):
         """Test ConfigManager has load_config class method."""
-        from mcp_server_cheap_llm.utils.config import ConfigManager
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
         # Skip this test since load_config method doesn't exist
         pytest.skip("ConfigManager.load_config method not implemented")
@@ -35,7 +35,7 @@ class TestConfigManagerTDD:
 
     def test_config_manager_validation(self):
         """Test ConfigManager validation works with real config data."""
-        from mcp_server_cheap_llm.utils.config import ConfigManager
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
         # Test validation with valid config data
         valid_config_data = {
@@ -86,7 +86,7 @@ class TestConfigManagerTDD:
 
     def test_default_config_structure(self):
         """Test default config has expected structure."""
-        from mcp_server_cheap_llm.utils.config import ConfigManager
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
         # Skip test since get_default_config method doesn't exist
         pytest.skip("ConfigManager.get_default_config method not implemented")
@@ -133,13 +133,13 @@ class TestEnvironmentLoaderTDD:
 
     def test_environment_loader_import(self):
         """Test that we can import EnvironmentLoader."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         assert EnvironmentLoader is not None
 
     def test_get_api_key_method_exists(self):
         """Test get_api_key method exists and is static."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         assert hasattr(EnvironmentLoader, "get_api_key")
         assert callable(EnvironmentLoader.get_api_key)
@@ -147,7 +147,7 @@ class TestEnvironmentLoaderTDD:
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key-123"})
     def test_get_api_key_finds_key(self):
         """Test get_api_key finds API key from environment."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         key = EnvironmentLoader.get_api_key("gemini")
         assert key == "test-key-123"
@@ -155,21 +155,21 @@ class TestEnvironmentLoaderTDD:
     @patch.dict("os.environ", {}, clear=True)
     def test_get_api_key_returns_none_when_not_found(self):
         """Test get_api_key returns None when no key found."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         key = EnvironmentLoader.get_api_key("nonexistent")
         assert key is None
 
     def test_get_server_config_method_exists(self):
         """Test get_server_config method exists."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         assert hasattr(EnvironmentLoader, "get_server_config")
         assert callable(EnvironmentLoader.get_server_config)
 
     def test_get_server_config_returns_dict(self):
         """Test get_server_config returns dictionary."""
-        from mcp_server_cheap_llm.utils.config import EnvironmentLoader
+        from mcp_server_llm_cli_runner.utils.config import EnvironmentLoader
 
         config = EnvironmentLoader.get_server_config()
         assert isinstance(config, dict)

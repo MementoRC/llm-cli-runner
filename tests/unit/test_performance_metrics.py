@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.performance import (
+from mcp_server_llm_cli_runner.utils.performance import (
     LatencyStats,
     LatencyTracker,
     MetricsAggregator,

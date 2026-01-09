@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.models import ProviderType
-from mcp_server_cheap_llm.providers.llama import LLaMAProvider
-from mcp_server_cheap_llm.providers.manager import ProviderManager
-from mcp_server_cheap_llm.utils.config import ConfigManager
+from mcp_server_llm_cli_runner.core.models import ProviderType
+from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
+from mcp_server_llm_cli_runner.providers.manager import ProviderManager
+from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
 
 class TestLLaMAProviderIntegration:
@@ -45,7 +45,7 @@ class TestLLaMAProviderIntegration:
             assert provider.name == "llama"
             assert provider.provider_type == ProviderType.LLAMA
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLaMAProvider.generate")
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLaMAProvider.generate")
     async def test_provider_generation_flow(self, mock_generate):
         """Test LLaMA provider generation flow."""
         # Mock the generation response
@@ -189,10 +189,10 @@ class TestLLaMARegistryIntegration:
         provider_names = [p.name for p in providers]
         assert "llama" in provider_names
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLaMAProvider.generate")
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLaMAProvider.generate")
     async def test_manager_route_to_llama(self, mock_generate):
         """Test provider manager routes requests to LLaMA provider."""
-        from mcp_server_cheap_llm.core.models import LLMResponse
+        from mcp_server_llm_cli_runner.core.models import LLMResponse
 
         # Mock LLaMA response
         mock_response = LLMResponse(

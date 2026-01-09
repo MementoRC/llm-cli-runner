@@ -13,14 +13,14 @@ from uuid import UUID
 
 import pytest
 
-from mcp_server_cheap_llm.utils.errors import (
-    CheapLLMError,
+from mcp_server_llm_cli_runner.utils.errors import (
     ConfigurationError,
+    LLMCliRunnerError,
     ProviderError,
     SecurityError,
     ValidationError,
 )
-from mcp_server_cheap_llm.utils.logging import (
+from mcp_server_llm_cli_runner.utils.logging import (
     LogContext,
     SecurityLogger,
     StructuredLogger,
@@ -180,7 +180,7 @@ class TestSecurityLoggerIntegration:
             (ValidationError("Invalid input format"), "medium"),
             (ConfigurationError("Missing API key"), "low"),
             (ProviderError("Rate limit exceeded", provider="test_provider"), "medium"),
-            (CheapLLMError("General error"), "low"),
+            (LLMCliRunnerError("General error"), "low"),
         ]
 
         for error, expected_severity in test_cases:

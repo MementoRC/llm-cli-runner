@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deploying MCP Server Cheap LLM in various environments.
+This guide covers deploying MCP Server LLM CLI Runner in various environments.
 
 ## Deployment Options
 
@@ -27,7 +27,7 @@ This guide covers deploying MCP Server Cheap LLM in various environments.
 ```bash
 # Clone repository
 git clone <repository-url>
-cd cheap-llm
+cd llm-cli-runner
 
 # Install dependencies
 pixi install
@@ -62,10 +62,10 @@ Add to your Claude Desktop configuration (`~/.config/claude/claude_desktop_confi
 ```json
 {
   "mcpServers": {
-    "cheap-llm": {
+    "llm-cli-runner": {
       "command": "pixi",
-      "args": ["run", "-e", "default", "python", "-m", "mcp_server_cheap_llm"],
-      "cwd": "/path/to/cheap-llm",
+      "args": ["run", "-e", "default", "python", "-m", "mcp_server_llm_cli_runner"],
+      "cwd": "/path/to/llm-cli-runner",
       "env": {
         "GEMINI_API_KEY": "${GEMINI_API_KEY}",
         "OPENAI_API_KEY": "${OPENAI_API_KEY}"
@@ -79,7 +79,7 @@ Add to your Claude Desktop configuration (`~/.config/claude/claude_desktop_confi
 
 1. Restart Claude Desktop
 2. Open a new conversation
-3. Check that cheap-llm tools are available
+3. Check that llm-cli-runner tools are available
 
 ## Docker Deployment
 
@@ -112,15 +112,15 @@ Build and run:
 
 ```bash
 # Build image
-docker build -t mcp-cheap-llm:latest .
+docker build -t mcp-llm-cli-runner:latest .
 
 # Run with environment variables
 docker run -d \
-  --name cheap-llm \
+  --name llm-cli-runner \
   -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
   -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
   -p 8080:8080 \
-  mcp-cheap-llm:latest
+  mcp-llm-cli-runner:latest
 ```
 
 ### Docker Compose
@@ -130,7 +130,7 @@ docker run -d \
 version: '3.8'
 
 services:
-  cheap-llm:
+  llm-cli-runner:
     build: .
     ports:
       - "8080:8080"
@@ -158,22 +158,22 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cheap-llm
+  name: llm-cli-runner
   labels:
-    app: cheap-llm
+    app: llm-cli-runner
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: cheap-llm
+      app: llm-cli-runner
   template:
     metadata:
       labels:
-        app: cheap-llm
+        app: llm-cli-runner
     spec:
       containers:
-        - name: cheap-llm
-          image: mcp-cheap-llm:latest
+        - name: llm-cli-runner
+          image: mcp-llm-cli-runner:latest
           ports:
             - containerPort: 8080
           env:
@@ -210,10 +210,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cheap-llm
+  name: llm-cli-runner
 spec:
   selector:
-    app: cheap-llm
+    app: llm-cli-runner
   ports:
     - protocol: TCP
       port: 80
@@ -242,12 +242,12 @@ stringData:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: cheap-llm-hpa
+  name: llm-cli-runner-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: cheap-llm
+    name: llm-cli-runner
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -272,9 +272,9 @@ spec:
 ```python
 # lambda_handler.py
 import json
-from mcp_server_cheap_llm.server.handlers import CheapLLMServer
+from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
-server = CheapLLMServer()
+server = LLMCliRunnerServer()
 
 async def handler(event, context):
     """AWS Lambda handler for MCP requests."""
@@ -298,7 +298,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Resources:
-  CheapLLMFunction:
+  LLMCliRunnerFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: lambda_handler.handler
@@ -364,12 +364,12 @@ LOG_OUTPUT=stdout
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: cheap-llm-pdb
+  name: llm-cli-runner-pdb
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: cheap-llm
+      app: llm-cli-runner
 ```
 
 ## Health Checks
@@ -402,11 +402,11 @@ spec:
 
 ```bash
 # Kubernetes
-kubectl rollout undo deployment/cheap-llm
+kubectl rollout undo deployment/llm-cli-runner
 
 # Docker
-docker stop cheap-llm
-docker run -d --name cheap-llm mcp-cheap-llm:previous-tag
+docker stop llm-cli-runner
+docker run -d --name llm-cli-runner mcp-llm-cli-runner:previous-tag
 ```
 
 ### Gradual Rollback

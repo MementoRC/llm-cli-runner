@@ -43,7 +43,7 @@
 
 1. Verify server is running:
    ```bash
-   ps aux | grep mcp_server_cheap_llm
+   ps aux | grep mcp_server_llm_cli_runner
    ```
 
 2. Check network configuration:
@@ -53,8 +53,8 @@
 
 3. For Docker deployments:
    ```bash
-   docker logs cheap-llm
-   docker inspect cheap-llm | grep IPAddress
+   docker logs llm-cli-runner
+   docker inspect llm-cli-runner | grep IPAddress
    ```
 
 ### Provider Issues
@@ -251,7 +251,7 @@ Solution:
 ```bash
 # Check process memory
 ps aux | grep mcp_server
-top -p $(pgrep -f mcp_server_cheap_llm)
+top -p $(pgrep -f mcp_server_llm_cli_runner)
 ```
 
 **Solutions:**
@@ -281,7 +281,7 @@ top -p $(pgrep -f mcp_server_cheap_llm)
 1. Check default locations:
    ```bash
    ls -la config.toml
-   ls -la ~/.config/cheap-llm/config.toml
+   ls -la ~/.config/llm-cli-runner/config.toml
    ```
 
 2. Specify config path:
@@ -291,8 +291,8 @@ top -p $(pgrep -f mcp_server_cheap_llm)
 
 3. Use environment variables instead:
    ```bash
-   export CHEAP_LLM_DEFAULT_PROVIDER=gemini
-   export CHEAP_LLM_MAX_CONCURRENT=10
+   export LLM_CLI_RUNNER_DEFAULT_PROVIDER=gemini
+   export LLM_CLI_RUNNER_MAX_CONCURRENT=10
    ```
 
 #### Invalid Configuration
@@ -334,16 +334,16 @@ log_responses = true
 
 ```bash
 # Start with debugger
-pixi run python -m pdb -m mcp_server_cheap_llm
+pixi run python -m pdb -m mcp_server_llm_cli_runner
 ```
 
 ## FAQ
 
 ### General
 
-**Q: Which provider is cheapest?**
+**Q: Which provider is most cost-effective?**
 
-A: LLaMA (local) is free after initial model download. For cloud providers, Gemini Flash is typically cheapest.
+A: LLaMA (local) is free after initial model download. For cloud providers, Gemini Flash is typically most cost-effective.
 
 **Q: Can I use multiple providers simultaneously?**
 

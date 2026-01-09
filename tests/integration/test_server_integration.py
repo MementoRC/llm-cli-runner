@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.mcp_server_cheap_llm.server.handlers import CheapLLMServer
+from src.mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
 
 class TestMCPServerIntegration:
@@ -10,7 +10,7 @@ class TestMCPServerIntegration:
 
     def test_server_initialization(self, mock_config_manager):
         """Test basic server initialization."""
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Test server components exist
         assert hasattr(server, "config_manager")
@@ -22,7 +22,7 @@ class TestMCPServerIntegration:
 
     def test_server_has_required_methods(self, mock_config_manager):
         """Test that server has all required methods."""
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Test core methods exist
         assert hasattr(server, "_list_tools")
@@ -36,7 +36,7 @@ class TestMCPServerIntegration:
 
     def test_server_components_instantiation(self, mock_config_manager):
         """Test that server components can be instantiated."""
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Test that core components are instantiated
         assert server.config_manager is not None
@@ -51,7 +51,7 @@ class TestMCPServerIntegration:
 
     async def test_server_initialization_method(self, mock_config_manager):
         """Test server initialization method."""
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Test initialization method exists and is callable
         assert hasattr(server, "_list_tools")

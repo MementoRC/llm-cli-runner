@@ -67,7 +67,7 @@ jobs:
     - name: 📦 Verify Package Import
       run: |
         echo "📦 Verifying package installation..."
-        pixi run -e quality python -c 'import mcp_server_cheap_llm; print("✅ Package import successful")'
+        pixi run -e quality python -c 'import mcp_server_llm_cli_runner; print("✅ Package import successful")'
 
     - name: 🧪 Run Tests
       run: |

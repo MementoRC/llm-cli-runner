@@ -1,1 +1,1 @@
-"""Unit tests for MCP Server Cheap LLM."""
+"""Unit tests for MCP Server LLM CLI Runner."""

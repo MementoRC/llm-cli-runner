@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to extend MCP Server Cheap LLM with custom LLM providers.
+This guide explains how to extend MCP Server LLM CLI Runner with custom LLM providers.
 
 ## Provider Architecture
 
@@ -20,14 +20,14 @@ providers/
 ### Step 1: Create Provider Class
 
 ```python
-# src/mcp_server_cheap_llm/providers/your_provider.py
+# src/mcp_server_llm_cli_runner/providers/your_provider.py
 """Custom provider implementation."""
 
 from typing import Any
 
-from mcp_server_cheap_llm.providers.base import BaseProvider
-from mcp_server_cheap_llm.core.models import GenerateRequest, GenerateResponse
-from mcp_server_cheap_llm.utils.logging import get_logger
+from mcp_server_llm_cli_runner.providers.base import BaseProvider
+from mcp_server_llm_cli_runner.core.models import GenerateRequest, GenerateResponse
+from mcp_server_llm_cli_runner.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -240,7 +240,7 @@ The base class requires these methods:
 ### Step 3: Register Provider
 
 ```python
-# src/mcp_server_cheap_llm/providers/__init__.py
+# src/mcp_server_llm_cli_runner/providers/__init__.py
 
 from .base import BaseProvider
 from .gemini import GeminiProvider
@@ -266,7 +266,7 @@ def get_provider(provider_type: str, **config) -> BaseProvider:
 ### Step 4: Add Configuration Schema
 
 ```python
-# src/mcp_server_cheap_llm/core/config.py
+# src/mcp_server_llm_cli_runner/core/config.py
 
 YOUR_PROVIDER_SCHEMA = {
     "type": "object",
@@ -331,7 +331,7 @@ def get_tool_definition() -> dict:
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from mcp_server_cheap_llm.providers.your_provider import YourProvider
+from mcp_server_llm_cli_runner.providers.your_provider import YourProvider
 
 
 class TestYourProvider:
@@ -416,7 +416,7 @@ class TestYourProvider:
 import os
 import pytest
 
-from mcp_server_cheap_llm.providers.your_provider import YourProvider
+from mcp_server_llm_cli_runner.providers.your_provider import YourProvider
 
 
 @pytest.mark.integration
@@ -464,7 +464,7 @@ class TestYourProviderIntegration:
 ### Error Handling
 
 ```python
-from mcp_server_cheap_llm.core.errors import (
+from mcp_server_llm_cli_runner.core.errors import (
     ProviderError,
     RateLimitError,
     AuthenticationError,
@@ -487,7 +487,7 @@ async def generate(self, prompt: str, **kwargs) -> str:
 ### Logging
 
 ```python
-from mcp_server_cheap_llm.utils.logging import get_logger
+from mcp_server_llm_cli_runner.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

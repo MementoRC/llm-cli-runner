@@ -24,10 +24,10 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ValidationError
+from mcp_server_llm_cli_runner.core.errors import ValidationError
 
 try:
-    from mcp_server_cheap_llm.server.handlers import StreamingHandler
+    from mcp_server_llm_cli_runner.server.handlers import StreamingHandler
 except ImportError:
     pytest.skip("StreamingHandler not available", allow_module_level=True)
 

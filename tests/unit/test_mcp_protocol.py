@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ValidationError
+from mcp_server_llm_cli_runner.core.errors import ValidationError
 
 
 class TestMCPProtocolHandlerTDD:
@@ -21,20 +21,20 @@ class TestMCPProtocolHandlerTDD:
 
     def test_mcp_protocol_handler_import(self):
         """Test that MCPProtocolHandler can be imported."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         assert MCPProtocolHandler is not None
 
     def test_mcp_protocol_handler_instantiation(self):
         """Test that MCPProtocolHandler can be instantiated."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         handler = MCPProtocolHandler()
         assert handler is not None
 
     def test_parse_message_method_exists(self):
         """Test that parse_message method exists."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         handler = MCPProtocolHandler()
         assert hasattr(handler, "parse_message")
@@ -42,7 +42,7 @@ class TestMCPProtocolHandlerTDD:
 
     def test_handle_request_method_exists(self):
         """Test that handle_request method exists."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         handler = MCPProtocolHandler()
         assert hasattr(handler, "handle_request")
@@ -50,7 +50,7 @@ class TestMCPProtocolHandlerTDD:
 
     def test_create_response_method_exists(self):
         """Test that create_response method exists."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         handler = MCPProtocolHandler()
         assert hasattr(handler, "create_response")
@@ -58,7 +58,7 @@ class TestMCPProtocolHandlerTDD:
 
     def test_create_error_response_method_exists(self):
         """Test that create_error_response method exists."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         handler = MCPProtocolHandler()
         assert hasattr(handler, "create_error_response")
@@ -71,7 +71,7 @@ class TestJSONRPCMessageParsing:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -183,7 +183,7 @@ class TestMCPRequestHandling:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -292,7 +292,7 @@ class TestMCPResponseCreation:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -386,7 +386,7 @@ class TestMCPSpecificationCompliance:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -468,7 +468,7 @@ class TestMCPProtocolMetrics:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -527,7 +527,7 @@ class TestMCPProtocolLogging:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 
@@ -567,7 +567,7 @@ class TestMCPProtocolSecurity:
     @pytest.fixture
     def handler(self):
         """Create MCPProtocolHandler instance for testing."""
-        from mcp_server_cheap_llm.server.handlers import MCPProtocolHandler
+        from mcp_server_llm_cli_runner.server.handlers import MCPProtocolHandler
 
         return MCPProtocolHandler()
 

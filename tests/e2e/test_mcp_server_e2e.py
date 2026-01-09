@@ -1,5 +1,5 @@
 """
-End-to-End Tests for MCP Server Cheap LLM
+End-to-End Tests for MCP Server LLM CLI Runner
 
 This test suite validates complete end-to-end workflows including:
 1. Server initialization and lifecycle management
@@ -19,9 +19,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ValidationError
-from mcp_server_cheap_llm.server.handlers import (
-    CheapLLMServer,
+from mcp_server_llm_cli_runner.core.errors import ValidationError
+from mcp_server_llm_cli_runner.server.handlers import (
+    LLMCliRunnerServer,
     MCPProtocolHandler,
     RequestManager,
     SessionManager,
@@ -31,12 +31,12 @@ from mcp_server_cheap_llm.server.handlers import (
 
 
 class TestMCPServerE2E:
-    """End-to-end tests for MCP Server Cheap LLM."""
+    """End-to-end tests for MCP Server LLM CLI Runner."""
 
     @pytest.fixture
-    def server(self) -> CheapLLMServer:
+    def server(self) -> LLMCliRunnerServer:
         """Create a fresh server instance for testing."""
-        return CheapLLMServer()
+        return LLMCliRunnerServer()
 
     @pytest.fixture
     def protocol_handler(self) -> MCPProtocolHandler:
@@ -53,14 +53,14 @@ class TestMCPServerE2E:
     # =========================================================================
 
     @pytest.mark.asyncio
-    async def test_server_initialization(self, server: CheapLLMServer):
+    async def test_server_initialization(self, server: LLMCliRunnerServer):
         """Test that server initializes correctly."""
         await server.initialize()
         assert server._initialized is True
 
     @pytest.mark.asyncio
     async def test_server_double_initialization_idempotent(
-        self, server: CheapLLMServer
+        self, server: LLMCliRunnerServer
     ):
         """Test that double initialization is safe."""
         await server.initialize()
@@ -68,7 +68,7 @@ class TestMCPServerE2E:
         assert server._initialized is True
 
     @pytest.mark.asyncio
-    async def test_server_start_and_stop(self, server: CheapLLMServer):
+    async def test_server_start_and_stop(self, server: LLMCliRunnerServer):
         """Test server start and graceful shutdown."""
         await server.initialize()
         await server.start()
@@ -76,7 +76,7 @@ class TestMCPServerE2E:
         # Server should stop without errors
 
     @pytest.mark.asyncio
-    async def test_server_stats_after_initialization(self, server: CheapLLMServer):
+    async def test_server_stats_after_initialization(self, server: LLMCliRunnerServer):
         """Test server statistics are available after initialization."""
         await server.initialize()
         stats = server.get_server_stats()
@@ -438,7 +438,7 @@ class TestMCPServerE2E:
     # =========================================================================
 
     @pytest.mark.asyncio
-    async def test_complete_tool_execution_workflow(self, server: CheapLLMServer):
+    async def test_complete_tool_execution_workflow(self, server: LLMCliRunnerServer):
         """Test complete tool execution workflow from init to response."""
         await server.initialize()
 
@@ -475,7 +475,7 @@ class TestMCPServerE2E:
         assert "result" in response or "error" not in response
 
     @pytest.mark.asyncio
-    async def test_multi_provider_tool_routing(self, server: CheapLLMServer):
+    async def test_multi_provider_tool_routing(self, server: LLMCliRunnerServer):
         """Test tool routing across multiple providers."""
         await server.initialize()
 
@@ -493,7 +493,7 @@ class TestMCPServerE2E:
         assert stats["tool_registry"]["total_tools"] >= 3
 
     @pytest.mark.asyncio
-    async def test_error_recovery_workflow(self, server: CheapLLMServer):
+    async def test_error_recovery_workflow(self, server: LLMCliRunnerServer):
         """Test error recovery and handling workflow."""
         await server.initialize()
 
@@ -506,7 +506,7 @@ class TestMCPServerE2E:
         assert "error" in response
 
     @pytest.mark.asyncio
-    async def test_concurrent_requests(self, server: CheapLLMServer):
+    async def test_concurrent_requests(self, server: LLMCliRunnerServer):
         """Test handling concurrent requests."""
         await server.initialize()
 
@@ -532,7 +532,7 @@ class TestMCPServerE2E:
     # =========================================================================
 
     @pytest.mark.asyncio
-    async def test_gemini_provider_integration(self, server: CheapLLMServer):
+    async def test_gemini_provider_integration(self, server: LLMCliRunnerServer):
         """Test Gemini provider integration flow."""
         await server.initialize()
 
@@ -552,7 +552,7 @@ class TestMCPServerE2E:
         assert "result" in response or "error" in response
 
     @pytest.mark.asyncio
-    async def test_provider_fallback_on_error(self, server: CheapLLMServer):
+    async def test_provider_fallback_on_error(self, server: LLMCliRunnerServer):
         """Test provider fallback mechanism on error."""
         await server.initialize()
 

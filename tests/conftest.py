@@ -1,4 +1,4 @@
-"""Test configuration and shared fixtures for MCP Server Cheap LLM."""
+"""Test configuration and shared fixtures for MCP Server LLM CLI Runner."""
 
 import subprocess
 import tempfile
@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from mcp_server_cheap_llm.server.handlers import CheapLLMServer
-from mcp_server_cheap_llm.utils.config import ConfigManager
+from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
+from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
 
 def _run_git_isolated(cmd, *, cwd=None, check=False, capture_output=False, **kwargs):
@@ -150,9 +150,11 @@ def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
 
 
 @pytest.fixture
-def mock_cheap_llm_server(mock_config_manager: ConfigManager) -> CheapLLMServer:
-    """Mock CheapLLMServer instance."""
-    server = Mock(spec=CheapLLMServer)
+def mock_llm_cli_runner_server(
+    mock_config_manager: ConfigManager,
+) -> LLMCliRunnerServer:
+    """Mock LLMCliRunnerServer instance."""
+    server = Mock(spec=LLMCliRunnerServer)
     server.config_manager = mock_config_manager
     server.get_mcp_server.return_value = Mock()
     return server

@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp_server_cheap_llm.core.models import ProviderConfig, ServerConfig
-from mcp_server_cheap_llm.utils.config import ConfigManager
+from mcp_server_llm_cli_runner.core.models import ProviderConfig, ServerConfig
+from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
 
 class TestServerConfig:

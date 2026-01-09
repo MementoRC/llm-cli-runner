@@ -1,4 +1,4 @@
-"""Test helpers and mock utilities for MCP Server Cheap LLM tests.
+"""Test helpers and mock utilities for MCP Server LLM CLI Runner tests.
 
 This module provides test doubles, builders, and utilities to replace
 complex mocking patterns with more maintainable alternatives.
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Optional, Union
 from unittest.mock import MagicMock
 
-from src.mcp_server_cheap_llm.core.models import ProviderConfig, ProviderType
+from src.mcp_server_llm_cli_runner.core.models import ProviderConfig, ProviderType
 
 
 class MockOpenAIResponse:
@@ -255,7 +255,7 @@ class LLMRequestBuilder:
     def build(self):
         """Build the LLM request object."""
         # Import here to avoid circular imports
-        from src.mcp_server_cheap_llm.core.models import LLMRequest
+        from src.mcp_server_llm_cli_runner.core.models import LLMRequest
 
         kwargs = {"prompt": self.prompt}
         if self.provider:
@@ -469,7 +469,10 @@ class MockProviderFactory:
         """Create a mock OpenAI provider with test configuration."""
         from unittest.mock import Mock
 
-        from src.mcp_server_cheap_llm.core.models import ProviderConfig, ProviderType
+        from src.mcp_server_llm_cli_runner.core.models import (
+            ProviderConfig,
+            ProviderType,
+        )
 
         config = ProviderConfig(
             name="test_openai",
@@ -492,7 +495,10 @@ class MockProviderFactory:
         """Create a mock Gemini provider with test configuration."""
         from unittest.mock import Mock
 
-        from src.mcp_server_cheap_llm.core.models import ProviderConfig, ProviderType
+        from src.mcp_server_llm_cli_runner.core.models import (
+            ProviderConfig,
+            ProviderType,
+        )
 
         config = ProviderConfig(
             name="test_gemini",
@@ -520,7 +526,7 @@ def create_mock_llm_response(
     error_message: str = None,
 ):
     """Create a mock LLMResponse object for testing."""
-    from src.mcp_server_cheap_llm.core.models import LLMResponse
+    from src.mcp_server_llm_cli_runner.core.models import LLMResponse
 
     return LLMResponse(
         content=content,
@@ -541,7 +547,7 @@ def create_mock_llm_request(
     temperature: float = 0.7,
 ):
     """Create a mock LLMRequest object for testing."""
-    from src.mcp_server_cheap_llm.core.models import LLMRequest
+    from src.mcp_server_llm_cli_runner.core.models import LLMRequest
 
     return LLMRequest(
         prompt=prompt, model=model, max_tokens=max_tokens, temperature=temperature

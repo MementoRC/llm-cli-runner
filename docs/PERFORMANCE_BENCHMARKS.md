@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides performance benchmarks and optimization guidelines for MCP Server Cheap LLM.
+This document provides performance benchmarks and optimization guidelines for MCP Server LLM CLI Runner.
 
 ## Benchmark Methodology
 
@@ -170,8 +170,8 @@ ttl = 3600              # 1 hour default
 
 **Cache Hit Rates by Use Case:**
 
-| Use Case | Hit Rate | Savings |
-|----------|----------|---------|
+| Use Case | Hit Rate | Efficiency Gain |
+|----------|----------|-----------------|
 | FAQ Answers | 85% | 80% cost reduction |
 | Code Snippets | 45% | 40% cost reduction |
 | Creative Writing | 5% | Minimal |
@@ -218,9 +218,9 @@ max_tokens_summary = 128
 | Priority | Provider | Why |
 |----------|----------|-----|
 | Fastest | LLaMA (GPU) | Local, no network |
-| Cheapest | LLaMA (CPU) | Free (after setup) |
+| Most Cost-Effective | LLaMA (CPU) | Free (after setup) |
 | Best Quality | Gemini Pro | Largest model |
-| Balanced | Gemini Flash | Fast + cheap |
+| Balanced | Gemini Flash | Fast + cost-effective |
 
 #### Automatic Routing
 

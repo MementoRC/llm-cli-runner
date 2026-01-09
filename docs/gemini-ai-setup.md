@@ -1,6 +1,6 @@
 # Gemini AI Integration Setup Guide
 
-This guide explains how to set up and configure Gemini AI analysis for the MCP Server Cheap LLM project.
+This guide explains how to set up and configure Gemini AI analysis for the MCP Server LLM CLI Runner project.
 
 ## 🚀 Quick Setup
 

@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.logging import (
+from mcp_server_llm_cli_runner.utils.logging import (
     AuditLogger,
     LogContext,
     PerformanceLogger,

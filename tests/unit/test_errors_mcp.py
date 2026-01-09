@@ -9,15 +9,15 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import (
-    CheapLLMError,
+from mcp_server_llm_cli_runner.core.errors import (
     ConfigurationError,
+    LLMCliRunnerError,
     ProviderError,
     RateLimitError,
     SecurityError,
     ValidationError,
 )
-from mcp_server_cheap_llm.utils.errors import ErrorSerializer
+from mcp_server_llm_cli_runner.utils.errors import ErrorSerializer
 
 
 class TestErrorSerializerTDD:
@@ -25,7 +25,7 @@ class TestErrorSerializerTDD:
 
     def test_error_serializer_import(self):
         """Test that ErrorSerializer can be imported."""
-        from mcp_server_cheap_llm.utils.errors import ErrorSerializer
+        from mcp_server_llm_cli_runner.utils.errors import ErrorSerializer
 
         assert ErrorSerializer is not None
 
@@ -50,9 +50,9 @@ class TestErrorSerializerTDD:
 class TestMCPProtocolCompliance:
     """Test MCP protocol specification compliance."""
 
-    def test_serialize_cheap_llm_error_mcp_format(self):
-        """Test serialization of CheapLLMError to MCP format."""
-        error = CheapLLMError(
+    def test_serialize_llm_cli_runner_error_mcp_format(self):
+        """Test serialization of LLMCliRunnerError to MCP format."""
+        error = LLMCliRunnerError(
             "Test error",
             error_code="TEST001",
             context={"key": "value"},
@@ -169,7 +169,7 @@ class TestErrorMessageFormatting:
 
     def test_error_message_without_code(self):
         """Test error message formatting when no error code is provided."""
-        error = CheapLLMError("Generic error message")
+        error = LLMCliRunnerError("Generic error message")
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)
@@ -190,7 +190,7 @@ class TestContextDataPreservation:
             "timestamp": "2024-01-01T00:00:00Z",
             "nested": {"key": "value", "count": 42},
         }
-        error = CheapLLMError("Test error", error_code="TEST001", context=context)
+        error = LLMCliRunnerError("Test error", error_code="TEST001", context=context)
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)
@@ -208,7 +208,7 @@ class TestContextDataPreservation:
             "is_active": True,
             "items": ["item1", "item2", "item3"],
         }
-        error = CheapLLMError("Test error", context=context)
+        error = LLMCliRunnerError("Test error", context=context)
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)
@@ -224,7 +224,7 @@ class TestContextDataPreservation:
 
     def test_context_preservation_empty_context(self):
         """Test handling of empty context."""
-        error = CheapLLMError("Test error", context={})
+        error = LLMCliRunnerError("Test error", context={})
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)
@@ -235,9 +235,9 @@ class TestContextDataPreservation:
 class TestSerializationDeserialization:
     """Test serialization and deserialization round-trip consistency."""
 
-    def test_round_trip_cheap_llm_error(self):
-        """Test round-trip serialization/deserialization of CheapLLMError."""
-        original_error = CheapLLMError(
+    def test_round_trip_llm_cli_runner_error(self):
+        """Test round-trip serialization/deserialization of LLMCliRunnerError."""
+        original_error = LLMCliRunnerError(
             "Test error",
             error_code="TEST001",
             context={"key": "value"},
@@ -251,7 +251,7 @@ class TestSerializationDeserialization:
         deserialized = serializer.deserialize(serialized)
 
         # Check consistency
-        assert isinstance(deserialized, CheapLLMError)
+        assert isinstance(deserialized, LLMCliRunnerError)
         assert deserialized.message == original_error.message
         assert deserialized.error_code == original_error.error_code
         assert deserialized.context == original_error.context
@@ -314,8 +314,8 @@ class TestErrorChaining:
             try:
                 raise ValueError("Original error")
             except ValueError as e:
-                raise CheapLLMError("Wrapped error", error_code="WRAP001") from e
-        except CheapLLMError as error:
+                raise LLMCliRunnerError("Wrapped error", error_code="WRAP001") from e
+        except LLMCliRunnerError as error:
             serializer = ErrorSerializer()
 
             result = serializer.serialize(error)
@@ -330,8 +330,8 @@ class TestErrorChaining:
             try:
                 raise ValueError("Original error")
             except ValueError as e:
-                raise CheapLLMError("Wrapped error", error_code="WRAP001") from e
-        except CheapLLMError as original_error:
+                raise LLMCliRunnerError("Wrapped error", error_code="WRAP001") from e
+        except LLMCliRunnerError as original_error:
             serializer = ErrorSerializer()
 
             # Serialize
@@ -349,7 +349,7 @@ class TestErrorCodes:
 
     def test_default_error_code_generation(self):
         """Test automatic error code generation when none provided."""
-        error = CheapLLMError("Test error")
+        error = LLMCliRunnerError("Test error")
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)
@@ -360,7 +360,7 @@ class TestErrorCodes:
 
     def test_custom_error_code_preservation(self):
         """Test that custom error codes are preserved."""
-        error = CheapLLMError("Test error", error_code="CUSTOM001")
+        error = LLMCliRunnerError("Test error", error_code="CUSTOM001")
         serializer = ErrorSerializer()
 
         result = serializer.serialize(error)

@@ -1,1 +1,1 @@
-"""Test package for MCP Server Cheap LLM."""
+"""Test package for MCP Server LLM CLI Runner."""

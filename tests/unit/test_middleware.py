@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.server.middleware import (
+from mcp_server_llm_cli_runner.server.middleware import (
     LoggingMiddleware,
     MetricsMiddleware,
     MiddlewareChain,
