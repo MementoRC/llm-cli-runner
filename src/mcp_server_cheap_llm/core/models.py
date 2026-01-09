@@ -376,6 +376,16 @@ class UsageStats(BaseModel):
     last_updated: datetime = Field(default_factory=datetime.now)
 
     @property
+    def requests_count(self) -> int:
+        """Alias for total_requests for backward compatibility."""
+        return self.total_requests
+
+    @property
+    def tokens_used(self) -> int:
+        """Alias for total_tokens_consumed for backward compatibility."""
+        return self.total_tokens_consumed
+
+    @property
     def success_rate(self) -> float:
         """Calculate success rate as percentage."""
         if self.total_requests == 0:

@@ -11,14 +11,15 @@ Key functions:
 Example:
     >>> python -m mcp_server_cheap_llm
     >>> python -m mcp_server_cheap_llm --debug
+
 """
 
 import asyncio
 import sys
+from typing import Any
 
 import click  # type: ignore[import-not-found]
 import structlog  # type: ignore[import-not-found]
-from mcp.server import Server  # type: ignore[import-not-found]
 from mcp.server.stdio import stdio_server  # type: ignore[import-not-found]
 
 from mcp_server_cheap_llm.server.handlers import CheapLLMServer
@@ -26,7 +27,7 @@ from mcp_server_cheap_llm.utils.config import ConfigManager
 from mcp_server_cheap_llm.utils.logging import setup_logging
 
 
-def create_server(config_path: str | None = None, debug: bool = False) -> Server:
+def create_server(config_path: str | None = None, debug: bool = False) -> Any:
     """Create and configure the MCP server instance.
 
     Args:
@@ -42,7 +43,9 @@ def create_server(config_path: str | None = None, debug: bool = False) -> Server
     Example:
         >>> server = create_server(debug=True)
         >>> # Server ready for stdio_server()
+
     """
+    # Configure logging with debug flag
     setup_logging(debug=debug)
     logger = structlog.get_logger(__name__)
 
@@ -59,13 +62,16 @@ def create_server(config_path: str | None = None, debug: bool = False) -> Server
         return cheap_llm_server.get_mcp_server()
 
     except Exception as e:
-        logger.error("Failed to create server", error=str(e), exc_info=debug)
+        logger.exception("Failed to create server", error=str(e), exc_info=debug)
         raise
 
 
 @click.command()
 @click.option(
-    "--config", "-c", type=click.Path(exists=True), help="Path to configuration file"
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Path to configuration file",
 )
 @click.option("--debug", "-d", is_flag=True, help="Enable debug logging")
 def main(config: str | None = None, debug: bool = False) -> None:
@@ -81,11 +87,12 @@ def main(config: str | None = None, debug: bool = False) -> None:
     Example:
         $ mcp-server-cheap-llm --debug
         $ mcp-server-cheap-llm --config /path/to/config.toml
+
     """
     try:
         server = create_server(config_path=config, debug=debug)
 
-        async def run_server():
+        async def run_server() -> None:
             async with stdio_server() as (read_stream, write_stream):
                 init_options = server.create_initialization_options()
                 await server.run(

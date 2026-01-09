@@ -1,16 +1,18 @@
-"""Thread-safe batch queue implementation with priority management.
+"""Thread-safe batch queue implementation with priority management and backpressure.
 
 This module implements an intelligent batch processing queue with priority-based
-scheduling, thread-safety guarantees, and comprehensive monitoring capabilities.
-Integrates with existing ProviderManager and CacheService for optimal performance.
+scheduling, thread-safety guarantees, backpressure handling, and comprehensive
+monitoring capabilities. Integrates with existing ProviderManager and CacheService
+for optimal performance.
 
 Key classes:
     BatchQueue: Main thread-safe priority queue for batch requests
     QueueManager: High-level queue management with monitoring
-    PriorityScheduler: Priority-based batch scheduling logic
+    BackpressureController: Manages queue backpressure and adaptive sizing
+    QueueMetrics: Detailed queue metrics including backpressure state
 
 Example:
-    >>> queue = BatchQueue(max_size=100)
+    >>> queue = BatchQueue(max_size=100, enable_backpressure=True)
     >>> await queue.enqueue(batch_request, priority=BatchPriority.HIGH)
     >>> batch = await queue.dequeue()
 
@@ -22,7 +24,10 @@ import heapq
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from mcp_server_cheap_llm.core.models import (
     BatchMetrics,
@@ -33,6 +38,303 @@ from mcp_server_cheap_llm.core.models import (
 from mcp_server_cheap_llm.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class BackpressureLevel(str, Enum):
+    """Backpressure severity levels."""
+
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class BackpressureAction(str, Enum):
+    """Actions to take under backpressure."""
+
+    ACCEPT = "accept"  # Accept the request normally
+    DELAY = "delay"  # Accept with delay
+    REJECT_LOW_PRIORITY = "reject_low_priority"  # Reject low priority requests
+    REJECT_ALL = "reject_all"  # Reject all new requests
+
+
+class BackpressureConfig(BaseModel):
+    """Configuration for backpressure handling.
+
+    Attributes:
+        enabled: Whether backpressure is enabled
+        low_threshold_percent: Queue utilization for low backpressure
+        medium_threshold_percent: Queue utilization for medium backpressure
+        high_threshold_percent: Queue utilization for high backpressure
+        critical_threshold_percent: Queue utilization for critical backpressure
+        delay_base_ms: Base delay for delayed requests
+        delay_multiplier: Multiplier for delay based on level
+        adaptive_sizing: Whether to use adaptive queue sizing
+        min_size: Minimum queue size for adaptive sizing
+        max_size: Maximum queue size for adaptive sizing
+        size_adjustment_rate: Rate of size adjustment
+
+    """
+
+    enabled: bool = Field(default=True)
+    low_threshold_percent: float = Field(default=50.0, ge=0.0, le=100.0)
+    medium_threshold_percent: float = Field(default=70.0, ge=0.0, le=100.0)
+    high_threshold_percent: float = Field(default=85.0, ge=0.0, le=100.0)
+    critical_threshold_percent: float = Field(default=95.0, ge=0.0, le=100.0)
+    delay_base_ms: int = Field(default=100, ge=0, le=10000)
+    delay_multiplier: float = Field(default=2.0, ge=1.0, le=10.0)
+    adaptive_sizing: bool = Field(default=False)
+    min_size: int = Field(default=50, ge=10, le=1000)
+    max_size: int = Field(default=500, ge=50, le=10000)
+    size_adjustment_rate: float = Field(default=0.1, ge=0.01, le=0.5)
+
+
+class BackpressureState(BaseModel):
+    """Current backpressure state.
+
+    Attributes:
+        level: Current backpressure level
+        action: Recommended action for new requests
+        queue_utilization: Current queue utilization percentage
+        delay_ms: Delay to apply if action is DELAY
+        rejected_count: Number of requests rejected due to backpressure
+        delayed_count: Number of requests delayed due to backpressure
+        current_queue_size: Current effective queue size
+
+    """
+
+    level: BackpressureLevel = BackpressureLevel.NONE
+    action: BackpressureAction = BackpressureAction.ACCEPT
+    queue_utilization: float = Field(default=0.0, ge=0.0, le=100.0)
+    delay_ms: int = Field(default=0, ge=0)
+    rejected_count: int = Field(default=0, ge=0)
+    delayed_count: int = Field(default=0, ge=0)
+    current_queue_size: int = Field(default=100, ge=1)
+
+
+class BackpressureController:
+    """Controls backpressure behavior for the queue.
+
+    Monitors queue utilization and determines appropriate backpressure
+    responses including delays, rejections, and adaptive sizing.
+
+    Attributes:
+        config: Backpressure configuration
+        state: Current backpressure state
+
+    Example:
+        >>> controller = BackpressureController(config)
+        >>> action = controller.evaluate(current_size=80, max_size=100)
+        >>> if action == BackpressureAction.REJECT_ALL:
+        ...     raise QueueFullError()
+
+    """
+
+    def __init__(self, config: BackpressureConfig | None = None) -> None:
+        """Initialize backpressure controller.
+
+        Args:
+            config: Backpressure configuration
+
+        """
+        self.config = config or BackpressureConfig()
+        self._state = BackpressureState(current_queue_size=self.config.max_size)
+        self._lock = asyncio.Lock()
+
+        # Metrics
+        self._rejected_count = 0
+        self._delayed_count = 0
+
+        # Adaptive sizing history
+        self._utilization_history: deque[float] = deque(maxlen=60)  # Last minute
+
+        logger.info("Backpressure controller initialized", enabled=self.config.enabled)
+
+    def evaluate(
+        self,
+        current_size: int,
+        max_size: int,
+        priority: BatchPriority = BatchPriority.NORMAL,
+    ) -> tuple[BackpressureAction, int]:
+        """Evaluate backpressure for a new request.
+
+        Args:
+            current_size: Current queue size
+            max_size: Maximum queue size
+            priority: Priority of the incoming request
+
+        Returns:
+            Tuple of (action to take, delay in ms if applicable)
+
+        """
+        if not self.config.enabled:
+            return (BackpressureAction.ACCEPT, 0)
+
+        utilization = (current_size / max_size) * 100 if max_size > 0 else 0
+        self._utilization_history.append(utilization)
+
+        # Determine backpressure level
+        if utilization >= self.config.critical_threshold_percent:
+            level = BackpressureLevel.CRITICAL
+        elif utilization >= self.config.high_threshold_percent:
+            level = BackpressureLevel.HIGH
+        elif utilization >= self.config.medium_threshold_percent:
+            level = BackpressureLevel.MEDIUM
+        elif utilization >= self.config.low_threshold_percent:
+            level = BackpressureLevel.LOW
+        else:
+            level = BackpressureLevel.NONE
+
+        # Determine action based on level and priority
+        action, delay = self._determine_action(level, priority)
+
+        # Update state
+        self._state = BackpressureState(
+            level=level,
+            action=action,
+            queue_utilization=utilization,
+            delay_ms=delay,
+            rejected_count=self._rejected_count,
+            delayed_count=self._delayed_count,
+            current_queue_size=max_size,
+        )
+
+        return (action, delay)
+
+    def _determine_action(
+        self, level: BackpressureLevel, priority: BatchPriority
+    ) -> tuple[BackpressureAction, int]:
+        """Determine the action to take based on backpressure level and priority.
+
+        Args:
+            level: Current backpressure level
+            priority: Request priority
+
+        Returns:
+            Tuple of (action, delay_ms)
+
+        """
+        if level == BackpressureLevel.NONE:
+            return (BackpressureAction.ACCEPT, 0)
+
+        if level == BackpressureLevel.LOW:
+            # Slight delay for normal/low priority
+            if priority in (BatchPriority.NORMAL, BatchPriority.LOW):
+                delay = self.config.delay_base_ms
+                return (BackpressureAction.DELAY, delay)
+            return (BackpressureAction.ACCEPT, 0)
+
+        if level == BackpressureLevel.MEDIUM:
+            # Delay for all but urgent, longer delays for lower priority
+            if priority == BatchPriority.URGENT:
+                return (BackpressureAction.ACCEPT, 0)
+            elif priority == BatchPriority.HIGH:
+                delay = self.config.delay_base_ms
+                return (BackpressureAction.DELAY, delay)
+            else:
+                delay = int(self.config.delay_base_ms * self.config.delay_multiplier)
+                return (BackpressureAction.DELAY, delay)
+
+        if level == BackpressureLevel.HIGH:
+            # Reject low priority, delay others
+            if priority == BatchPriority.LOW:
+                self._rejected_count += 1
+                return (BackpressureAction.REJECT_LOW_PRIORITY, 0)
+            elif priority == BatchPriority.URGENT:
+                delay = self.config.delay_base_ms
+                return (BackpressureAction.DELAY, delay)
+            else:
+                delay = int(
+                    self.config.delay_base_ms * (self.config.delay_multiplier**2)
+                )
+                return (BackpressureAction.DELAY, delay)
+
+        if level == BackpressureLevel.CRITICAL:
+            # Reject all except urgent
+            if priority == BatchPriority.URGENT:
+                delay = int(
+                    self.config.delay_base_ms * (self.config.delay_multiplier**2)
+                )
+                self._delayed_count += 1
+                return (BackpressureAction.DELAY, delay)
+            self._rejected_count += 1
+            return (BackpressureAction.REJECT_ALL, 0)
+
+        return (BackpressureAction.ACCEPT, 0)
+
+    def get_state(self) -> BackpressureState:
+        """Get current backpressure state.
+
+        Returns:
+            Current BackpressureState
+
+        """
+        return self._state.model_copy()
+
+    def get_adaptive_size(self, current_max: int) -> int:
+        """Calculate adaptive queue size based on utilization history.
+
+        Args:
+            current_max: Current maximum queue size
+
+        Returns:
+            Recommended new maximum size
+
+        """
+        if not self.config.adaptive_sizing or not self._utilization_history:
+            return current_max
+
+        avg_utilization = sum(self._utilization_history) / len(
+            self._utilization_history
+        )
+
+        # If consistently high utilization, increase size
+        if avg_utilization > 80:
+            new_size = int(current_max * (1 + self.config.size_adjustment_rate))
+            return min(new_size, self.config.max_size)
+
+        # If consistently low utilization, decrease size
+        if avg_utilization < 30:
+            new_size = int(current_max * (1 - self.config.size_adjustment_rate))
+            return max(new_size, self.config.min_size)
+
+        return current_max
+
+    def reset_metrics(self) -> None:
+        """Reset backpressure metrics."""
+        self._rejected_count = 0
+        self._delayed_count = 0
+        self._utilization_history.clear()
+
+
+class QueueMetrics(BaseModel):
+    """Detailed queue metrics including backpressure state.
+
+    Attributes:
+        current_size: Current queue size
+        max_size: Maximum queue size
+        utilization_percent: Queue utilization as percentage
+        total_enqueued: Total batches enqueued
+        total_dequeued: Total batches dequeued
+        total_rejected: Total batches rejected (backpressure)
+        total_delayed: Total batches delayed (backpressure)
+        average_wait_time_ms: Average wait time in queue
+        throughput_per_minute: Batches processed per minute
+        backpressure_state: Current backpressure state
+
+    """
+
+    current_size: int = Field(default=0, ge=0)
+    max_size: int = Field(default=100, ge=1)
+    utilization_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    total_enqueued: int = Field(default=0, ge=0)
+    total_dequeued: int = Field(default=0, ge=0)
+    total_rejected: int = Field(default=0, ge=0)
+    total_delayed: int = Field(default=0, ge=0)
+    average_wait_time_ms: float = Field(default=0.0, ge=0.0)
+    throughput_per_minute: float = Field(default=0.0, ge=0.0)
+    backpressure_state: BackpressureState = Field(default_factory=BackpressureState)
 
 
 @dataclass
@@ -61,10 +363,11 @@ class QueuedBatch:
 
 
 class BatchQueue:
-    """Thread-safe priority queue for batch processing requests.
+    """Thread-safe priority queue for batch processing requests with backpressure.
 
     Provides thread-safe batch queuing with priority management, capacity limits,
-    and comprehensive monitoring. Uses asyncio-compatible locking for concurrency.
+    backpressure handling, and comprehensive monitoring. Uses asyncio-compatible
+    locking for concurrency.
 
     Attributes:
         max_size: Maximum number of batches that can be queued
@@ -73,22 +376,31 @@ class BatchQueue:
         current_size: Current number of queued batches
         total_enqueued: Total batches enqueued (lifetime counter)
         total_dequeued: Total batches dequeued (lifetime counter)
+        backpressure_controller: Controller for backpressure handling
 
     Example:
-        >>> queue = BatchQueue(max_size=50)
+        >>> queue = BatchQueue(max_size=50, enable_backpressure=True)
         >>> await queue.enqueue(batch_request, BatchPriority.HIGH)
         >>> queued_batch = await queue.dequeue()
 
     """
 
-    def __init__(self, max_size: int = 100) -> None:
+    def __init__(
+        self,
+        max_size: int = 100,
+        enable_backpressure: bool = True,
+        backpressure_config: BackpressureConfig | None = None,
+    ) -> None:
         """Initialize batch queue.
 
         Args:
             max_size: Maximum number of batches in queue
+            enable_backpressure: Whether to enable backpressure handling
+            backpressure_config: Configuration for backpressure behavior
 
         """
         self.max_size = max_size
+        self._initial_max_size = max_size
 
         # Priority mapping (lower number = higher priority)
         self.priority_weights = {
@@ -104,31 +416,69 @@ class BatchQueue:
         self._not_empty = asyncio.Condition(self._lock)
         self._not_full = asyncio.Condition(self._lock)
 
+        # Backpressure handling
+        bp_config = backpressure_config or BackpressureConfig(
+            enabled=enable_backpressure
+        )
+        self.backpressure_controller = BackpressureController(bp_config)
+
         # Metrics
         self.current_size = 0
         self.total_enqueued = 0
         self.total_dequeued = 0
+        self.total_rejected = 0
+        self.total_delayed = 0
         self.enqueue_times = deque(maxlen=100)  # Recent enqueue timestamps
         self.dequeue_times = deque(maxlen=100)  # Recent dequeue timestamps
         self.wait_times = deque(maxlen=100)  # Recent wait times
 
-        logger.info(f"Batch queue initialized with max_size={max_size}")
+        logger.info(
+            f"Batch queue initialized with max_size={max_size}, "
+            f"backpressure={'enabled' if enable_backpressure else 'disabled'}"
+        )
 
     async def enqueue(
         self,
         batch_request: BatchRequest,
         timeout: float | None = None,
     ) -> bool:
-        """Add batch request to queue with priority ordering.
+        """Add batch request to queue with priority ordering and backpressure.
 
         Args:
             batch_request: Batch request to enqueue
             timeout: Maximum time to wait for queue space (None = no timeout)
 
         Returns:
-            bool: True if successfully enqueued, False if timeout or queue full
+            bool: True if successfully enqueued, False if rejected/timeout
 
         """
+        # Evaluate backpressure before acquiring lock
+        action, delay_ms = self.backpressure_controller.evaluate(
+            self.current_size,
+            self.max_size,
+            batch_request.priority,
+        )
+
+        # Handle backpressure rejection
+        if action in (
+            BackpressureAction.REJECT_LOW_PRIORITY,
+            BackpressureAction.REJECT_ALL,
+        ):
+            self.total_rejected += 1
+            logger.warning(
+                f"Batch {batch_request.batch_id} rejected due to backpressure "
+                f"(action={action.value}, queue={self.current_size}/{self.max_size})",
+            )
+            return False
+
+        # Apply delay if needed
+        if action == BackpressureAction.DELAY and delay_ms > 0:
+            self.total_delayed += 1
+            logger.debug(
+                f"Delaying batch {batch_request.batch_id} by {delay_ms}ms due to backpressure",
+            )
+            await asyncio.sleep(delay_ms / 1000.0)
+
         async with self._not_full:
             # Wait for space if queue is full
             if timeout is not None:
@@ -288,10 +638,10 @@ class BatchQueue:
             return None
 
     async def get_metrics(self) -> dict[str, Any]:
-        """Get comprehensive queue metrics.
+        """Get comprehensive queue metrics including backpressure state.
 
         Returns:
-            dict: Queue performance and status metrics
+            dict: Queue performance, status, and backpressure metrics
 
         """
         async with self._lock:
@@ -321,6 +671,9 @@ class BatchQueue:
                 priority_name = queued_batch.batch_request.priority.value
                 priority_counts[priority_name] += 1
 
+            # Get backpressure state
+            bp_state = self.backpressure_controller.get_state()
+
             return {
                 "queue_size": {
                     "current": self.current_size,
@@ -330,6 +683,8 @@ class BatchQueue:
                 "throughput": {
                     "total_enqueued": self.total_enqueued,
                     "total_dequeued": self.total_dequeued,
+                    "total_rejected": self.total_rejected,
+                    "total_delayed": self.total_delayed,
                     "enqueues_per_hour": recent_enqueues,
                     "dequeues_per_hour": recent_dequeues,
                 },
@@ -345,7 +700,60 @@ class BatchQueue:
                     "processing_stalled": len(self.dequeue_times) == 0,
                     "backlog_building": recent_enqueues > recent_dequeues,
                 },
+                "backpressure": {
+                    "level": bp_state.level.value,
+                    "action": bp_state.action.value,
+                    "utilization": bp_state.queue_utilization,
+                    "delay_ms": bp_state.delay_ms,
+                    "rejected_count": bp_state.rejected_count,
+                    "delayed_count": bp_state.delayed_count,
+                },
             }
+
+    def get_detailed_metrics(self) -> QueueMetrics:
+        """Get detailed queue metrics as a Pydantic model.
+
+        Returns:
+            QueueMetrics with all queue statistics
+
+        """
+        # Calculate throughput
+        recent_dequeues = len([t for t in self.dequeue_times if time.time() - t <= 60])
+
+        avg_wait_time = (
+            sum(self.wait_times) / len(self.wait_times) * 1000
+            if self.wait_times
+            else 0.0
+        )
+
+        return QueueMetrics(
+            current_size=self.current_size,
+            max_size=self.max_size,
+            utilization_percent=(self.current_size / self.max_size) * 100
+            if self.max_size > 0
+            else 0,
+            total_enqueued=self.total_enqueued,
+            total_dequeued=self.total_dequeued,
+            total_rejected=self.total_rejected,
+            total_delayed=self.total_delayed,
+            average_wait_time_ms=avg_wait_time,
+            throughput_per_minute=recent_dequeues,
+            backpressure_state=self.backpressure_controller.get_state(),
+        )
+
+    def adjust_max_size(self) -> int:
+        """Adjust queue max size based on adaptive sizing.
+
+        Returns:
+            New maximum size (unchanged if adaptive sizing disabled)
+
+        """
+        new_size = self.backpressure_controller.get_adaptive_size(self.max_size)
+        if new_size != self.max_size:
+            old_size = self.max_size
+            self.max_size = new_size
+            logger.info(f"Queue max size adjusted: {old_size} -> {new_size}")
+        return self.max_size
 
     async def clear(self) -> None:
         """Clear all batches from queue (for shutdown/reset)."""

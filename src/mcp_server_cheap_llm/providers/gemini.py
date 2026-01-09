@@ -893,7 +893,7 @@ class GeminiProvider(LLMProvider):
                     "max_retries": self.max_retries,
                     "retry_delay": self.retry_delay,
                 },
-            }
+            },
         )
 
         return base_status

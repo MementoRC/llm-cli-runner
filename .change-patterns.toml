@@ -1,0 +1,95 @@
+# CI Framework Change Detection Configuration
+# Optimizes CI by intelligently skipping jobs based on change patterns
+
+[patterns]
+# Documentation changes (can skip tests)
+docs = [
+    "docs/**",
+    "*.md",
+    "*.rst",
+    "README*",
+    "CHANGELOG*",
+    "LICENSE*"
+]
+
+# Source code changes (require full CI)
+source = [
+    "src/**",
+    "**/*.py"
+]
+
+# Test changes (require test runs but can optimize)
+tests = [
+    "tests/**",
+    "**/*test*.py",
+    "conftest.py"
+]
+
+# Configuration changes (require validation)
+config = [
+    "*.toml",
+    "*.yml",
+    "*.yaml",
+    "*.json",
+    ".github/**",
+    "pyproject.toml",
+    "pixi.lock"
+]
+
+# Dependencies (require full validation)
+dependencies = [
+    "pyproject.toml",
+    "pixi.lock",
+    "requirements*.txt"
+]
+
+# Development artifacts (can skip CI entirely)
+dev_artifacts = [
+    ".claude/**",
+    ".taskmaster/**",
+    ".mcp.json",
+    ".cursor/**",
+    ".aider*",
+    "*.tmp",
+    "*.dev",
+    ".DS_Store",
+    "**/__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    ".ruff_cache",
+    "htmlcov"
+]
+
+# AI analysis configuration (require AI analysis)
+ai_config = [
+    "GEMINI.md",
+    ".github/workflows/gemini-ai-analysis.yml"
+]
+
+[optimization]
+# Skip tests for documentation-only changes
+skip_tests_on_docs_only = true
+
+# Always run security for config changes
+skip_security_on_config_only = false
+
+# Skip tests for dev artifact changes
+skip_tests_on_dev_artifacts_only = true
+
+# Minimum optimization score to apply skipping (0-100)
+minimum_optimization_score = 25
+
+[performance]
+# Skip performance benchmarks for docs/dev artifacts
+skip_performance_on_docs = true
+skip_performance_on_dev_artifacts = true
+
+# Always run performance for source changes
+always_run_performance_on_source = false
+
+[security]
+# Always run enhanced security for dependencies
+always_run_security_on_dependencies = true
+
+# Skip security for docs-only changes
+skip_security_on_docs_only = true

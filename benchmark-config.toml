@@ -1,0 +1,59 @@
+# CI Framework Performance Benchmark Configuration
+# Used by performance-benchmark.yml workflow for regression detection
+
+[performance_benchmark]
+# Regression threshold as percentage (15% = 15.0)
+regression_threshold = 15.0
+
+# Statistical significance level for regression detection
+significance_level = 0.05
+
+# Minimum benchmark rounds for statistical validity
+min_rounds = 5
+
+# Quick benchmark suite (for PR validation)
+[performance_benchmark.quick]
+max_time = 30  # seconds
+min_rounds = 3
+timeout = 60   # seconds
+
+# Full benchmark suite (for main branch)
+[performance_benchmark.full]
+max_time = 300  # 5 minutes
+min_rounds = 5
+timeout = 600   # 10 minutes
+
+# Load testing benchmark (for releases)
+[performance_benchmark.load]
+max_time = 600   # 10 minutes
+min_rounds = 10
+timeout = 1200   # 20 minutes
+
+# Benchmark groups for cheap-llm specific tests
+[benchmark_groups]
+# Core MCP server operations
+mcp_operations = [
+    "test_mcp_protocol",
+    "test_server_handlers",
+    "test_request_processor"
+]
+
+# LLM provider performance
+provider_operations = [
+    "test_openai_provider",
+    "test_gemini_provider",
+    "test_llama_provider"
+]
+
+# Caching system performance
+cache_operations = [
+    "test_cache_backends",
+    "test_cache_service",
+    "test_cache_key_generator"
+]
+
+# Configuration and validation
+config_operations = [
+    "test_config",
+    "test_validation"
+]

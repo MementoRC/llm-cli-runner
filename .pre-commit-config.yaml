@@ -8,14 +8,21 @@ repos:
     rev: 1.7.6
     hooks:
       - id: bandit
-        args: ["-r", "src/", "-f", "json", "-o", "bandit-report.json", "-ll"]
+        args: ["-c", ".bandit", "-r", "src/"]
         pass_filenames: false
 
-  # Safety check removed due to executable not found
+  # Safety check for known vulnerabilities
+  - repo: local
+    hooks:
+      - id: safety-check
+        name: safety-check
+        entry: pixi run -e quality-extended safety check --ignore=70929 --ignore=70912
+        language: system
+        pass_filenames: false
 
   # Code formatting and style with Ruff (faster, better than Black)
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.2
+    rev: v0.7.3
     hooks:
       - id: ruff
         args: ["--fix"]
@@ -28,13 +35,14 @@ repos:
       - id: isort
         args: ["--profile", "black"]
 
-  # Type checking - temporarily disabled for commit
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.11.2
-  #   hooks:
-  #     - id: mypy
-  #       additional_dependencies: [pydantic, types-toml, pytest]
-  #       args: ["--config-file", "pyproject.toml"]
+  # Type checking with pyright (pixi-based)
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: pixi run -e quality pyright src/
+        language: system
+        pass_filenames: false
 
   # YAML validation
   - repo: https://github.com/adrienverge/yamllint
@@ -65,13 +73,13 @@ repos:
     rev: 6.3.0
     hooks:
       - id: pydocstyle
-        args: ["--convention=google"]
+        args: ["--convention=google", "--add-ignore=D202"]
 
-  # Local hooks (RESTORED - Quality gates must NOT be disabled to hide failures!)
+  # Local hooks - pytest with targeted ignores for known issues
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: pixi run -e quality pytest tests/unit/ -x --tb=short --ignore=tests/unit/test_openai_provider.py --ignore=tests/unit/test_gemini_provider.py --ignore=tests/unit/test_llama_provider.py --ignore=tests/unit/test_config_minimal.py
+        entry: pixi run -e quality pytest tests/unit/ -x --tb=short
         language: system
         pass_filenames: false

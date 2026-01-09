@@ -5,14 +5,17 @@ following atomic design principles.
 
 Modules:
     models: Pydantic models for requests, responses, and configuration
+    request_processor: Request processing and routing engine
     validators: Input validation and sanitization functions
 
 Example:
     >>> from mcp_server_cheap_llm.core.models import LLMRequest, LLMResponse
     >>> request = LLMRequest(prompt="Hello", provider="gemini")
+
 """
 
 from mcp_server_cheap_llm.core.models import (
+    CostEstimate,
     LLMRequest,
     LLMResponse,
     ProviderConfig,
@@ -20,12 +23,16 @@ from mcp_server_cheap_llm.core.models import (
     ProviderStatusInfo,
     ProviderType,
 )
+from mcp_server_cheap_llm.core.request_processor import ContextManager, RequestProcessor
 
 __all__ = [
+    "ContextManager",
+    "CostEstimate",
     "LLMRequest",
     "LLMResponse",
     "ProviderConfig",
     "ProviderStatus",
     "ProviderStatusInfo",
     "ProviderType",
+    "RequestProcessor",
 ]

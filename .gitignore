@@ -27,6 +27,8 @@ node_modules/
 # Python specific ignores
 # Byte-code files
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
@@ -45,6 +47,8 @@ dist/
 # Test and coverage artifacts
 .pytest_cache/
 .coverage
+coverage.xml
+coverage.json
 htmlcov/
 
 # Ruff cache
@@ -84,3 +88,11 @@ models/
 .taskmaster_save/
 .aider/
 .claude_backup/
+.claude/
+.serena/
+
+# Temporary documentation and reports
+GEMINI.md
+PHASE3.md
+*-report.md
+*.backup

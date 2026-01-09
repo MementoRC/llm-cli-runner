@@ -1,0 +1,392 @@
+openapi: 3.1.0
+info:
+  title: MCP Server Cheap LLM API
+  description: |
+    Model Context Protocol server providing access to cost-effective Large Language Model providers.
+
+    ## Overview
+    This API provides MCP-compliant access to multiple LLM providers:
+    - **Gemini**: Google's Gemini models via CLI
+    - **OpenAI Codex**: Code generation models
+    - **LLaMA**: Local inference with llama-cpp-python
+
+    ## MCP Protocol
+    This server implements the Model Context Protocol (MCP) JSON-RPC 2.0 interface.
+    All requests use JSON-RPC 2.0 format with method routing.
+
+    ## Authentication
+    Provider-specific API keys are required:
+    - `GEMINI_API_KEY` for Gemini provider
+    - `OPENAI_API_KEY` for OpenAI/Codex provider
+    - LLaMA runs locally without authentication
+
+  version: 0.1.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+
+servers:
+  - url: stdio://localhost
+    description: Local MCP server (stdio transport)
+  - url: http://localhost:8080
+    description: HTTP transport (when enabled)
+
+tags:
+  - name: MCP Protocol
+    description: Core MCP protocol operations
+  - name: Tools
+    description: LLM tool operations
+  - name: Resources
+    description: Resource management operations
+  - name: Providers
+    description: Provider-specific operations
+
+paths:
+  /rpc:
+    post:
+      summary: JSON-RPC 2.0 Endpoint
+      description: |
+        Main JSON-RPC 2.0 endpoint for all MCP operations.
+        All methods are invoked through this endpoint with the appropriate method name.
+      tags:
+        - MCP Protocol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+            examples:
+              initialize:
+                summary: Initialize MCP session
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: initialize
+                  params:
+                    protocolVersion: "2024-11-05"
+                    capabilities: {}
+                    clientInfo:
+                      name: example-client
+                      version: "1.0.0"
+              list_tools:
+                summary: List available tools
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: tools/list
+                  params: {}
+              call_tool:
+                summary: Call a tool
+                value:
+                  jsonrpc: "2.0"
+                  id: 3
+                  method: tools/call
+                  params:
+                    name: gemini_generate
+                    arguments:
+                      prompt: "Write a haiku about coding"
+                      model: "gemini-1.5-flash"
+      responses:
+        '200':
+          description: JSON-RPC 2.0 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+          description: JSON-RPC version (must be "2.0")
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+          description: Request identifier (omit for notifications)
+        method:
+          type: string
+          description: Method name to invoke
+          enum:
+            - initialize
+            - tools/list
+            - tools/call
+            - resources/list
+            - resources/read
+        params:
+          type: object
+          description: Method parameters
+
+    JsonRpcResponse:
+      type: object
+      required:
+        - jsonrpc
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: "null"
+        result:
+          description: Success result (mutually exclusive with error)
+        error:
+          $ref: '#/components/schemas/JsonRpcError'
+
+    JsonRpcError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: |
+            Error codes:
+            - -32700: Parse error
+            - -32600: Invalid Request
+            - -32601: Method not found
+            - -32602: Invalid params
+            - -32603: Internal error
+        message:
+          type: string
+        data:
+          description: Additional error data
+
+    InitializeParams:
+      type: object
+      required:
+        - protocolVersion
+        - capabilities
+        - clientInfo
+      properties:
+        protocolVersion:
+          type: string
+          description: MCP protocol version
+          example: "2024-11-05"
+        capabilities:
+          type: object
+          description: Client capabilities
+        clientInfo:
+          type: object
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+
+    InitializeResult:
+      type: object
+      properties:
+        protocolVersion:
+          type: string
+        capabilities:
+          type: object
+          properties:
+            tools:
+              type: object
+            resources:
+              type: object
+            logging:
+              type: object
+        serverInfo:
+          type: object
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+
+    Tool:
+      type: object
+      required:
+        - name
+        - inputSchema
+      properties:
+        name:
+          type: string
+          description: Tool identifier
+        description:
+          type: string
+          description: Human-readable description
+        inputSchema:
+          type: object
+          description: JSON Schema for tool parameters
+
+    ToolsListResult:
+      type: object
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tool'
+
+    ToolCallParams:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Tool name to invoke
+        arguments:
+          type: object
+          description: Tool arguments
+
+    ToolCallResult:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlock'
+        isError:
+          type: boolean
+          default: false
+
+    ContentBlock:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [text, image, resource]
+        text:
+          type: string
+          description: Text content (for type=text)
+        data:
+          type: string
+          description: Base64-encoded data (for type=image)
+        mimeType:
+          type: string
+          description: MIME type (for type=image)
+
+    # Provider-specific schemas
+    GeminiGenerateParams:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: The prompt to generate from
+        model:
+          type: string
+          description: Model to use
+          default: "gemini-1.5-flash"
+          enum:
+            - gemini-1.5-flash
+            - gemini-1.5-pro
+            - gemini-pro
+        max_tokens:
+          type: integer
+          description: Maximum tokens to generate
+          default: 1024
+        temperature:
+          type: number
+          description: Sampling temperature (0.0-2.0)
+          default: 0.7
+          minimum: 0.0
+          maximum: 2.0
+
+    LlamaGenerateParams:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: The prompt to generate from
+        max_tokens:
+          type: integer
+          description: Maximum tokens to generate
+          default: 256
+        temperature:
+          type: number
+          description: Sampling temperature
+          default: 0.7
+        top_p:
+          type: number
+          description: Top-p sampling
+          default: 0.9
+        top_k:
+          type: integer
+          description: Top-k sampling
+          default: 40
+
+    CodexGenerateParams:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: The prompt to generate code from
+        language:
+          type: string
+          description: Target programming language
+          default: python
+        max_tokens:
+          type: integer
+          description: Maximum tokens to generate
+          default: 512
+
+  securitySchemes:
+    GeminiApiKey:
+      type: apiKey
+      in: header
+      name: X-Gemini-API-Key
+      description: Gemini API key (or set GEMINI_API_KEY env var)
+    OpenAIApiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: OpenAI API key (Bearer token)
+
+x-mcp-tools:
+  gemini_generate:
+    description: Generate text using Gemini CLI
+    inputSchema:
+      $ref: '#/components/schemas/GeminiGenerateParams'
+    examples:
+      - name: Simple prompt
+        arguments:
+          prompt: "Explain quantum computing in simple terms"
+      - name: With model selection
+        arguments:
+          prompt: "Write a Python function to sort a list"
+          model: "gemini-1.5-pro"
+          max_tokens: 500
+
+  llama_generate:
+    description: Generate text using local LLaMA model
+    inputSchema:
+      $ref: '#/components/schemas/LlamaGenerateParams'
+    examples:
+      - name: Basic generation
+        arguments:
+          prompt: "Once upon a time"
+          max_tokens: 100
+
+  codex_generate:
+    description: Generate code using OpenAI Codex
+    inputSchema:
+      $ref: '#/components/schemas/CodexGenerateParams'
+    examples:
+      - name: Python function
+        arguments:
+          prompt: "Write a function to calculate fibonacci numbers"
+          language: "python"

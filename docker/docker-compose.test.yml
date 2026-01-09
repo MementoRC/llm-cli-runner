@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  test-ubuntu:
+    build:
+      context: ..
+      dockerfile: docker/test-environments/Dockerfile.ubuntu
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: sh -c "pixi install -e quality && pixi run -e quality test"
+
+  test-alpine:
+    build:
+      context: ..
+      dockerfile: docker/test-environments/Dockerfile.alpine
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: sh -c "pixi install -e quality && pixi run -e quality test"
+
+  test-centos:
+    build:
+      context: ..
+      dockerfile: docker/test-environments/Dockerfile.centos
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: sh -c "pixi install -e quality && pixi run -e quality test"
+
+  # Quick smoke test - just check if pixi and dependencies install
+  smoke-test:
+    build:
+      context: ..
+      dockerfile: docker/test-environments/Dockerfile.ubuntu
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: sh -c "pixi install -e quality && pixi list"

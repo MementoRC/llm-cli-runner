@@ -78,26 +78,20 @@ jobs:
         echo "💾 Available memory:"
         free -h
 
-    - name: Create temporary pyproject.toml for platform testing
+    - name: Setup platform testing
       run: |
         echo "🎯 Testing platform: ${{ matrix.platform }}"
-
-        # Create a temporary pyproject.toml with single platform
-        cp pyproject.toml pyproject.toml.backup
-
-        # Fix the sed command to handle the comment
-        sed -i 's/platforms = \[.*\].*$/platforms = ["${{ matrix.platform }}"]/' pyproject.toml
-
-        echo "📋 Platform configuration:"
-        grep -A5 -B5 "platforms.*=" pyproject.toml
+        echo "📋 Using --platform flag instead of modifying pyproject.toml"
+        echo "Base configuration: linux-64 (local development)"
+        echo "Testing platform: ${{ matrix.platform }} (via --platform flag)"
 
     - name: Test dependency resolution for ${{ matrix.platform }}
       timeout-minutes: 30
       run: |
         echo "🔍 Testing dependency resolution for ${{ matrix.platform }} environment ${{ matrix.environment }}..."
 
-        # Test if pixi can install the environment (actual dependency resolution test)
-        if pixi install -e ${{ matrix.environment }}; then
+        # Test if pixi can install the environment with --platform flag
+        if pixi install -e ${{ matrix.environment }} --platform ${{ matrix.platform }}; then
           echo "✅ Dependency resolution successful for ${{ matrix.platform }}"
 
           # Get environment info
@@ -105,9 +99,9 @@ jobs:
 
           # Test quality commands (dry run)
           echo "🧪 Testing quality commands..."
-          pixi run -e ${{ matrix.environment }} --dry-run lint || echo "⚠️ lint command not available"
-          pixi run -e ${{ matrix.environment }} --dry-run test || echo "⚠️ test command not available"
-          pixi run -e ${{ matrix.environment }} --dry-run typecheck || echo "⚠️ typecheck command not available"
+          pixi run -e ${{ matrix.environment }} --platform ${{ matrix.platform }} --dry-run lint || echo "⚠️ lint command not available"
+          pixi run -e ${{ matrix.environment }} --platform ${{ matrix.platform }} --dry-run test || echo "⚠️ test command not available"
+          pixi run -e ${{ matrix.environment }} --platform ${{ matrix.platform }} --dry-run typecheck || echo "⚠️ typecheck command not available"
 
         else
           echo "❌ Dependency resolution failed for ${{ matrix.platform }}"
@@ -153,10 +147,11 @@ jobs:
         name: platform-report-${{ matrix.platform }}-${{ matrix.environment }}
         path: platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
 
-    - name: Restore original pyproject.toml
+    - name: Platform test complete
       if: always()
       run: |
-        mv pyproject.toml.backup pyproject.toml
+        echo "✅ Platform test completed for ${{ matrix.platform }}"
+        echo "No pyproject.toml modifications needed (using --platform flag)"
 
   # Cross-platform compatibility summary
   compatibility-summary:

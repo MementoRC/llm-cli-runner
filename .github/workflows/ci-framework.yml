@@ -1,0 +1,41 @@
+name: CI Framework
+
+# CI/CD using Claire-s-Monster/ci-framework reusable workflow
+# Provides change detection, quality gates, security scanning,
+# performance benchmarks, and release automation
+# Note: linux-64 only (pixi.lock constraint); cross-platform via platform-validation.yml
+
+on:
+  push:
+    branches: [main, master, development]
+  pull_request:
+    branches: [main, master, development]
+  workflow_dispatch:
+    inputs:
+      enable-performance:
+        description: 'Enable performance benchmarks'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  security-events: write
+  actions: read
+  id-token: write
+
+jobs:
+  ci:
+    name: "CI Pipeline"
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.2.0
+    with:
+      pixi-environment: 'quality'
+      python-versions: '["3.12"]'
+      os-matrix: '["ubuntu-latest"]'  # pixi.lock only has linux-64 packages
+      enable-performance: ${{ github.event.inputs.enable-performance == 'true' || github.event_name != 'workflow_dispatch' }}
+      enable-release: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+      allowed-licenses: 'MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, PSF-2.0, ISC, LGPL-3.0'
+      package-path: '.'
+    secrets: inherit

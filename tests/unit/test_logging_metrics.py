@@ -377,7 +377,7 @@ class TestLoggingMetricsIntegration:
 
     def test_performance_and_audit_integration(self):
         """Test integration between PerformanceLogger and AuditLogger."""
-        perf_logger = PerformanceLogger("integration_perf")
+        perf_logger = PerformanceLogger("test_performance")
         audit_logger = AuditLogger("integration_audit")
 
         @perf_logger.time_function
@@ -409,7 +409,7 @@ class TestLoggingMetricsIntegration:
     )
     def test_correlation_id_propagation(self):
         """Test that correlation IDs propagate between performance and audit logging."""
-        perf_logger = PerformanceLogger()
+        perf_logger = PerformanceLogger("test_performance")
         audit_logger = AuditLogger("correlation_audit")
 
         with LogContext() as context:
