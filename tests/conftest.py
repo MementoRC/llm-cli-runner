@@ -12,57 +12,6 @@ from mcp_server_cheap_llm.server.handlers import CheapLLMServer
 from mcp_server_cheap_llm.utils.config import ConfigManager
 
 
-def _check_git_available():
-    """Check if git is available and works properly.
-
-    Returns:
-        True if git init works in a temp directory, False otherwise
-    """
-    import os
-    import shutil
-
-    # First check if git binary exists
-    if not shutil.which("git"):
-        return False
-
-    # Try to run git init in a temp directory to verify it works
-    try:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            env = os.environ.copy()
-            # Remove shell wrapper environment variables that might interfere
-            for var in ["CLAUDE_CODE_SHELL_PREFIX", "BASH_ENV"]:
-                env.pop(var, None)
-
-            result = subprocess.run(
-                ["git", "init"],
-                cwd=tmp_dir,
-                capture_output=True,
-                env=env,
-                timeout=10,
-            )
-            return result.returncode == 0
-    except Exception:
-        return False
-
-
-# Cache the git availability check
-_git_available = None
-
-
-def is_git_available():
-    """Check if git is available (cached)."""
-    global _git_available
-    if _git_available is None:
-        _git_available = _check_git_available()
-    return _git_available
-
-
-# Marker for tests that require git
-requires_git = pytest.mark.skipif(
-    not is_git_available(), reason="Git is not available or blocked in this environment"
-)
-
-
 def _run_git_isolated(cmd, *, cwd=None, check=False, capture_output=False, **kwargs):
     """Run git command in isolated environment (similar to subprocess.run).
 
@@ -89,8 +38,6 @@ def _run_git_isolated(cmd, *, cwd=None, check=False, capture_output=False, **kwa
         "MCP_TEST_MODE",
         "PYTEST_CURRENT_TEST",
         "GITHUB_TOKEN",  # Use system git, not mocked
-        "CLAUDE_CODE_SHELL_PREFIX",  # Remove ClaudeCode shell wrapper
-        "BASH_ENV",  # Remove custom bash environment
     ]
 
     for var in test_vars_to_remove:
