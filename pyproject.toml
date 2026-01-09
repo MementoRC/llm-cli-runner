@@ -181,7 +181,7 @@ dev-setup = "echo 'Development environment ready'"
 # Testing (ZERO-TOLERANCE QUALITY GATES)
 # All tests enabled - TDD complete
 test = "pytest tests/ -v"
-test-cov = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=term-missing --cov-report=xml"
+test-cov = "pytest tests/ --cov=src/mcp_server_llm_cli_runner --cov-report=term-missing --cov-report=xml"
 test-unit = "pytest tests/unit/ -v"
 test-integration = "pytest tests/integration/ -v"
 test-e2e = "pytest tests/test_llm_compliant_server_e2e.py -v"
@@ -211,7 +211,7 @@ check-all = { depends-on = ["quality", "static-analysis"] }
 
 # ===== TIER 3: CI/CD & DEPLOYMENT TASKS =====
 # CI-specific variants
-ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci" } }
+ci-test = { cmd = "pytest tests/ --cov=src/mcp_server_llm_cli_runner --cov-report=xml --timeout=90", env = { ENVIRONMENT = "ci" } }
 ci-lint = "ruff check src/ tests/ --output-format=github"
 ci-format-check = "ruff format --check src/ tests/"
 
@@ -225,10 +225,10 @@ install-pre-commit = "pre-commit install --install-hooks"
 
 # ===== PROJECT-SPECIFIC TASKS =====
 # MCP server execution
-serve = "python -m mcp_server_cheap_llm"
-serve-debug = { cmd = "python -m mcp_server_cheap_llm --debug", env = { LOG_LEVEL = "DEBUG" } }
+serve = "python -m mcp_server_llm_cli_runner"
+serve-debug = { cmd = "python -m mcp_server_llm_cli_runner --debug", env = { LOG_LEVEL = "DEBUG" } }
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks
 benchmark = "pytest tests/ -m benchmark --benchmark-only --benchmark-sort=mean"
-test-coverage = "pytest tests/ --cov=src/mcp_server_cheap_llm --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing"
+test-coverage = "pytest tests/ --cov=src/mcp_server_llm_cli_runner --cov-branch --cov-report=html --cov-report=xml --cov-report=json --cov-report=term-missing"
