@@ -6,8 +6,8 @@ configurations to ensure deterministic and collision-resistant keys.
 
 import pytest
 
-from mcp_server_cheap_llm.cache.key_generator import CacheKeyGenerator
-from mcp_server_cheap_llm.core.models import LLMRequest, ProviderType
+from mcp_server_llm_cli_runner.cache.key_generator import CacheKeyGenerator
+from mcp_server_llm_cli_runner.core.models import LLMRequest, ProviderType
 
 
 class TestCacheKeyGenerator:

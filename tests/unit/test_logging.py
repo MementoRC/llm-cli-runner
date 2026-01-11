@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from mcp_server_cheap_llm.utils.logging import LogContext, StructuredLogger
+from mcp_server_llm_cli_runner.utils.logging import LogContext, StructuredLogger
 
 
 class TestLogContext:

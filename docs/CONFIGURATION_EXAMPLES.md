@@ -2,7 +2,7 @@
 
 ## Overview
 
-MCP Server Cheap LLM supports configuration via:
+MCP Server LLM CLI Runner supports configuration via:
 1. Configuration files (TOML)
 2. Environment variables
 3. Command-line arguments
@@ -30,9 +30,9 @@ OPENAI_API_KEY=your-openai-api-key
 LLAMA_MODEL_PATH=/path/to/model.gguf
 
 # Server configuration
-CHEAP_LLM_DEFAULT_PROVIDER=gemini
-CHEAP_LLM_LOG_LEVEL=INFO
-CHEAP_LLM_MAX_CONCURRENT=10
+LLM_CLI_RUNNER_DEFAULT_PROVIDER=gemini
+LLM_CLI_RUNNER_LOG_LEVEL=INFO
+LLM_CLI_RUNNER_MAX_CONCURRENT=10
 ```
 
 ## Provider Configurations
@@ -152,7 +152,7 @@ level = "INFO"
 format = "json"
 log_requests = false
 log_responses = false
-output = "/var/log/cheap-llm/server.log"
+output = "/var/log/llm-cli-runner/server.log"
 
 [security]
 max_message_size = 1048576  # 1MB
@@ -361,7 +361,7 @@ backend = "redis"
 redis_url = "redis://localhost:6379/0"
 ttl = 86400
 max_size = 100000
-key_prefix = "cheap-llm:"
+key_prefix = "llm-cli-runner:"
 
 [cache.redis]
 max_connections = 20
@@ -375,7 +375,7 @@ retry_on_timeout = true
 [cache]
 enabled = true
 backend = "disk"
-path = "/var/cache/cheap-llm"
+path = "/var/cache/llm-cli-runner"
 ttl = 604800  # 7 days
 max_size_gb = 10
 ```
@@ -408,7 +408,7 @@ format = "json"
 colorize = false
 
 # Log to file with rotation
-output = "/var/log/cheap-llm/server.log"
+output = "/var/log/llm-cli-runner/server.log"
 max_size = "100MB"
 max_files = 10
 compress = true
@@ -425,7 +425,7 @@ level = "INFO"
 format = "json"
 
 [logging.fields]
-service = "cheap-llm"
+service = "llm-cli-runner"
 environment = "${ENVIRONMENT}"
 version = "0.1.0"
 
@@ -512,7 +512,7 @@ debug = false
 [logging]
 level = "INFO"
 format = "json"
-output = "/var/log/cheap-llm/server.log"
+output = "/var/log/llm-cli-runner/server.log"
 max_size = "100MB"
 max_files = 10
 

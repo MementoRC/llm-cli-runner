@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.connection_pool import (
+from mcp_server_llm_cli_runner.utils.connection_pool import (
     AsyncConnectionPool,
     ConnectionPoolConfig,
     ConnectionPoolManager,

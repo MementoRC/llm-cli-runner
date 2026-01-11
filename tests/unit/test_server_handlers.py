@@ -11,33 +11,33 @@ from mcp.types import (  # type: ignore[import-not-found]
     Tool,
 )
 
-from mcp_server_cheap_llm.server.handlers import CheapLLMServer
+from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
 
-class TestCheapLLMServerTDD:
-    """Test CheapLLMServer using TDD approach."""
+class TestLLMCliRunnerServerTDD:
+    """Test LLMCliRunnerServer using TDD approach."""
 
     def test_server_import(self):
-        """Test that we can import CheapLLMServer."""
-        from mcp_server_cheap_llm.server.handlers import CheapLLMServer
+        """Test that we can import LLMCliRunnerServer."""
+        from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
-        assert CheapLLMServer is not None
+        assert LLMCliRunnerServer is not None
 
     def test_server_instantiation(self):
-        """Test CheapLLMServer can be instantiated."""
+        """Test LLMCliRunnerServer can be instantiated."""
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         assert server is not None
         assert server.config_manager == mock_config_manager
 
     def test_server_has_mcp_server(self):
-        """Test CheapLLMServer has get_mcp_server method."""
+        """Test LLMCliRunnerServer has get_mcp_server method."""
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         assert hasattr(server, "get_mcp_server")
 
         mcp_server = server.get_mcp_server()
@@ -49,7 +49,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         tools = await server._list_tools()
 
         assert isinstance(tools, list)
@@ -67,7 +67,7 @@ class TestCheapLLMServerTDD:
             "llama",
         ]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         tools = await server._list_tools()
 
         assert isinstance(tools, list)
@@ -84,7 +84,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Mock the gemini call
         with patch.object(
@@ -115,7 +115,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         request = CallToolRequest(
             method="tools/call",
@@ -139,7 +139,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         arguments = {"prompt": "Hello", "model": "gemini-pro"}
         response = await server._call_gemini(arguments)
@@ -155,7 +155,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["codex"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         arguments = {"prompt": "def hello():", "language": "python"}
         response = await server._call_codex(arguments)
@@ -171,7 +171,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["llama"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         arguments = {"prompt": "Tell me a story", "max_tokens": 500}
         response = await server._call_llama(arguments)
@@ -187,7 +187,7 @@ class TestCheapLLMServerTDD:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
 
         # Mock gemini to raise an exception
         with patch.object(
@@ -221,7 +221,7 @@ class TestToolSchemas:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["gemini"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         tools = await server._list_tools()
 
         gemini_tool = tools[0]
@@ -242,7 +242,7 @@ class TestToolSchemas:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["codex"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         tools = await server._list_tools()
 
         codex_tool = tools[0]
@@ -263,7 +263,7 @@ class TestToolSchemas:
         mock_config_manager = Mock()
         mock_config_manager.get_enabled_providers.return_value = ["llama"]
 
-        server = CheapLLMServer(mock_config_manager)
+        server = LLMCliRunnerServer(mock_config_manager)
         tools = await server._list_tools()
 
         llama_tool = tools[0]

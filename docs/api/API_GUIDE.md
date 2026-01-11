@@ -1,8 +1,8 @@
-# MCP Server Cheap LLM - API Guide
+# MCP Server LLM CLI Runner - API Guide
 
 ## Overview
 
-This document describes the API for MCP Server Cheap LLM, a Model Context Protocol server providing access to cost-effective Large Language Model providers.
+This document describes the API for MCP Server LLM CLI Runner, a Model Context Protocol server providing access to multi-provider Large Language Model providers.
 
 ## Protocol
 
@@ -48,7 +48,7 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
       "logging": {}
     },
     "serverInfo": {
-      "name": "cheap-llm-server",
+      "name": "llm-cli-runner-server",
       "version": "0.1.0"
     }
   }

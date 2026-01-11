@@ -8,8 +8,8 @@ import asyncio
 
 import pytest
 
-from mcp_server_cheap_llm.cache.service import CacheService, MemoryCache
-from mcp_server_cheap_llm.core.models import LLMRequest, LLMResponse, ProviderType
+from mcp_server_llm_cli_runner.cache.service import CacheService, MemoryCache
+from mcp_server_llm_cli_runner.core.models import LLMRequest, LLMResponse, ProviderType
 
 
 @pytest.mark.asyncio
@@ -364,7 +364,7 @@ class TestCacheSystemIntegration:
         temp_dir = tempfile.mkdtemp()
 
         try:
-            from mcp_server_cheap_llm.cache.service import FileCache
+            from mcp_server_llm_cli_runner.cache.service import FileCache
 
             file_backend = FileCache(cache_dir=temp_dir)
             cache_service = CacheService(primary_backend=file_backend)

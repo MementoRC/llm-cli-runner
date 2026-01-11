@@ -1,11 +1,11 @@
-# MCP Server Cheap LLM
+# MCP Server LLM CLI Runner
 
-A Model Context Protocol server providing access to cost-effective Large Language Model providers including Gemini CLI, Codex, and LLaMA.
+A Model Context Protocol server providing access to multi-provider Large Language Model providers including Gemini CLI, Codex, and LLaMA.
 
 ## 🚀 Features
 
 - **Multiple Provider Support**: Gemini CLI, OpenAI Codex, and local LLaMA models
-- **Cost-Effective**: Optimized for affordable LLM access
+- **Cost-Effective**: Optimized for efficient LLM access
 - **MCP Protocol**: Full Model Context Protocol compliance
 - **Enterprise Security**: Comprehensive security scanning and validation
 - **Zero-Tolerance Quality**: 100% test coverage with strict quality gates
@@ -23,7 +23,7 @@ A Model Context Protocol server providing access to cost-effective Large Languag
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd cheap-llm/development
+cd llm-cli-runner/development
 
 # Install with pixi
 pixi install
@@ -141,7 +141,7 @@ model_name = "llama-2-7b-chat"
 The project follows atomic design principles:
 
 ```
-src/mcp_server_cheap_llm/
+src/mcp_server_llm_cli_runner/
 ├── core/           # Atoms & Molecules (data models)
 ├── services/       # Organisms (provider implementations)
 ├── server/         # Templates (MCP server logic)
@@ -181,7 +181,7 @@ MIT License - see LICENSE file for details.
 
 ## 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/anthropics/mcp-server-cheap-llm/issues)
+- **Issues**: [GitHub Issues](https://github.com/anthropics/llm-cli-runner/issues)
 - **Documentation**: See `docs/` directory
 - **Security**: Report security issues privately
 

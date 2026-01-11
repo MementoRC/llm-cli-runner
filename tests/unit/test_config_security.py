@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_cheap_llm.utils.config import (
+from mcp_server_llm_cli_runner.utils.config import (
     SecurityConfig,  # Import SecurityConfig alias
 )
-from mcp_server_cheap_llm.utils.errors import ConfigurationError
+from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
 
 
 class TestSecurityConfig:

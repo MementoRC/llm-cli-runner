@@ -15,8 +15,11 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ValidationError
-from mcp_server_cheap_llm.core.request_processor import ContextManager, RequestProcessor
+from mcp_server_llm_cli_runner.core.errors import ValidationError
+from mcp_server_llm_cli_runner.core.request_processor import (
+    ContextManager,
+    RequestProcessor,
+)
 
 
 # Mock classes to simulate the request processing components

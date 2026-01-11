@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from mcp_server_cheap_llm.core.models import BatchPriority, BatchRequest
-from mcp_server_cheap_llm.services.batch.queue import (
+from mcp_server_llm_cli_runner.core.models import BatchPriority, BatchRequest
+from mcp_server_llm_cli_runner.services.batch.queue import (
     BackpressureAction,
     BackpressureConfig,
     BackpressureController,

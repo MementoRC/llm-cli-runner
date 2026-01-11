@@ -12,10 +12,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ProviderError
-from mcp_server_cheap_llm.core.models import LLMRequest, ProviderType
-from mcp_server_cheap_llm.providers.registry import ProviderRegistry
-from mcp_server_cheap_llm.providers.routing import (
+from mcp_server_llm_cli_runner.core.errors import ProviderError
+from mcp_server_llm_cli_runner.core.models import LLMRequest, ProviderType
+from mcp_server_llm_cli_runner.providers.registry import ProviderRegistry
+from mcp_server_llm_cli_runner.providers.routing import (
     ComplexityAnalyzer,
     ComplexityFeatures,
     ComplexityLevel,
@@ -668,7 +668,7 @@ class TestEdgeCases:
         assert 0.0 <= score <= 10.0
         assert features.prompt_length > 0
 
-    @patch("mcp_server_cheap_llm.providers.routing.datetime")
+    @patch("mcp_server_llm_cli_runner.providers.routing.datetime")
     def test_routing_with_time_mock(self, mock_datetime):
         """Test routing time calculation with mocked datetime."""
         # Mock datetime to control timing

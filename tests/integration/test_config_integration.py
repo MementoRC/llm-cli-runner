@@ -13,8 +13,8 @@ from unittest.mock import patch
 import pytest
 import tomli_w
 
-from mcp_server_cheap_llm.utils.config import ConfigManager
-from mcp_server_cheap_llm.utils.errors import ConfigurationError, ValidationError
+from mcp_server_llm_cli_runner.utils.config import ConfigManager
+from mcp_server_llm_cli_runner.utils.errors import ConfigurationError, ValidationError
 
 
 class TestConfigurationIntegration:

@@ -11,7 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server_cheap_llm.cache.backends import CacheEntry, FileBackend, MemoryBackend
+from mcp_server_llm_cli_runner.cache.backends import (
+    CacheEntry,
+    FileBackend,
+    MemoryBackend,
+)
 
 
 class TestCacheEntry:

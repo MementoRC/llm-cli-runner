@@ -91,10 +91,10 @@ jobs:
       uses: google-github-actions/run-gemini-cli@v0
       with:
         prompt: |
-          You are an expert Python developer reviewing code for a Model Context Protocol (MCP) server that provides access to cheap LLM alternatives.
+          You are an expert Python developer reviewing code for a Model Context Protocol (MCP) server that provides multi-provider LLM access.
 
           **Project Context:**
-          - This is an MCP server for cheap LLM providers (Gemini, OpenAI, LLaMA)
+          - This is an MCP server for multi-provider LLM access (Gemini, OpenAI, LLaMA)
           - Built with Python 3.12+, aiohttp, pydantic, structlog
           - Uses pixi for dependency management
           - Implements caching, circuit breakers, and batch processing
@@ -306,7 +306,7 @@ jobs:
           **Focus Area:** ${{ github.event.inputs.focus_area }}
 
           **Project Architecture:**
-          - MCP server for cheap LLM providers (Gemini, OpenAI, LLaMA)
+          - MCP server for multi-provider LLM access (Gemini, OpenAI, LLaMA)
           - Modular design: cache/, providers/, core/, services/
           - Async Python with aiohttp, pydantic validation, structlog
           - Advanced features: caching, circuit breakers, batch processing

@@ -18,10 +18,10 @@ class TestInfrastructureIntegration:
     def test_package_structure_exists(self, project_root: Path):
         """Verify all required package directories exist."""
         required_dirs = [
-            "src/mcp_server_cheap_llm",
-            "src/mcp_server_cheap_llm/core",
-            "src/mcp_server_cheap_llm/server",
-            "src/mcp_server_cheap_llm/utils",
+            "src/mcp_server_llm_cli_runner",
+            "src/mcp_server_llm_cli_runner/core",
+            "src/mcp_server_llm_cli_runner/server",
+            "src/mcp_server_llm_cli_runner/utils",
             "tests",
             "tests/unit",
             "tests/integration",
@@ -68,12 +68,12 @@ class TestInfrastructureIntegration:
     def test_package_imports(self):
         """Verify package modules can be imported."""
         imports = [
-            "mcp_server_cheap_llm",
-            "mcp_server_cheap_llm.core.models",
-            "mcp_server_cheap_llm.server.handlers",
-            "mcp_server_cheap_llm.utils.config",
-            "mcp_server_cheap_llm.utils.errors",
-            "mcp_server_cheap_llm.utils.logging",
+            "mcp_server_llm_cli_runner",
+            "mcp_server_llm_cli_runner.core.models",
+            "mcp_server_llm_cli_runner.server.handlers",
+            "mcp_server_llm_cli_runner.utils.config",
+            "mcp_server_llm_cli_runner.utils.errors",
+            "mcp_server_llm_cli_runner.utils.logging",
         ]
 
         for module in imports:

@@ -8,13 +8,13 @@ class TestBatchImports:
 
     def test_batch_processor_imports(self):
         """Test that BatchProcessor can import all required models."""
-        from mcp_server_cheap_llm.core.models import (
+        from mcp_server_llm_cli_runner.core.models import (
             BatchMetrics,
             BatchRequest,
             BatchResponse,
             BatchStatus,
         )
-        from mcp_server_cheap_llm.services.batch.processor import BatchProcessor
+        from mcp_server_llm_cli_runner.services.batch.processor import BatchProcessor
 
         # Verify BatchStatus has QUEUED attribute
         assert hasattr(BatchStatus, "QUEUED")
@@ -29,13 +29,13 @@ class TestBatchImports:
 
     def test_batch_queue_imports(self):
         """Test that QueueManager can import all required models."""
-        from mcp_server_cheap_llm.core.models import (
+        from mcp_server_llm_cli_runner.core.models import (
             BatchMetrics,
             BatchPriority,
             BatchQueueInfo,
             BatchRequest,
         )
-        from mcp_server_cheap_llm.services.batch.queue import QueueManager
+        from mcp_server_llm_cli_runner.services.batch.queue import QueueManager
 
         # Verify BatchPriority enum works
         assert BatchPriority.URGENT == "urgent"
@@ -45,8 +45,10 @@ class TestBatchImports:
 
     def test_batch_similarity_imports(self):
         """Test that SimilarityAnalyzer can import all required models."""
-        from mcp_server_cheap_llm.core.models import BatchRequest
-        from mcp_server_cheap_llm.services.batch.similarity import SimilarityAnalyzer
+        from mcp_server_llm_cli_runner.core.models import BatchRequest
+        from mcp_server_llm_cli_runner.services.batch.similarity import (
+            SimilarityAnalyzer,
+        )
 
         # Verify BatchRequest model exists and has expected fields in __annotations__
         assert "batch_id" in BatchRequest.__annotations__
@@ -56,7 +58,7 @@ class TestBatchImports:
 
     def test_all_batch_models_available(self):
         """Test that all batch-related models are properly defined."""
-        from mcp_server_cheap_llm.core.models import (
+        from mcp_server_llm_cli_runner.core.models import (
             BatchMetrics,
             BatchPriority,
             BatchQueueInfo,

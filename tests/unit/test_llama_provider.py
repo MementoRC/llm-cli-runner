@@ -12,11 +12,15 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from mcp_server_cheap_llm.core.errors import ProviderError
-from mcp_server_cheap_llm.core.models import LLMRequest, ProviderConfig, ProviderType
+from mcp_server_llm_cli_runner.core.errors import ProviderError
+from mcp_server_llm_cli_runner.core.models import (
+    LLMRequest,
+    ProviderConfig,
+    ProviderType,
+)
 
 try:
-    from mcp_server_cheap_llm.providers.llama import (
+    from mcp_server_llm_cli_runner.providers.llama import (
         LLAMA_CPP_AVAILABLE,
         LLaMAModelManager,
         LLaMAProvider,
@@ -75,7 +79,7 @@ class TestLLaMAModelManager:
             manager = LLaMAModelManager(model_path=tmp_file.name)
             assert manager.is_model_available() is True
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLAMA_CPP_AVAILABLE", False)
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLAMA_CPP_AVAILABLE", False)
     async def test_load_model_llama_cpp_unavailable(self):
         """Test model loading when llama-cpp-python is unavailable."""
         manager = LLaMAModelManager(model_path="/test/model.gguf")
@@ -94,7 +98,7 @@ class TestLLaMAModelManager:
         not LLAMA_CPP_AVAILABLE,
         reason="llama-cpp-python not available",
     )
-    @patch("mcp_server_cheap_llm.providers.llama.Llama", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.llama.Llama", autospec=True)
     async def test_load_model_success(self, mock_llama_class):
         """Test successful model loading."""
         # Create a temporary model file
@@ -137,7 +141,7 @@ class TestLLaMAModelManager:
 
         # Mock no GPU detection
         with patch(
-            "mcp_server_cheap_llm.providers.llama.platform.system",
+            "mcp_server_llm_cli_runner.providers.llama.platform.system",
             return_value="linux",
         ):
             layers = manager._detect_gpu_layers()
@@ -213,7 +217,7 @@ class TestLLaMAProvider:
         provider = LLaMAProvider()
         assert provider.model_path == "/env/model.gguf"
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLAMA_CPP_AVAILABLE", False)
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLAMA_CPP_AVAILABLE", False)
     async def test_is_available_llama_cpp_unavailable(self):
         """Test availability check when llama-cpp-python is unavailable."""
         provider = LLaMAProvider(model_path="/test/model.gguf")
@@ -232,7 +236,7 @@ class TestLLaMAProvider:
         available = await provider.is_available()
         assert available is False
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLAMA_CPP_AVAILABLE", True)
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLAMA_CPP_AVAILABLE", True)
     async def test_is_available_success(self):
         """Test successful availability check."""
         with tempfile.NamedTemporaryFile(suffix=".gguf") as tmp_file:
@@ -255,7 +259,7 @@ class TestLLaMAProvider:
         with pytest.raises(ProviderError, match="LLaMA provider not available"):
             await provider.generate(request)
 
-    @patch("mcp_server_cheap_llm.providers.llama.LLAMA_CPP_AVAILABLE", True)
+    @patch("mcp_server_llm_cli_runner.providers.llama.LLAMA_CPP_AVAILABLE", True)
     async def test_generate_response_success(self):
         """Test successful response generation."""
         with tempfile.NamedTemporaryFile(suffix=".gguf") as tmp_file:

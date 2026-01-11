@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: MCP Server Cheap LLM API
+  title: MCP Server LLM CLI Runner API
   description: |
-    Model Context Protocol server providing access to cost-effective Large Language Model providers.
+    Model Context Protocol server providing access to multi-provider Large Language Model providers.
 
     ## Overview
     This API provides MCP-compliant access to multiple LLM providers:

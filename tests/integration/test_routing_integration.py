@@ -2,9 +2,9 @@
 
 import pytest
 
-from src.mcp_server_cheap_llm.core.models import ProviderType
-from src.mcp_server_cheap_llm.providers.manager import ProviderManager
-from src.mcp_server_cheap_llm.providers.registry import ProviderRegistry
+from src.mcp_server_llm_cli_runner.core.models import ProviderType
+from src.mcp_server_llm_cli_runner.providers.manager import ProviderManager
+from src.mcp_server_llm_cli_runner.providers.registry import ProviderRegistry
 
 
 class TestRoutingIntegration:
@@ -64,9 +64,9 @@ class TestRoutingIntegration:
     def test_basic_workflow_components_importable(self):
         """Test that all basic workflow components can be imported."""
         # Test imports work
-        from src.mcp_server_cheap_llm.core.models import ProviderType
-        from src.mcp_server_cheap_llm.providers.manager import ProviderManager
-        from src.mcp_server_cheap_llm.providers.registry import ProviderRegistry
+        from src.mcp_server_llm_cli_runner.core.models import ProviderType
+        from src.mcp_server_llm_cli_runner.providers.manager import ProviderManager
+        from src.mcp_server_llm_cli_runner.providers.registry import ProviderRegistry
 
         # Test instantiation works
         registry = ProviderRegistry()

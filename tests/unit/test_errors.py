@@ -2,9 +2,9 @@
 
 import pytest
 
-from mcp_server_cheap_llm.utils.errors import (
-    CheapLLMError,
+from mcp_server_llm_cli_runner.utils.errors import (
     ConfigurationError,
+    LLMCliRunnerError,
     ProviderError,
     RateLimitError,
     SecurityError,
@@ -12,68 +12,68 @@ from mcp_server_cheap_llm.utils.errors import (
 )
 
 
-class TestCheapLLMError:
-    """Test suite for base CheapLLMError class."""
+class TestLLMCliRunnerError:
+    """Test suite for base LLMCliRunnerError class."""
 
-    def test_cheap_llm_error_import(self):
-        """Test that CheapLLMError can be imported."""
-        assert CheapLLMError is not None
+    def test_llm_cli_runner_error_import(self):
+        """Test that LLMCliRunnerError can be imported."""
+        assert LLMCliRunnerError is not None
 
-    def test_cheap_llm_error_basic_instantiation(self):
-        """Test basic CheapLLMError instantiation."""
-        error = CheapLLMError("Test error message")
+    def test_llm_cli_runner_error_basic_instantiation(self):
+        """Test basic LLMCliRunnerError instantiation."""
+        error = LLMCliRunnerError("Test error message")
         assert error.message == "Test error message"
         assert error.error_code is None
         assert error.context == {}
         assert str(error) == "Test error message"
 
-    def test_cheap_llm_error_with_error_code(self):
-        """Test CheapLLMError with error code."""
-        error = CheapLLMError("Test error", error_code="E001")
+    def test_llm_cli_runner_error_with_error_code(self):
+        """Test LLMCliRunnerError with error code."""
+        error = LLMCliRunnerError("Test error", error_code="E001")
         assert error.message == "Test error"
         assert error.error_code == "E001"
         assert error.context == {}
 
-    def test_cheap_llm_error_with_context(self):
-        """Test CheapLLMError with context information."""
+    def test_llm_cli_runner_error_with_context(self):
+        """Test LLMCliRunnerError with context information."""
         context = {"user_id": "123", "request_id": "req456"}
-        error = CheapLLMError("Test error", context=context)
+        error = LLMCliRunnerError("Test error", context=context)
         assert error.message == "Test error"
         assert error.error_code is None
         assert error.context == context
 
-    def test_cheap_llm_error_full_instantiation(self):
-        """Test CheapLLMError with all parameters."""
+    def test_llm_cli_runner_error_full_instantiation(self):
+        """Test LLMCliRunnerError with all parameters."""
         context = {"detail": "extra info"}
-        error = CheapLLMError("Full error", error_code="E999", context=context)
+        error = LLMCliRunnerError("Full error", error_code="E999", context=context)
         assert error.message == "Full error"
         assert error.error_code == "E999"
         assert error.context == context
 
-    def test_cheap_llm_error_to_dict(self):
-        """Test CheapLLMError to_dict method."""
+    def test_llm_cli_runner_error_to_dict(self):
+        """Test LLMCliRunnerError to_dict method."""
         context = {"key": "value"}
-        error = CheapLLMError("Test error", error_code="E001", context=context)
+        error = LLMCliRunnerError("Test error", error_code="E001", context=context)
         error_dict = error.to_dict()
 
         expected_dict = {
-            "error_type": "CheapLLMError",
+            "error_type": "LLMCliRunnerError",
             "message": "Test error",
             "error_code": "E001",
             "context": {"key": "value"},
         }
         assert error_dict == expected_dict
 
-    def test_cheap_llm_error_inheritance(self):
-        """Test that CheapLLMError inherits from Exception."""
-        error = CheapLLMError("Test error")
+    def test_llm_cli_runner_error_inheritance(self):
+        """Test that LLMCliRunnerError inherits from Exception."""
+        error = LLMCliRunnerError("Test error")
         assert isinstance(error, Exception)
-        assert isinstance(error, CheapLLMError)
+        assert isinstance(error, LLMCliRunnerError)
 
-    def test_cheap_llm_error_can_be_raised(self):
-        """Test that CheapLLMError can be raised and caught."""
-        with pytest.raises(CheapLLMError) as exc_info:
-            raise CheapLLMError("Test error", error_code="E001")
+    def test_llm_cli_runner_error_can_be_raised(self):
+        """Test that LLMCliRunnerError can be raised and caught."""
+        with pytest.raises(LLMCliRunnerError) as exc_info:
+            raise LLMCliRunnerError("Test error", error_code="E001")
 
         assert exc_info.value.message == "Test error"
         assert exc_info.value.error_code == "E001"
@@ -87,9 +87,9 @@ class TestConfigurationError:
         assert ConfigurationError is not None
 
     def test_configuration_error_inheritance(self):
-        """Test ConfigurationError inherits from CheapLLMError."""
+        """Test ConfigurationError inherits from LLMCliRunnerError."""
         error = ConfigurationError("Config error")
-        assert isinstance(error, CheapLLMError)
+        assert isinstance(error, LLMCliRunnerError)
         assert isinstance(error, ConfigurationError)
 
     def test_configuration_error_basic_instantiation(self):
@@ -147,9 +147,9 @@ class TestProviderError:
         assert ProviderError is not None
 
     def test_provider_error_inheritance(self):
-        """Test ProviderError inherits from CheapLLMError."""
+        """Test ProviderError inherits from LLMCliRunnerError."""
         error = ProviderError("Provider error", provider="gemini")
-        assert isinstance(error, CheapLLMError)
+        assert isinstance(error, LLMCliRunnerError)
         assert isinstance(error, ProviderError)
 
     def test_provider_error_basic_instantiation(self):
@@ -309,9 +309,9 @@ class TestValidationError:
         assert ValidationError is not None
 
     def test_validation_error_inheritance(self):
-        """Test ValidationError inherits from CheapLLMError."""
+        """Test ValidationError inherits from LLMCliRunnerError."""
         error = ValidationError("Validation error")
-        assert isinstance(error, CheapLLMError)
+        assert isinstance(error, LLMCliRunnerError)
         assert isinstance(error, ValidationError)
 
     def test_validation_error_basic_instantiation(self):
@@ -369,9 +369,9 @@ class TestSecurityError:
         assert SecurityError is not None
 
     def test_security_error_inheritance(self):
-        """Test SecurityError inherits from CheapLLMError."""
+        """Test SecurityError inherits from LLMCliRunnerError."""
         error = SecurityError("Security violation")
-        assert isinstance(error, CheapLLMError)
+        assert isinstance(error, LLMCliRunnerError)
         assert isinstance(error, SecurityError)
 
     def test_security_error_basic_instantiation(self):
@@ -426,18 +426,18 @@ class TestExceptionHierarchy:
 
     def test_exception_hierarchy_correctness(self):
         """Test that exception hierarchy is correct."""
-        # All exceptions should inherit from CheapLLMError
-        assert issubclass(ConfigurationError, CheapLLMError)
-        assert issubclass(ProviderError, CheapLLMError)
-        assert issubclass(ValidationError, CheapLLMError)
-        assert issubclass(SecurityError, CheapLLMError)
+        # All exceptions should inherit from LLMCliRunnerError
+        assert issubclass(ConfigurationError, LLMCliRunnerError)
+        assert issubclass(ProviderError, LLMCliRunnerError)
+        assert issubclass(ValidationError, LLMCliRunnerError)
+        assert issubclass(SecurityError, LLMCliRunnerError)
 
         # RateLimitError should inherit from ProviderError
         assert issubclass(RateLimitError, ProviderError)
-        assert issubclass(RateLimitError, CheapLLMError)
+        assert issubclass(RateLimitError, LLMCliRunnerError)
 
         # All should inherit from Exception
-        assert issubclass(CheapLLMError, Exception)
+        assert issubclass(LLMCliRunnerError, Exception)
         assert issubclass(ConfigurationError, Exception)
         assert issubclass(ProviderError, Exception)
         assert issubclass(RateLimitError, Exception)
@@ -446,19 +446,19 @@ class TestExceptionHierarchy:
 
     def test_exception_hierarchy_catching(self):
         """Test that exceptions can be caught by their parent classes."""
-        # ConfigurationError can be caught as CheapLLMError
-        with pytest.raises(CheapLLMError):
+        # ConfigurationError can be caught as LLMCliRunnerError
+        with pytest.raises(LLMCliRunnerError):
             raise ConfigurationError("Config error")
 
-        # ProviderError can be caught as CheapLLMError
-        with pytest.raises(CheapLLMError):
+        # ProviderError can be caught as LLMCliRunnerError
+        with pytest.raises(LLMCliRunnerError):
             raise ProviderError("Provider error", provider="gemini")
 
-        # RateLimitError can be caught as ProviderError or CheapLLMError
+        # RateLimitError can be caught as ProviderError or LLMCliRunnerError
         with pytest.raises(ProviderError):
             raise RateLimitError("Rate limit", provider="gemini", retry_after=60)
 
-        with pytest.raises(CheapLLMError):
+        with pytest.raises(LLMCliRunnerError):
             raise RateLimitError("Rate limit", provider="gemini", retry_after=60)
 
     def test_error_code_uniqueness_validation(self):

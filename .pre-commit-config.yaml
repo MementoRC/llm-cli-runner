@@ -1,5 +1,5 @@
 ---
-# Pre-commit hooks configuration for MCP Server Cheap LLM
+# Pre-commit hooks configuration for MCP Server LLM CLI Runner
 # Follows enterprise security standards and comprehensive quality validation
 
 repos:

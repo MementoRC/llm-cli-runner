@@ -1,1 +1,1 @@
-"""Integration tests for MCP Server Cheap LLM."""
+"""Integration tests for MCP Server LLM CLI Runner."""

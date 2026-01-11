@@ -15,14 +15,14 @@ def test_basic_math():
 
 def test_import_main_module():
     """Test that we can import the main module."""
-    from mcp_server_cheap_llm import __version__
+    from mcp_server_llm_cli_runner import __version__
 
     assert __version__ == "0.1.0"
 
 
 def test_import_core_models():
     """Test that we can import core models."""
-    from mcp_server_cheap_llm.core.models import ProviderStatus, ProviderType
+    from mcp_server_llm_cli_runner.core.models import ProviderStatus, ProviderType
 
     assert ProviderType.GEMINI == "gemini"
     assert ProviderStatus.AVAILABLE == "available"

@@ -5,15 +5,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.mcp_server_cheap_llm.core.errors import ProviderError, RateLimitError
-from src.mcp_server_cheap_llm.core.models import (
+from src.mcp_server_llm_cli_runner.core.errors import ProviderError, RateLimitError
+from src.mcp_server_llm_cli_runner.core.models import (
     LLMRequest,
     ProviderConfig,
     ProviderType,
 )
 
 try:
-    from src.mcp_server_cheap_llm.providers.openai import OpenAIProvider
+    from src.mcp_server_llm_cli_runner.providers.openai import OpenAIProvider
 except ImportError:
     pytest.skip("openai dependency not available", allow_module_level=True)
 
@@ -69,7 +69,7 @@ class TestOpenAIProvider:
         # Provider stores config but uses its own provider_type
         assert provider.provider_type == ProviderType.OPENAI
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_initialize_success(self, mock_openai_class, provider):
         """Test successful provider initialization."""
         mock_client = AsyncMock()
@@ -81,7 +81,7 @@ class TestOpenAIProvider:
         assert provider.client is mock_client
         mock_openai_class.assert_called_once()
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_initialize_failure(self, mock_openai_class, provider):
         """Test provider initialization failure."""
         mock_openai_class.side_effect = Exception("API key invalid")
@@ -91,7 +91,7 @@ class TestOpenAIProvider:
 
         assert provider._initialized is False
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_generate_success(self, mock_openai_class, provider):
         """Test successful text generation."""
         # Mock OpenAI client and response
@@ -116,7 +116,7 @@ class TestOpenAIProvider:
         assert result.model == "gpt-4o-mini"
         assert result.tokens_used == 15
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_generate_failure(self, mock_openai_class, provider):
         """Test text generation failure."""
         mock_client = AsyncMock()
@@ -132,7 +132,7 @@ class TestOpenAIProvider:
         assert result.content == ""
         assert result.tokens_used == 0
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_generate_stream_success(self, mock_openai_class, provider):
         """Test successful streaming generation."""
         mock_client = AsyncMock()
@@ -190,7 +190,7 @@ class TestOpenAIProvider:
         # Check cost breakdown contains expected model info
         assert cost_info.cost_breakdown["model"] == "gpt-3.5-turbo"
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_health_check_healthy(self, mock_openai_class, provider):
         """Test health check when provider is healthy."""
         mock_client = AsyncMock()
@@ -211,7 +211,7 @@ class TestOpenAIProvider:
         assert health["available"] is True
         assert health["test_generation"] is True
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_health_check_unhealthy(self, mock_openai_class, provider):
         """Test health check when provider is unhealthy."""
         mock_client = AsyncMock()
@@ -249,7 +249,7 @@ class TestOpenAIProvider:
         assert provider.config.provider_type == ProviderType.OPENAI
         assert "gpt-3.5-turbo" in provider.config.models
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_generate_with_system_prompt(self, mock_openai_class, provider):
         """Test generation with system prompt."""
         mock_client = AsyncMock()
@@ -279,7 +279,7 @@ class TestOpenAIProvider:
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
 
-    @patch("src.mcp_server_cheap_llm.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_generate_without_initialization(self, mock_openai_class, provider):
         """Test that generate initializes the provider if not already done."""
         mock_client = AsyncMock()

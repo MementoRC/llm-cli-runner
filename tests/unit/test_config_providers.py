@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp_server_cheap_llm.core.models import (  # type: ignore[import-not-found]
+from mcp_server_llm_cli_runner.core.models import (  # type: ignore[import-not-found]
     ProviderConfig,
     ProviderType,
 )
