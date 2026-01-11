@@ -30,9 +30,9 @@ class TestInfrastructureIntegration:
 
         for dir_path in required_dirs:
             assert (project_root / dir_path).exists(), f"Missing directory: {dir_path}"
-            assert (
-                project_root / dir_path / "__init__.py"
-            ).exists(), f"Missing __init__.py in {dir_path}"
+            assert (project_root / dir_path / "__init__.py").exists(), (
+                f"Missing __init__.py in {dir_path}"
+            )
 
     def test_configuration_files_exist(self, project_root: Path):
         """Verify all configuration files are present."""
@@ -92,9 +92,9 @@ class TestInfrastructureIntegration:
 
         for tool_cmd in tools:
             result = subprocess.run(tool_cmd, capture_output=True, text=True)
-            assert (
-                result.returncode == 0
-            ), f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
+            assert result.returncode == 0, (
+                f"Failed to run {' '.join(tool_cmd)}: {result.stderr}"
+            )
 
         # Test pre-commit availability directly without nested subprocess calls
         pre_commit_test = subprocess.run(
@@ -102,9 +102,9 @@ class TestInfrastructureIntegration:
             capture_output=True,
             text=True,
         )
-        assert (
-            pre_commit_test.returncode == 0
-        ), f"Failed to verify pre-commit availability: {pre_commit_test.stderr}"
+        assert pre_commit_test.returncode == 0, (
+            f"Failed to verify pre-commit availability: {pre_commit_test.stderr}"
+        )
 
     def test_quality_commands_work(self):
         """Verify all quality check commands execute successfully."""
