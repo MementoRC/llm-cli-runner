@@ -99,13 +99,13 @@ class LogContext:
         self._token = _correlation_id_context.set(self._correlation_id)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Exit the context and reset the correlation ID.
 
         Args:
-            exc_type: Exception type (if any)
-            exc_val: Exception value (if any)
-            exc_tb: Exception traceback (if any)
+            _exc_type: Exception type (unused)
+            _exc_val: Exception value (unused)
+            _exc_tb: Exception traceback (unused)
         """
         if self._token is not None:
             _correlation_id_context.reset(self._token)

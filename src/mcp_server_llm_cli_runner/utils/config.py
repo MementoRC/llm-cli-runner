@@ -31,11 +31,6 @@ import structlog  # type: ignore[import-not-found]
 from cryptography.fernet import Fernet  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-try:
-    from dotenv import load_dotenv  # type: ignore[import-not-found]
-except ImportError:
-    load_dotenv = None  # type: ignore[assignment]
-
 from mcp_server_llm_cli_runner.core.models import ProviderConfig as CoreProviderConfig
 from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
 

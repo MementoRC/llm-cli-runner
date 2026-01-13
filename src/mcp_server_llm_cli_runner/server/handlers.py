@@ -810,7 +810,7 @@ class ToolVersionManager:
     def migrate_parameters(
         self,
         tool_name: str,
-        from_version: str,
+        _from_version: str,
         to_version: str,
         parameters: dict[str, Any],
     ) -> dict[str, Any]:
@@ -818,7 +818,7 @@ class ToolVersionManager:
 
         Args:
             tool_name: Name of the tool
-            from_version: Source version
+            _from_version: Source version (unused, reserved for future migration logic)
             to_version: Target version
             parameters: Parameters to migrate
 

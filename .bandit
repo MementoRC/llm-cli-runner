@@ -1,0 +1,9 @@
+exclude_dirs:
+  - tests
+  - build
+  - dist
+  - .pixi
+  - .git
+
+skips:
+  - B101
