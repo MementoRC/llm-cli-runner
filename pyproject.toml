@@ -112,6 +112,7 @@ safety = ">=2.3.0"
 
 # Code Quality Analysis
 hypothesis = ">=6.0.0"
+vulture = ">=2.11"  # Dead code detection
 
 # Git Hooks
 pre-commit = ">=3.0.0"
@@ -203,8 +204,12 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
 security-scan = "bandit -r src/ --severity-level high"
 safety-check = "safety check"
 
+# Dead Code Detection
+dead-code = "vulture src/ --min-confidence 80"
+dead-code-all = "vulture src/ tests/ --min-confidence 60"
+
 # Static Analysis Suite
-static-analysis = { depends-on = ["security-scan", "safety-check"] }
+static-analysis = { depends-on = ["security-scan", "safety-check", "dead-code"] }
 
 # Comprehensive Check
 check-all = { depends-on = ["quality", "static-analysis"] }
