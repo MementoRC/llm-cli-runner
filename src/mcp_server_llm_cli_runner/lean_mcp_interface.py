@@ -142,9 +142,9 @@ class LeanMCPInterface:
         self,
         prompt: str,
         provider: str = "llama",
-        model: str = None,
+        model: str | None = None,
         temperature: float = 0.7,
-        max_tokens: int = None,
+        max_tokens: int | None = None,
         stream: bool = False,
     ) -> dict[str, Any]:
         """Execute LLM completion."""
