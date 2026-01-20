@@ -185,10 +185,33 @@ class GeminiProvider(LLMProvider):
 
             # Calculate metrics
             response_time = time.time() - start_time
-            tokens_used = self._estimate_tokens(
-                request.prompt,
-                result.get("content", ""),
-            )
+
+            # Extract response content (Gemini CLI uses "response" field, not "content")
+            response_content = result.get("response", "")
+
+            # Extract actual token counts from stats if available
+            # Structure: stats.models.[model_name].tokens.{prompt, candidates, total}
+            stats = result.get("stats", {})
+            models_stats = stats.get("models", {})
+
+            # Find the model stats (could be under any model name)
+            actual_tokens = None
+            for model_stats in models_stats.values():
+                tokens_info = model_stats.get("tokens", {})
+                if tokens_info:
+                    actual_tokens = {
+                        "prompt": tokens_info.get("prompt", 0),
+                        "completion": tokens_info.get("candidates", 0),
+                        "total": tokens_info.get("total", 0),
+                    }
+                    break
+
+            # Use actual tokens if available, otherwise estimate
+            if actual_tokens:
+                tokens_used = actual_tokens["total"]
+            else:
+                tokens_used = self._estimate_tokens(request.prompt, response_content)
+
             cost = self._calculate_cost(tokens_used, model)
 
             # Track usage
@@ -200,7 +223,7 @@ class GeminiProvider(LLMProvider):
 
             # Create response
             response = LLMResponse(
-                content=result.get("content", ""),
+                content=response_content,
                 provider="gemini",
                 model=model,
                 success=True,
@@ -211,8 +234,9 @@ class GeminiProvider(LLMProvider):
                     "model": model,
                     "temperature": temperature,
                     "max_tokens": max_tokens,
-                    "cli_version": result.get("cli_version"),
-                    "usage": {
+                    "session_id": result.get("session_id"),
+                    "usage": actual_tokens
+                    or {
                         "total_tokens": tokens_used,
                         "estimated_input_tokens": self._estimate_tokens(request.prompt),
                         "estimated_output_tokens": tokens_used
@@ -301,9 +325,31 @@ class GeminiProvider(LLMProvider):
                     )
                     if line_text.strip():
                         try:
+                            # Gemini stream-json emits events: init, message, tool_use,
+                            # tool_result, error, result
                             chunk_data = json.loads(line_text.strip())
-                            content = chunk_data.get("content", "")
-                            is_final = chunk_data.get("final", False)
+                            event_type = chunk_data.get("type", "")
+
+                            # Extract content based on event type
+                            content = ""
+                            is_final = False
+
+                            if event_type == "message":
+                                # Message events contain partial response text
+                                content = chunk_data.get("content", "")
+                            elif event_type == "result":
+                                # Result event is the final response
+                                content = chunk_data.get("response", "")
+                                is_final = True
+                            elif event_type == "error":
+                                # Handle error events
+                                error_msg = chunk_data.get("error", {})
+                                content = f"Error: {error_msg}"
+                                is_final = True
+                            elif event_type == "init":
+                                # Init event - skip or include as metadata
+                                continue
+                            # tool_use and tool_result can be skipped for basic streaming
 
                             chunk = StreamingResponse(
                                 content=content,
@@ -311,7 +357,7 @@ class GeminiProvider(LLMProvider):
                                 model=model,
                                 is_final=is_final,
                                 chunk_index=chunk_index,
-                                metadata=chunk_data,
+                                metadata={"event_type": event_type, **chunk_data},
                             )
 
                             chunks.append(chunk)
@@ -508,13 +554,21 @@ class GeminiProvider(LLMProvider):
         Args:
             prompt: Text prompt
             model: Model to use
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens
-            system_prompt: Optional system prompt
+            temperature: Sampling temperature (stored in metadata, not passed to CLI)
+            max_tokens: Maximum tokens (stored in metadata, not passed to CLI)
+            system_prompt: Optional system prompt (not supported by CLI)
             stream: Enable streaming
 
         Returns:
             Command as list of strings
+
+        Note:
+            The Gemini CLI (geminicli.com) has limited parameter support:
+            - --model/-m: Model selection
+            - --output-format: text, json, or stream-json
+            - --prompt/-p: Inline prompt for headless mode
+            Temperature, max_tokens, and system_prompt are NOT supported
+            by the CLI and are only used for metadata/logging purposes.
 
         """
         cmd = ["gemini"]
@@ -523,27 +577,17 @@ class GeminiProvider(LLMProvider):
         if model != "gemini-1.5-flash":  # Default model
             cmd.extend(["--model", model])
 
-        # Temperature
-        if temperature != 0.7:  # Default temperature
-            cmd.extend(["--temperature", str(temperature)])
+        # Note: --temperature, --max-tokens, --system are NOT supported by Gemini CLI
+        # These parameters are kept in the signature for compatibility but not passed
 
-        # Max tokens
-        if max_tokens != 1000:  # Default max tokens
-            cmd.extend(["--max-tokens", str(max_tokens)])
-
-        # System prompt
-        if system_prompt:
-            cmd.extend(["--system", system_prompt])
-
-        # Streaming
+        # Output format (use stream-json for streaming, json otherwise)
         if stream:
-            cmd.append("--stream")
+            cmd.extend(["--output-format", "stream-json"])
+        else:
+            cmd.extend(["--output-format", "json"])
 
-        # Output format
-        cmd.extend(["--format", "json"])
-
-        # Add the prompt as the last argument
-        cmd.append(prompt)
+        # Add the prompt using -p flag for headless mode
+        cmd.extend(["-p", prompt])
 
         logger.debug("Built Gemini command", command=" ".join(cmd))
         return cmd
@@ -592,8 +636,8 @@ class GeminiProvider(LLMProvider):
                     try:
                         return json.loads(stdout_text)
                     except json.JSONDecodeError:
-                        # Fallback to plain text
-                        return {"content": stdout_text.strip(), "format": "text"}
+                        # Fallback to plain text (use "response" to match Gemini CLI JSON format)
+                        return {"response": stdout_text.strip(), "format": "text"}
                 else:
                     # Error occurred
                     error_msg = stderr_text.strip() or stdout_text.strip()
