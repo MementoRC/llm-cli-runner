@@ -1,5 +1,4 @@
-"""
-Lean MCP Interface for LLM CLI Runner - Dynamic Tool Discovery.
+"""Lean MCP Interface for LLM CLI Runner - Dynamic Tool Discovery.
 
 This module implements the meta-tool pattern to reduce context consumption
 while exposing LLM CLI operations through multiple providers (Gemini, OpenAI, LLaMA).
@@ -11,6 +10,7 @@ Meta-Tool Pattern:
 - Zero functionality loss with massive context savings
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class LeanMCPInterface:
-    """
-    Lean MCP Interface implementing the meta-tool pattern for dynamic tool discovery.
+    """Lean MCP Interface implementing the meta-tool pattern for dynamic tool discovery.
 
     Exposes only 3 compact meta-tools (~500 tokens) with on-demand discovery
     instead of verbose tool definitions.
@@ -36,15 +35,34 @@ class LeanMCPInterface:
         self.config_manager = config_manager
         self.app = FastMCP("llm-cli-runner")
 
+        # Initialize provider instances
+        self._providers: dict[str, Any] = {}
+        self._init_providers()
+
         # Tool registry: maps tool names to their implementations and metadata
         self.tool_registry = self._build_tool_registry()
 
         # Setup the 3 meta-tools
         self._setup_meta_tools()
 
+    def _init_providers(self) -> None:
+        """Initialize available provider instances."""
+        enabled = self.config_manager.get_enabled_providers()
+
+        if "gemini" in enabled:
+            try:
+                # Lazy import to avoid circular dependency
+                from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
+
+                self._providers["gemini"] = GeminiProvider()
+                logger.info("Initialized Gemini provider")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini provider: {e}")
+
+        # TODO: Add other providers (llama, openai) as they are implemented
+
     def _build_tool_registry(self) -> dict[str, dict[str, Any]]:
-        """
-        Build comprehensive tool registry with metadata for dynamic discovery.
+        """Build comprehensive tool registry with metadata for dynamic discovery.
 
         Each tool entry contains:
         - implementation: The actual function
@@ -138,7 +156,7 @@ class LeanMCPInterface:
         return registry
 
     # Tool implementations
-    def _llm_complete(
+    async def _llm_complete(
         self,
         prompt: str,
         provider: str = "llama",
@@ -149,7 +167,7 @@ class LeanMCPInterface:
     ) -> dict[str, Any]:
         """Execute LLM completion."""
         try:
-            # Get provider instance
+            # Check if provider is available
             providers = self.config_manager.get_enabled_providers()
             if provider not in providers:
                 return {
@@ -157,18 +175,41 @@ class LeanMCPInterface:
                     "available_providers": providers,
                 }
 
-            # For now, return a mock response
-            # TODO: Integrate with actual provider implementation
+            # Check if provider is initialized
+            if provider not in self._providers:
+                return {
+                    "error": f"Provider '{provider}' not initialized",
+                    "available_providers": list(self._providers.keys()),
+                }
+
+            # Lazy import to avoid circular dependency
+            from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+            # Create LLM request
+            # Note: stream is handled separately via stream_generate()
+            request = LLMRequest(
+                prompt=prompt,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens or 1000,
+                system_prompt=None,
+            )
+
+            # Get provider instance and execute
+            provider_instance = self._providers[provider]
+
+            # Await the async generate method
+            response = await provider_instance.generate(request)
+
             return {
                 "provider": provider,
-                "model": model or "default",
-                "prompt": prompt,
-                "completion": f"[Mock response from {provider}]",
-                "metadata": {
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "stream": stream,
-                },
+                "model": response.model,
+                "completion": response.content,
+                "success": response.success,
+                "tokens_used": response.tokens_used,
+                "cost": response.cost,
+                "response_time_ms": response.response_time_ms,
+                "metadata": response.metadata,
             }
         except Exception as e:
             logger.error(f"Error in llm_complete: {e}")
@@ -210,8 +251,7 @@ class LeanMCPInterface:
             description="Discover llm-cli-runner tools (3 total) for LLM completions and provider management. USE WHEN: running LLM queries, checking providers, multi-provider access"
         )
         def discover_tools(pattern: str = "") -> dict[str, Any]:
-            """
-            Get available tools with minimal context consumption.
+            """Get available tools with minimal context consumption.
 
             Args:
                 pattern: Filter by name pattern (substring match, empty string for all tools)
@@ -240,16 +280,13 @@ class LeanMCPInterface:
                 "total_tools": len(self.tool_registry),
                 "filtered_count": len(tools),
                 "domains": list(
-                    set(
-                        info.get("domain", "llm")
-                        for info in self.tool_registry.values()
-                    )
+                    {info.get("domain", "llm") for info in self.tool_registry.values()}
                 ),
                 "complexity_levels": list(
-                    set(
+                    {
                         info.get("complexity", "focused")
                         for info in self.tool_registry.values()
-                    )
+                    }
                 ),
             }
 
@@ -257,8 +294,7 @@ class LeanMCPInterface:
             description="Get full specification for specific llm-cli-runner tool including schema and examples. USE WHEN: need parameter details for LLM/provider tools before execution"
         )
         def get_tool_spec(tool_name: str) -> dict[str, Any]:
-            """
-            Get full specification for specific tool including schema and examples.
+            """Get full specification for specific tool including schema and examples.
 
             Args:
                 tool_name: Name of tool to get specification for
@@ -286,9 +322,10 @@ class LeanMCPInterface:
         @self.app.tool(
             description="Execute llm-cli-runner tool with parameters. Supports LLM completions, provider queries, configuration. USE WHEN: executing LLM queries, checking provider status"
         )
-        def execute_tool(tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
-            """
-            Execute tool with parameters using dynamic dispatch.
+        async def execute_tool(
+            tool_name: str, parameters: dict[str, Any]
+        ) -> dict[str, Any]:
+            """Execute tool with parameters using dynamic dispatch.
 
             Args:
                 tool_name: Name of tool to execute
@@ -308,8 +345,11 @@ class LeanMCPInterface:
             tool_func = tool_info["implementation"]
 
             try:
-                # Execute tool with parameters
+                # Execute tool with parameters (handle both sync and async)
                 result = tool_func(**parameters)
+                # If result is a coroutine, await it
+                if asyncio.iscoroutine(result):
+                    result = await result
                 return {"tool": tool_name, "status": "success", "result": result}
             except Exception as e:
                 logger.error(f"Error executing {tool_name}: {e}")
@@ -321,8 +361,7 @@ class LeanMCPInterface:
 
 
 def create_lean_interface(config_manager: Any) -> FastMCP:
-    """
-    Create a lean MCP interface with minimal context consumption.
+    """Create a lean MCP interface with minimal context consumption.
 
     Args:
         config_manager: Initialized configuration manager

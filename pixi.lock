@@ -811,7 +811,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lupa-2.6-py312lua54h1289d80_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markdown-it-py-4.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markupsafe-3.0.3-pyh7db6752_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.1.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mcp-1.23.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/memory_profiler-0.61.0-pyhcf101f3_1.conda
@@ -1547,7 +1547,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lupa-2.6-py312lua54h1289d80_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markdown-it-py-4.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markupsafe-3.0.3-pyh7db6752_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.1.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mcp-1.23.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/mkl-2024.2.2-ha770c72_17.conda
@@ -1806,7 +1806,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lupa-2.6-py312lua54h1289d80_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markdown-it-py-4.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/markupsafe-3.0.3-pyh7db6752_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.1.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mcp-1.23.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/mkl-2024.2.2-ha770c72_17.conda
@@ -3489,16 +3489,17 @@ packages:
   license_family: BSD
   size: 15499
   timestamp: 1759055275624
-- conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.1.1-pyhd8ed1ab_0.conda
-  sha256: 8d4461dfebe08bec389c8e1badd28908034563458bba6d2867e5548b11df1788
-  md5: f0adf69e89150cc9e187c017d72544c6
+- conda: https://conda.anaconda.org/conda-forge/noarch/marshmallow-4.2.1-pyhcf101f3_0.conda
+  sha256: 6ebfd001138a2ca50ea5e65199dcf5a106a90a25ca39acb3a40a4a74563ea317
+  md5: 7851e91be3e56374ecdb8762e9eb81cf
   depends:
-  - backports-datetime-fromisoformat
   - python >=3.10
+  - backports-datetime-fromisoformat
   - typing_extensions
+  - python
   license: MIT AND BSD-3-Clause
-  size: 90925
-  timestamp: 1765020641216
+  size: 97988
+  timestamp: 1769335830763
 - conda: https://conda.anaconda.org/conda-forge/noarch/mcp-1.23.3-pyhd8ed1ab_0.conda
   sha256: 092c1df2d5cbdc03c78b25c1f9d54b4e0416c5a8f2de049a30501b2cc700dd74
   md5: 7e7c21d35ec98bc90f80e8d899175393
