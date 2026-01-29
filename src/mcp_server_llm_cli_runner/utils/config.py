@@ -1166,18 +1166,15 @@ class ConfigManager:
         """
         defaults = []
 
-        # Gemini provider
-        gemini_key = EnvironmentLoader.get_api_key("gemini")  # type: ignore
-        if gemini_key:
-            defaults.append(
-                {
-                    "name": "gemini",
-                    "provider_type": "gemini",
-                    "enabled": True,
-                    "api_key": gemini_key,
-                    "model_name": "gemini-pro",
-                }
-            )
+        # Gemini provider (CLI-based, no API key needed - CLI handles its own auth)
+        defaults.append(
+            {
+                "name": "gemini",
+                "provider_type": "gemini",
+                "enabled": True,
+                "model_name": "gemini-2.5-flash-lite",
+            }
+        )
 
         # Codex provider
         openai_key = EnvironmentLoader.get_api_key("openai")  # type: ignore

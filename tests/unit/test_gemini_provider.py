@@ -187,7 +187,14 @@ class TestGeminiProvider:
             assert available is True
 
     def test_build_cli_command(self):
-        """Test CLI command building"""
+        """Test CLI command building.
+
+        Note: The Gemini CLI (geminicli.com) has limited parameter support:
+        - --model/-m: Model selection
+        - --output-format: text, json, or stream-json
+        - -p/--prompt: Inline prompt for headless mode
+        Temperature, max_tokens, and system_prompt are NOT supported.
+        """
         provider = GeminiProvider(
             model="gemini-pro",
             temperature=0.8,
@@ -196,22 +203,28 @@ class TestGeminiProvider:
         cmd = provider._build_command(
             prompt="Test prompt",
             model="gemini-pro",
-            temperature=0.8,
+            temperature=0.8,  # Stored in metadata but not passed to CLI
         )
 
+        # Expected command structure for actual Gemini CLI
         expected_parts = [
             "gemini",
             "--model",
             "gemini-pro",
-            "--temperature",
-            "0.8",
-            "--format",
+            "--output-format",
             "json",
+            "-p",
             "Test prompt",
         ]
 
         for part in expected_parts:
             assert part in cmd
+
+        # Ensure unsupported flags are NOT in the command
+        assert "--temperature" not in cmd
+        assert "--max-tokens" not in cmd
+        assert "--system" not in cmd
+        assert "--format" not in cmd  # Correct flag is --output-format
 
     @pytest.mark.asyncio
     async def test_generate_response_quota_exhausted(self):
