@@ -88,7 +88,7 @@ jobs:
     - name: AI Code Review
       if: steps.check-key.outputs.available == 'true'
       id: ai-code-review
-      uses: google-github-actions/run-gemini-cli@v0
+      uses: google-github-actions/run-gemini-cli@v0.1.20
       with:
         prompt: |
           You are an expert Python developer reviewing code for a Model Context Protocol (MCP) server that provides multi-provider LLM access.
@@ -191,7 +191,7 @@ jobs:
     - name: AI Failure Analysis
       if: steps.check-key.outputs.available == 'true'
       id: ai-failure-analysis
-      uses: google-github-actions/run-gemini-cli@v0
+      uses: google-github-actions/run-gemini-cli@v0.1.20
       with:
         prompt: |
           You are an expert DevOps engineer analyzing CI/CD pipeline failures for a Python MCP server project.
@@ -297,7 +297,7 @@ jobs:
 
     - name: Comprehensive AI Analysis
       id: comprehensive-analysis
-      uses: google-github-actions/run-gemini-cli@v0
+      uses: google-github-actions/run-gemini-cli@v0.1.20
       with:
         prompt: |
           You are an expert software architect conducting a comprehensive analysis of a Python MCP server project.
