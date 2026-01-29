@@ -59,7 +59,14 @@ class LeanMCPInterface:
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini provider: {e}")
 
-        # TODO: Add other providers (llama, openai) as they are implemented
+        if "llama" in enabled:
+            try:
+                from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
+
+                self._providers["llama"] = LLaMAProvider()
+                logger.info("Initialized LLaMA provider")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLaMA provider: {e}")
 
     def _build_tool_registry(self) -> dict[str, dict[str, Any]]:
         """Build comprehensive tool registry with metadata for dynamic discovery.
@@ -218,8 +225,17 @@ class LeanMCPInterface:
     def _list_providers(self) -> dict[str, Any]:
         """List available providers."""
         try:
-            providers = self.config_manager.get_enabled_providers()
-            return {"providers": providers, "count": len(providers)}
+            # Return only initialized providers (not just configured ones)
+            initialized = list(self._providers.keys())
+            configured = self.config_manager.get_enabled_providers()
+            # Report both for transparency
+            return {
+                "providers": initialized,
+                "count": len(initialized),
+                "configured_but_not_initialized": [
+                    p for p in configured if p not in initialized
+                ],
+            }
         except Exception as e:
             logger.error(f"Error in list_providers: {e}")
             return {"error": str(e)}
@@ -227,17 +243,23 @@ class LeanMCPInterface:
     def _provider_info(self, provider: str) -> dict[str, Any]:
         """Get provider information."""
         try:
-            providers = self.config_manager.get_enabled_providers()
-            if provider not in providers:
+            configured = self.config_manager.get_enabled_providers()
+            initialized = list(self._providers.keys())
+
+            if provider not in configured:
                 return {
-                    "error": f"Provider '{provider}' not found",
-                    "available_providers": providers,
+                    "error": f"Provider '{provider}' not configured",
+                    "available_providers": initialized,
                 }
 
-            # TODO: Get actual provider configuration
+            # Report actual initialization status
+            is_initialized = provider in self._providers
+            status = "initialized" if is_initialized else "configured_not_initialized"
+
             return {
                 "provider": provider,
-                "status": "available",
+                "status": status,
+                "initialized": is_initialized,
                 "config": {"type": "cli" if provider in ["gemini", "llama"] else "api"},
             }
         except Exception as e:
