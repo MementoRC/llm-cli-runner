@@ -146,7 +146,10 @@ class ConfigModel(BaseModel):
         le=10,
     )
     timeout: int = Field(
-        default=30, description="Global timeout for requests in seconds", ge=1, le=300
+        default=120,
+        description="Global timeout for requests in seconds (CLI LLMs need longer)",
+        ge=1,
+        le=300,
     )
 
     @model_validator(mode="after")
@@ -233,7 +236,10 @@ class ProviderConfig(BaseModel):
     )
     enabled: bool = Field(default=True, description="Whether this provider is enabled")
     timeout: int = Field(
-        default=30, description="Request timeout in seconds", ge=1, le=300
+        default=120,
+        description="Request timeout in seconds (CLI LLMs need longer)",
+        ge=1,
+        le=300,
     )
     model_settings: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Model-specific configuration overrides"
@@ -282,7 +288,9 @@ class ServerConfig(BaseModel):
 
     default_provider: str = "gemini"
     max_concurrent_requests: int = Field(default=10, ge=1, le=100)
-    request_timeout_seconds: int = Field(default=30, ge=1, le=300)
+    request_timeout_seconds: int = Field(
+        default=120, ge=1, le=300
+    )  # CLI LLMs need longer
     enable_metrics: bool = True
     log_level: str = Field(
         default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"

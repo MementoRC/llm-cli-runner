@@ -122,7 +122,9 @@ class TestGeminiProvider:
         provider = GeminiProvider()
 
         assert provider.name == "gemini"
-        assert provider.model == "gemini-1.5-flash"  # Default model from implementation
+        assert (
+            provider.model == "gemini-2.5-flash-lite"
+        )  # Default model from implementation
         assert provider.temperature == 0.7
         assert provider.max_tokens == 4096
         assert isinstance(provider.quota_manager, GeminiQuotaManager)
@@ -263,7 +265,7 @@ class TestGeminiProvider:
             assert response.provider == "gemini" or str(response.provider) == "gemini"
             assert (
                 "model" in response.metadata
-                and response.metadata["model"] == "gemini-1.5-flash"
+                and response.metadata["model"] == "gemini-2.5-flash-lite"
             )
             assert "usage" in response.metadata or hasattr(response, "usage")
 

@@ -162,6 +162,31 @@ class LeanMCPInterface:
 
         return registry
 
+    async def _send_notification(
+        self, notification_type: str, data: dict[str, Any]
+    ) -> None:
+        """Send MCP notification if server supports it.
+
+        Args:
+            notification_type: Type of notification (e.g., 'llm/started', 'llm/retry')
+            data: Notification data payload
+        """
+        try:
+            # FastMCP apps may expose a notification method - use getattr for type safety
+            send_notification = getattr(self.app, "send_notification", None)
+            if send_notification is not None and callable(send_notification):
+                # Call the method and handle both sync and async cases
+                result = send_notification(notification_type, data)
+                # If result is a coroutine, await it
+                if asyncio.iscoroutine(result):
+                    await result
+            else:
+                # Log notification for debugging if MCP notifications not available
+                logger.debug(f"Notification [{notification_type}]: {data}")
+        except Exception as e:
+            # Don't fail the operation if notification sending fails
+            logger.warning(f"Failed to send notification {notification_type}: {e}")
+
     # Tool implementations
     async def _llm_complete(
         self,
@@ -173,10 +198,34 @@ class LeanMCPInterface:
         stream: bool = False,
     ) -> dict[str, Any]:
         """Execute LLM completion."""
+        import time
+
+        operation_start_time = time.time()
+        operation_id = f"{provider}_{int(operation_start_time * 1000)}"
+
         try:
+            # Send operation started notification
+            await self._send_notification(
+                "llm/started",
+                {
+                    "operation_id": operation_id,
+                    "provider": provider,
+                    "model": model,
+                    "timestamp": time.time(),
+                },
+            )
+
             # Check if provider is available
             providers = self.config_manager.get_enabled_providers()
             if provider not in providers:
+                await self._send_notification(
+                    "llm/failed",
+                    {
+                        "operation_id": operation_id,
+                        "error": f"Provider '{provider}' not available",
+                        "timestamp": time.time(),
+                    },
+                )
                 return {
                     "error": f"Provider '{provider}' not available",
                     "available_providers": providers,
@@ -184,6 +233,14 @@ class LeanMCPInterface:
 
             # Check if provider is initialized
             if provider not in self._providers:
+                await self._send_notification(
+                    "llm/failed",
+                    {
+                        "operation_id": operation_id,
+                        "error": f"Provider '{provider}' not initialized",
+                        "timestamp": time.time(),
+                    },
+                )
                 return {
                     "error": f"Provider '{provider}' not initialized",
                     "available_providers": list(self._providers.keys()),
@@ -205,22 +262,116 @@ class LeanMCPInterface:
             # Get provider instance and execute
             provider_instance = self._providers[provider]
 
-            # Await the async generate method
-            response = await provider_instance.generate(request)
+            # Create a task that sends periodic progress notifications
+            async def send_progress_heartbeat():
+                """Send periodic heartbeat during long operations."""
+                heartbeat_interval = 2.0  # seconds
+                while True:
+                    await asyncio.sleep(heartbeat_interval)
+                    elapsed = time.time() - operation_start_time
+                    await self._send_notification(
+                        "llm/progress",
+                        {
+                            "operation_id": operation_id,
+                            "provider": provider,
+                            "elapsed_seconds": elapsed,
+                            "timestamp": time.time(),
+                        },
+                    )
 
-            return {
-                "provider": provider,
-                "model": response.model,
-                "completion": response.content,
-                "success": response.success,
-                "tokens_used": response.tokens_used,
-                "cost": response.cost,
-                "response_time_ms": response.response_time_ms,
-                "metadata": response.metadata,
-            }
+            # Start heartbeat task
+            heartbeat_task = asyncio.create_task(send_progress_heartbeat())
+
+            try:
+                # Await the async generate method
+                response = await provider_instance.generate(request)
+
+                # Cancel heartbeat
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
+
+                # Send completion notification
+                await self._send_notification(
+                    "llm/completed",
+                    {
+                        "operation_id": operation_id,
+                        "provider": provider,
+                        "model": response.model,
+                        "tokens_used": response.tokens_used,
+                        "response_time_ms": response.response_time_ms,
+                        "timestamp": time.time(),
+                    },
+                )
+
+                result = {
+                    "provider": provider,
+                    "model": response.model,
+                    "completion": response.content,
+                    "success": response.success,
+                    "tokens_used": response.tokens_used,
+                    "cost": response.cost,
+                    "response_time_ms": response.response_time_ms,
+                    "metadata": response.metadata,
+                }
+
+                # Include retry attempts if present in metadata
+                if "retry_attempts" in response.metadata:
+                    result["retry_attempts"] = response.metadata["retry_attempts"]
+
+                return result
+
+            except Exception as provider_error:
+                # Cancel heartbeat on error
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
+
+                # Extract retry information if available - use getattr for type safety
+                retry_info = getattr(provider_error, "retry_attempts", None)
+                if retry_info is not None:
+                    # Send retry notifications for each attempt
+                    for attempt in retry_info:
+                        await self._send_notification(
+                            "llm/retry",
+                            {
+                                "operation_id": operation_id,
+                                "provider": provider,
+                                "attempt": attempt["attempt"],
+                                "error": attempt["error"],
+                                "duration_ms": attempt["duration_ms"],
+                                "timestamp": attempt["timestamp"],
+                            },
+                        )
+
+                # Send failure notification
+                await self._send_notification(
+                    "llm/failed",
+                    {
+                        "operation_id": operation_id,
+                        "provider": provider,
+                        "error": str(provider_error),
+                        "retry_attempts": retry_info,
+                        "timestamp": time.time(),
+                    },
+                )
+
+                raise
+
         except Exception as e:
             logger.error(f"Error in llm_complete: {e}")
-            return {"error": str(e)}
+            error_result = {"error": str(e)}
+
+            # Include retry attempts if available - use getattr for type safety
+            retry_attempts = getattr(e, "retry_attempts", None)
+            if retry_attempts is not None:
+                error_result["attempts"] = retry_attempts
+
+            return error_result
 
     def _list_providers(self) -> dict[str, Any]:
         """List available providers."""
@@ -240,8 +391,8 @@ class LeanMCPInterface:
             logger.error(f"Error in list_providers: {e}")
             return {"error": str(e)}
 
-    def _provider_info(self, provider: str) -> dict[str, Any]:
-        """Get provider information."""
+    async def _provider_info(self, provider: str) -> dict[str, Any]:
+        """Get provider information with actual availability check."""
         try:
             configured = self.config_manager.get_enabled_providers()
             initialized = list(self._providers.keys())
@@ -252,14 +403,39 @@ class LeanMCPInterface:
                     "available_providers": initialized,
                 }
 
-            # Report actual initialization status
+            # Check if provider is initialized
             is_initialized = provider in self._providers
-            status = "initialized" if is_initialized else "configured_not_initialized"
+
+            # Check actual availability for initialized providers
+            is_available = False
+            if is_initialized:
+                try:
+                    provider_instance = self._providers[provider]
+                    # Call the async is_available() method if it exists
+                    if hasattr(provider_instance, "is_available"):
+                        is_available = await provider_instance.is_available()
+                    else:
+                        # Fallback: assume available if initialized
+                        is_available = True
+                except Exception as availability_error:
+                    logger.warning(
+                        f"Failed to check availability for {provider}: {availability_error}"
+                    )
+                    is_available = False
+
+            # Determine status based on actual availability
+            if not is_initialized:
+                status = "configured_not_initialized"
+            elif is_available:
+                status = "available"
+            else:
+                status = "initialized_not_available"
 
             return {
                 "provider": provider,
                 "status": status,
                 "initialized": is_initialized,
+                "available": is_available,
                 "config": {"type": "cli" if provider in ["gemini", "llama"] else "api"},
             }
         except Exception as e:

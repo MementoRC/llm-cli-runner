@@ -256,7 +256,7 @@ class ProviderConfig(BaseModel):
     model_name: str | None = None
     max_tokens: int = Field(default=4096, ge=1, le=32000)
     rate_limit: dict[str, Any] = Field(default_factory=dict)
-    timeout: int = Field(default=30, ge=1, le=300)
+    timeout: int = Field(default=120, ge=1, le=300)  # CLI LLMs need longer timeout
     provider_specific: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
