@@ -68,7 +68,7 @@ class GeminiProvider(LLMProvider):
     def __init__(
         self,
         config: ProviderConfig | None = None,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.5-flash-lite",
         temperature: float = 0.7,
         max_retries: int = 3,
         retry_delay: float = 1.0,
@@ -112,7 +112,8 @@ class GeminiProvider(LLMProvider):
         self.metrics = SimpleMetrics()
 
         # Provider-specific settings
-        self.timeout = config.timeout if config else 30
+        # CLI-based LLMs need longer timeout (reads project context on startup)
+        self.timeout = config.timeout if config else 120
         self.retry_attempts = max_retries
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -255,8 +256,33 @@ class GeminiProvider(LLMProvider):
 
             return response
 
-        except (RateLimitError, ProviderError):
-            # Re-raise specific errors
+        except RateLimitError:
+            # Re-raise rate limit errors without modification (handle before ProviderError!)
+            raise
+        except ProviderError as e:
+            # Re-raise provider errors with retry information
+            response_time = time.time() - start_time
+            self.metrics.record_request(
+                response_time=response_time,
+                token_count=0,
+                cost=0.0,
+                error=str(e),
+            )
+
+            # If the error has retry attempts, log them
+            if hasattr(e, "retry_attempts") and e.retry_attempts:
+                logger.error(
+                    error_msg := f"Gemini generation failed: {e}",
+                    error=e,
+                    model=request.model,
+                    retry_attempts=e.retry_attempts,
+                )
+            else:
+                logger.exception(
+                    error_msg := f"Gemini generation failed: {e}",
+                    error=e,
+                    model=request.model,
+                )
             raise
         except Exception as e:
             # Convert to provider error
@@ -543,7 +569,7 @@ class GeminiProvider(LLMProvider):
     def _build_command(
         self,
         prompt: str,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.5-flash-lite",
         temperature: float = 0.7,
         max_tokens: int = 1000,
         system_prompt: str | None = None,
@@ -574,7 +600,7 @@ class GeminiProvider(LLMProvider):
         cmd = ["gemini"]
 
         # Model selection
-        if model != "gemini-1.5-flash":  # Default model
+        if model != "gemini-2.5-flash-lite":  # Default model
             cmd.extend(["--model", model])
 
         # Note: --temperature, --max-tokens, --system are NOT supported by Gemini CLI
@@ -612,8 +638,11 @@ class GeminiProvider(LLMProvider):
 
         """
         last_error = None
+        retry_attempts_log: list[dict[str, Any]] = []
 
         for attempt in range(self.retry_attempts):
+            attempt_start_time = time.time()
+
             try:
                 # Execute command
                 process = await asyncio.create_subprocess_exec(
@@ -631,16 +660,35 @@ class GeminiProvider(LLMProvider):
                 stdout_text = stdout.decode("utf-8") if stdout else ""
                 stderr_text = stderr.decode("utf-8") if stderr else ""
 
+                # Calculate attempt duration
+                attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
+
                 if process.returncode == 0:
                     # Success - parse output
                     try:
-                        return json.loads(stdout_text)
+                        result: dict[str, Any] = json.loads(stdout_text)
                     except json.JSONDecodeError:
                         # Fallback to plain text (use "response" to match Gemini CLI JSON format)
-                        return {"response": stdout_text.strip(), "format": "text"}
+                        result = {"response": stdout_text.strip(), "format": "text"}
+
+                    # Add retry information if there were any retries
+                    if retry_attempts_log:
+                        result["retry_attempts"] = retry_attempts_log
+
+                    return result
                 else:
                     # Error occurred
                     error_msg = stderr_text.strip() or stdout_text.strip()
+
+                    # Log this failed attempt
+                    retry_attempts_log.append(
+                        {
+                            "attempt": attempt + 1,
+                            "error": error_msg,
+                            "duration_ms": attempt_duration_ms,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
 
                     # Check for rate limiting
                     if (
@@ -666,8 +714,20 @@ class GeminiProvider(LLMProvider):
                     )
 
             except TimeoutError:
+                attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
+                timeout_error = f"Gemini request timed out after {self.timeout}s"
+
+                retry_attempts_log.append(
+                    {
+                        "attempt": attempt + 1,
+                        "error": timeout_error,
+                        "duration_ms": attempt_duration_ms,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+
                 last_error = ProviderError(
-                    f"Gemini request timed out after {self.timeout}s",
+                    timeout_error,
                     provider="gemini",
                 )
             except FileNotFoundError:
@@ -676,8 +736,20 @@ class GeminiProvider(LLMProvider):
                     msg,
                 ) from None
             except Exception as e:
+                attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
+                error_msg = f"Gemini execution error: {e}"
+
+                retry_attempts_log.append(
+                    {
+                        "attempt": attempt + 1,
+                        "error": error_msg,
+                        "duration_ms": attempt_duration_ms,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+
                 last_error = ProviderError(
-                    f"Gemini execution error: {e}",
+                    error_msg,
                     provider="gemini",
                 )
 
@@ -687,12 +759,17 @@ class GeminiProvider(LLMProvider):
                 logger.warning(
                     f"Gemini attempt {attempt + 1} failed, retrying in {wait_time}s",
                     error=str(last_error),
+                    attempt=attempt + 1,
+                    total_attempts=self.retry_attempts,
+                    duration_ms=retry_attempts_log[-1]["duration_ms"],
                 )
                 await asyncio.sleep(wait_time)
 
-        # All retries failed
+        # All retries failed - raise with detailed attempts
         error_msg = f"Gemini generation failed after {self.max_retries} attempts"
-        raise ProviderError(error_msg, provider="gemini") from last_error
+        error = ProviderError(error_msg, provider="gemini")
+        error.retry_attempts = retry_attempts_log  # Attach retry log
+        raise error from last_error
 
     def _estimate_tokens(self, text: str, completion: str = "") -> int:
         """Estimate token count for text.
@@ -742,6 +819,11 @@ class GeminiProvider(LLMProvider):
         """
         # Gemini pricing (as of 2024)
         pricing_table = {
+            "gemini-2.5-flash-lite": {
+                "input_cost_per_token": 0.000000075,  # Estimated based on flash
+                "output_cost_per_token": 0.0000003,  # Estimated based on flash
+                "tier": "flash-lite",
+            },
             "gemini-1.5-flash": {
                 "input_cost_per_token": 0.000000075,  # $0.075 per 1M tokens
                 "output_cost_per_token": 0.0000003,  # $0.30 per 1M tokens
@@ -761,7 +843,7 @@ class GeminiProvider(LLMProvider):
 
         return pricing_table.get(
             model,
-            pricing_table["gemini-1.5-flash"],  # Default to flash pricing
+            pricing_table["gemini-2.5-flash-lite"],  # Default to flash pricing
         )
 
     async def health_check(self) -> dict[str, Any]:

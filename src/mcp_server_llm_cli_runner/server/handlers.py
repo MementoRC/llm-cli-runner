@@ -2414,7 +2414,7 @@ class LLMCliRunnerServer:
                         "model": {
                             "type": "string",
                             "description": "Model to use (optional)",
-                            "default": "gemini-1.5-flash",
+                            "default": "gemini-2.5-flash-lite",
                         },
                     },
                     "required": ["prompt"],

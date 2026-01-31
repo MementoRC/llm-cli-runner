@@ -95,6 +95,7 @@ class ProviderError(LLMCliRunnerError):
 
     Attributes:
         provider: Name of the provider that failed
+        retry_attempts: Optional list of retry attempt details
 
     Example:
         >>> raise ProviderError(
@@ -125,6 +126,7 @@ class ProviderError(LLMCliRunnerError):
         context["provider"] = provider
         super().__init__(message, error_code, context)
         self.provider = provider
+        self.retry_attempts: list[dict[str, Any]] = []
 
 
 class ValidationError(LLMCliRunnerError):

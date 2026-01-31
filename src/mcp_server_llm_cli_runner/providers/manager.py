@@ -665,7 +665,7 @@ class ProviderManager:
                 enabled=True,
                 api_key="placeholder",
                 base_url="https://api.gemini.com",
-                models=["gemini-1.5-flash", "gemini-1.5-pro"],
+                models=["gemini-2.5-flash-lite", "gemini-2.5-flash"],
                 max_tokens=8192,
                 rate_limit={"requests_per_minute": 60},
             ),

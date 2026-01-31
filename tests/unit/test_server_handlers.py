@@ -234,7 +234,7 @@ class TestToolSchemas:
         assert "prompt" in schema["properties"]
         assert "model" in schema["properties"]
         assert schema["required"] == ["prompt"]
-        assert schema["properties"]["model"]["default"] == "gemini-1.5-flash"
+        assert schema["properties"]["model"]["default"] == "gemini-2.5-flash-lite"
 
     @pytest.mark.asyncio
     async def test_codex_tool_schema(self):
