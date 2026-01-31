@@ -26,7 +26,7 @@ class TestProviderConfig:
         assert config.models == ["gemini-pro"]
         assert config.rate_limit == {"requests_per_minute": 60}
         assert config.enabled is True
-        assert config.timeout == 30
+        assert config.timeout == 120  # CLI LLMs need longer timeout
 
     def test_provider_config_validation(self):
         """Test provider configuration validation."""
