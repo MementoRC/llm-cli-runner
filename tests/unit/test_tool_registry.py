@@ -9,7 +9,7 @@ This module provides comprehensive testing for:
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest

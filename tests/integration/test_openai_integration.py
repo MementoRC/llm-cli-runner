@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.mcp_server_llm_cli_runner.core.models import (
+from mcp_server_llm_cli_runner.core.models import (
     LLMRequest,
     ProviderConfig,
     ProviderType,
 )
-from src.mcp_server_llm_cli_runner.providers.openai import OpenAIProvider
-from tests.test_helpers import MockOpenAIClient, MockResponseBuilder
+from mcp_server_llm_cli_runner.providers.openai import OpenAIProvider
+from tests.test_helpers import MockOpenAIClient
 
 
 class TestOpenAIIntegration:
@@ -55,7 +55,7 @@ class TestOpenAIIntegration:
         # Verify configuration validation passes
         assert provider.validate_config(provider.config) is True
 
-    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_provider_initialization_with_mocked_client(
         self, mock_openai_class, provider
     ):
@@ -103,7 +103,7 @@ class TestOpenAIIntegration:
         assert result.model == "gpt-4o-mini"
         assert result.tokens_used == 25
 
-    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_integration_usage_tracking(self, mock_openai_class, provider):
         """Test that usage statistics object is available during integration.
 
@@ -142,7 +142,7 @@ class TestOpenAIIntegration:
         assert stats is not None
         assert stats.provider_name == "openai_integration"
 
-    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_integration_error_handling(self, mock_openai_class, provider):
         """Test error handling in integration scenarios."""
         # Mock the OpenAI client to raise an exception
@@ -166,7 +166,7 @@ class TestOpenAIIntegration:
         assert stats is not None
         assert stats.provider_name == "openai_integration"
 
-    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_integration_quota_checking(self, mock_openai_class, provider):
         """Test quota status checking in integration."""
         # Mock the OpenAI client
@@ -199,7 +199,7 @@ class TestOpenAIIntegration:
         quota_status = await provider.get_quota_status()
         assert quota_status.value in ["healthy", "warning", "exceeded"]
 
-    @patch("src.mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
+    @patch("mcp_server_llm_cli_runner.providers.openai.AsyncOpenAI", autospec=True)
     async def test_integration_health_check(self, mock_openai_class, provider):
         """Test health check integration."""
         # Mock the OpenAI client

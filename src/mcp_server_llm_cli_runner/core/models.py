@@ -90,7 +90,7 @@ class LLMRequest(BaseModel):
         >>> request = LLMRequest(
         ...     prompt="Explain Python decorators",
         ...     provider="gemini",
-        ...     model="gemini-1.5-flash",
+        ...     model="gemini-2.5-flash-lite",
         ...     max_tokens=500,
         ...     temperature=0.7
         ... )
@@ -134,7 +134,7 @@ class LLMResponse(BaseModel):
         >>> response = LLMResponse(
         ...     content="Decorators are a way to modify functions...",
         ...     provider="gemini",
-        ...     model="gemini-1.5-flash",
+        ...     model="gemini-2.5-flash-lite",
         ...     success=True,
         ...     tokens_used=45,
         ...     response_time_ms=1250
@@ -241,8 +241,8 @@ class ProviderConfig(BaseModel):
         ...     provider_type=ProviderType.GEMINI,
         ...     enabled=True,
         ...     api_key="your-api-key",
-        ...     models=["gemini-1.5-flash", "gemini-1.5-pro"],
-        ...     model_name="gemini-1.5-flash"
+        ...     models=["gemini-2.5-flash-lite", "gemini-1.5-pro"],
+        ...     model_name="gemini-2.5-flash-lite"
         ... )
 
     """

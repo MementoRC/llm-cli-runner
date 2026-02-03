@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.mcp_server_llm_cli_runner.core.errors import ProviderError, RateLimitError
-from src.mcp_server_llm_cli_runner.core.models import (
+from mcp_server_llm_cli_runner.core.errors import ProviderError, RateLimitError
+from mcp_server_llm_cli_runner.core.models import (
     LLMRequest,
     LLMResponse,
     StreamingResponse,
@@ -37,7 +37,7 @@ if not GEMINI_AVAILABLE:
     )
 
 try:
-    from src.mcp_server_llm_cli_runner.providers.gemini import (
+    from mcp_server_llm_cli_runner.providers.gemini import (
         GeminiProvider,
         GeminiQuotaManager,
     )

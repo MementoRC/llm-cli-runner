@@ -1,13 +1,11 @@
 """Minimal unit tests for configuration management - TDD approach."""
 
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
+from mcp_server_llm_cli_runner.core.models import ProviderType
 from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
-from src.mcp_server_llm_cli_runner.core.models import ProviderType
 
 # from tests.test_helpers import ConfigBuilder  # TODO: Create test helpers
 

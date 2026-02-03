@@ -147,34 +147,6 @@ class CacheKeyGenerator:
         """
         return f"{self.prefix}:session:{session_id}"
 
-    def generate_response_key(self, request_key: str, provider: str) -> str:
-        """Generate cache key for response data.
-
-        Args:
-            request_key: Original request key
-            provider: Provider that generated the response
-
-        Returns:
-            Response-specific cache key
-
-        """
-        # Remove prefix from request key to avoid duplication
-        clean_request_key = request_key.replace(f"{self.prefix}:", "", 1)
-        return f"resp:{provider}:{clean_request_key}"
-
-    def generate_metrics_key(self, provider: str, time_window: str) -> str:
-        """Generate cache key for metrics data.
-
-        Args:
-            provider: Provider name
-            time_window: Time window identifier (e.g., "hourly", "daily")
-
-        Returns:
-            Metrics-specific cache key
-
-        """
-        return f"metrics:{provider}:{time_window}"
-
     def _normalize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Normalize metadata for consistent hashing.
 

@@ -12,39 +12,36 @@ Key features:
 Example:
     >>> provider = GeminiProvider()
     >>> response = await provider.generate(
-    ...     LLMRequest(prompt="Hello", model="gemini-1.5-flash")
+    ...     LLMRequest(prompt="Hello", model="gemini-2.5-flash-lite")
     ... )
 
 """
 
 import asyncio
 import json
+import re
 import time
 from datetime import datetime
 from typing import Any
 
-from src.mcp_server_llm_cli_runner.cache.metrics import CacheMetrics
-from src.mcp_server_llm_cli_runner.core.errors import (
+from mcp_server_llm_cli_runner.cache.metrics import CacheMetrics
+from mcp_server_llm_cli_runner.core.errors import (
     ConfigurationError,
     ProviderError,
     RateLimitError,
 )
-from src.mcp_server_llm_cli_runner.core.models import (
+from mcp_server_llm_cli_runner.core.models import (
     CostEstimate,
     LLMRequest,
     LLMResponse,
     ProviderConfig,
     ProviderType,
-    QuotaStatus,
     QuotaStatusInfo,
     StreamingResponse,
     UsageStats,
 )
-from src.mcp_server_llm_cli_runner.providers.base import (
-    LLMProvider,
-    ProviderCapabilities,
-)
-from src.mcp_server_llm_cli_runner.utils.logging import get_logger
+from mcp_server_llm_cli_runner.providers.base import LLMProvider, ProviderCapabilities
+from mcp_server_llm_cli_runner.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -64,6 +61,8 @@ class GeminiProvider(LLMProvider):
         capabilities: Supported provider capabilities
 
     """
+
+    PROVIDER_TYPE = ProviderType.GEMINI
 
     def __init__(
         self,
@@ -257,7 +256,7 @@ class GeminiProvider(LLMProvider):
             return response
 
         except RateLimitError:
-            # Re-raise rate limit errors without modification (handle before ProviderError!)
+            # Re-raise rate limit errors without modification
             raise
         except ProviderError as e:
             # Re-raise provider errors with retry information
@@ -272,16 +271,14 @@ class GeminiProvider(LLMProvider):
             # If the error has retry attempts, log them
             if hasattr(e, "retry_attempts") and e.retry_attempts:
                 logger.error(
-                    error_msg := f"Gemini generation failed: {e}",
+                    f"Gemini generation failed: {e}",
                     error=e,
                     model=request.model,
                     retry_attempts=e.retry_attempts,
                 )
             else:
                 logger.exception(
-                    error_msg := f"Gemini generation failed: {e}",
-                    error=e,
-                    model=request.model,
+                    f"Gemini generation failed: {e}", error=e, model=request.model
                 )
             raise
         except Exception as e:
@@ -301,14 +298,14 @@ class GeminiProvider(LLMProvider):
     async def stream_generate(
         self,
         request: LLMRequest,
-    ) -> list[StreamingResponse]:  # Updated return type hint
+    ) -> list[StreamingResponse]:
         """Generate streaming response using Gemini.
 
         Args:
             request: The LLM request
 
         Returns:
-            Generator yielding streaming response chunks
+            List of streaming response chunks
 
         Raises:
             ProviderError: If streaming fails
@@ -340,6 +337,9 @@ class GeminiProvider(LLMProvider):
             chunk_index = 0
             chunks = []
 
+            # Regex to find JSON objects in lines (handles mixed output)
+            json_pattern = re.compile(r"({.*})")
+
             try:
                 if process.stdout is None:
                     raise ProviderError(
@@ -348,34 +348,33 @@ class GeminiProvider(LLMProvider):
                 async for line in process.stdout:
                     line_text = (
                         line.decode("utf-8") if isinstance(line, bytes) else line
-                    )
-                    if line_text.strip():
+                    ).strip()
+
+                    if not line_text:
+                        continue
+
+                    # Try to find JSON in the line
+                    match = json_pattern.search(line_text)
+                    if match:
+                        json_str = match.group(1)
                         try:
-                            # Gemini stream-json emits events: init, message, tool_use,
-                            # tool_result, error, result
-                            chunk_data = json.loads(line_text.strip())
+                            chunk_data = json.loads(json_str)
                             event_type = chunk_data.get("type", "")
 
-                            # Extract content based on event type
                             content = ""
                             is_final = False
 
                             if event_type == "message":
-                                # Message events contain partial response text
                                 content = chunk_data.get("content", "")
                             elif event_type == "result":
-                                # Result event is the final response
                                 content = chunk_data.get("response", "")
                                 is_final = True
                             elif event_type == "error":
-                                # Handle error events
                                 error_msg = chunk_data.get("error", {})
                                 content = f"Error: {error_msg}"
                                 is_final = True
                             elif event_type == "init":
-                                # Init event - skip or include as metadata
                                 continue
-                            # tool_use and tool_result can be skipped for basic streaming
 
                             chunk = StreamingResponse(
                                 content=content,
@@ -391,18 +390,20 @@ class GeminiProvider(LLMProvider):
 
                             if is_final:
                                 break
-
                         except json.JSONDecodeError:
-                            # Handle non-JSON output
-                            chunk = StreamingResponse(
-                                content=line_text.strip(),
-                                provider="gemini",
-                                model=model,
-                                is_final=False,
-                                chunk_index=chunk_index,
-                            )
-                            chunks.append(chunk)
-                            chunk_index += 1
+                            # If extraction failed, treat as plain text
+                            pass
+                    else:
+                        # Non-JSON output - treat as raw content chunk
+                        chunk = StreamingResponse(
+                            content=line_text,
+                            provider="gemini",
+                            model=model,
+                            is_final=False,
+                            chunk_index=chunk_index,
+                        )
+                        chunks.append(chunk)
+                        chunk_index += 1
 
                 await process.wait()
                 return chunks
@@ -460,26 +461,11 @@ class GeminiProvider(LLMProvider):
             raise ProviderError(error_msg, provider="gemini") from e
 
     async def estimate_cost(self, request: LLMRequest) -> CostEstimate:
-        """Estimate cost for Gemini request.
-
-        Args:
-            request: The LLM request
-
-        Returns:
-            Cost estimation details
-
-        Raises:
-            ProviderError: If cost estimation fails
-
-        """
+        """Estimate cost for Gemini request."""
         try:
             model = request.model or self.model
-
-            # Estimate tokens
             input_tokens = self._estimate_tokens(request.prompt)
             output_tokens = min(request.max_tokens or 1000, self.max_tokens)
-
-            # Get pricing for model
             pricing = self._get_model_pricing(model)
 
             input_cost = input_tokens * pricing["input_cost_per_token"]
@@ -493,25 +479,17 @@ class GeminiProvider(LLMProvider):
                 if (input_tokens + output_tokens) > 0
                 else 0.0,
                 estimated_cost_usd=total_cost,
-                confidence_score=0.9,  # High confidence for known pricing
+                confidence_score=0.9,
                 estimation_method="pricing_table",
             )
-
         except Exception as e:
             error_msg = f"Cost estimation failed: {e}"
             logger.exception(error_msg, error=e)
             raise ProviderError(error_msg, provider="gemini") from e
 
     def get_usage_stats(self) -> dict[str, Any]:
-        """Get comprehensive usage statistics.
-
-        Returns:
-            Dictionary containing usage metrics and provider stats
-
-        """
+        """Get comprehensive usage statistics."""
         base_stats = self.metrics.to_dict()
-
-        # Add provider-specific stats
         provider_stats = {
             "provider_name": "gemini",
             "model": self.model,
@@ -521,50 +499,30 @@ class GeminiProvider(LLMProvider):
             **base_stats,
         }
 
-        # Add usage metrics if available
         if hasattr(self, "_usage_stats") and self._usage_stats:
-            usage_data = {
-                "total_tokens": self._usage_stats.total_tokens,
-                "total_cost": self._usage_stats.total_cost,
-                "avg_response_time": self._usage_stats.average_response_time,
-                "last_request_time": self._usage_stats.last_updated,
-            }
             provider_stats.update(
                 {
-                    "total_tokens_consumed": usage_data.get("total_tokens", 0),
-                    "total_cost_usd": usage_data.get("total_cost", 0.0),
-                    "average_response_time_ms": usage_data.get("avg_response_time", 0),
-                    "last_request_time": usage_data.get("last_request_time"),
+                    "total_tokens_consumed": self._usage_stats.total_tokens,
+                    "total_cost_usd": self._usage_stats.total_cost,
+                    "average_response_time_ms": self._usage_stats.average_response_time,
+                    "last_request_time": self._usage_stats.last_updated,
                 },
             )
 
-        # Record metrics call
         self._usage_stats.total_requests += 1
         self._usage_stats.last_updated = datetime.now()
-
         return provider_stats
 
     def _validate_request(self, request: LLMRequest) -> None:
-        """Validate LLM request parameters.
-
-        Args:
-            request: Request to validate
-
-        Raises:
-            ValueError: If request is invalid
-
-        """
+        """Validate LLM request parameters."""
         if not request.prompt or not request.prompt.strip():
-            msg = "Prompt cannot be empty"
-            raise ValueError(msg)
+            raise ValueError("Prompt cannot be empty")
 
         if request.max_tokens and request.max_tokens > self.max_tokens:
-            msg = f"max_tokens cannot exceed {self.max_tokens}"
-            raise ValueError(msg)
+            raise ValueError(f"max_tokens cannot exceed {self.max_tokens}")
 
         if request.temperature is not None and not 0 <= request.temperature <= 1:
-            msg = "temperature must be between 0 and 1"
-            raise ValueError(msg)
+            raise ValueError("temperature must be between 0 and 1")
 
     def _build_command(
         self,
@@ -575,46 +533,32 @@ class GeminiProvider(LLMProvider):
         system_prompt: str | None = None,
         stream: bool = False,
     ) -> list[str]:
-        """Build Gemini CLI command.
+        """Build Gemini CLI command."""
 
-        Args:
-            prompt: Text prompt
-            model: Model to use
-            temperature: Sampling temperature (stored in metadata, not passed to CLI)
-            max_tokens: Maximum tokens (stored in metadata, not passed to CLI)
-            system_prompt: Optional system prompt (not supported by CLI)
-            stream: Enable streaming
+        # Warn about ignored parameters
+        if temperature != 0.7:
+            logger.warning(
+                "Gemini CLI does not support 'temperature' parameter. It will be ignored."
+            )
+        if max_tokens != 1000 and max_tokens != 4096:
+            logger.warning(
+                "Gemini CLI does not support 'max_tokens' parameter. It will be ignored."
+            )
+        if system_prompt:
+            logger.warning(
+                "Gemini CLI does not support 'system_prompt'. It will be ignored."
+            )
 
-        Returns:
-            Command as list of strings
-
-        Note:
-            The Gemini CLI (geminicli.com) has limited parameter support:
-            - --model/-m: Model selection
-            - --output-format: text, json, or stream-json
-            - --prompt/-p: Inline prompt for headless mode
-            Temperature, max_tokens, and system_prompt are NOT supported
-            by the CLI and are only used for metadata/logging purposes.
-
-        """
         cmd = ["gemini"]
-
-        # Model selection
-        if model != "gemini-2.5-flash-lite":  # Default model
+        if model != "gemini-2.5-flash-lite":
             cmd.extend(["--model", model])
 
-        # Note: --temperature, --max-tokens, --system are NOT supported by Gemini CLI
-        # These parameters are kept in the signature for compatibility but not passed
-
-        # Output format (use stream-json for streaming, json otherwise)
         if stream:
             cmd.extend(["--output-format", "stream-json"])
         else:
             cmd.extend(["--output-format", "json"])
 
-        # Add the prompt using -p flag for headless mode
         cmd.extend(["-p", prompt])
-
         logger.debug("Built Gemini command", command=" ".join(cmd))
         return cmd
 
@@ -623,20 +567,7 @@ class GeminiProvider(LLMProvider):
         cmd: list[str],
         request: LLMRequest,
     ) -> dict[str, Any]:
-        """Execute command with retry logic.
-
-        Args:
-            cmd: Command to execute
-            request: Original request for context
-
-        Returns:
-            Parsed command output
-
-        Raises:
-            ProviderError: If all retries fail
-            RateLimitError: If rate limited
-
-        """
+        """Execute command with retry logic."""
         last_error = None
         retry_attempts_log: list[dict[str, Any]] = []
 
@@ -644,7 +575,6 @@ class GeminiProvider(LLMProvider):
             attempt_start_time = time.time()
 
             try:
-                # Execute command
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
@@ -656,31 +586,26 @@ class GeminiProvider(LLMProvider):
                     timeout=self.timeout,
                 )
 
-                # Decode bytes to strings
                 stdout_text = stdout.decode("utf-8") if stdout else ""
                 stderr_text = stderr.decode("utf-8") if stderr else ""
-
-                # Calculate attempt duration
                 attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
 
                 if process.returncode == 0:
-                    # Success - parse output
                     try:
-                        result: dict[str, Any] = json.loads(stdout_text)
+                        # Handle potential mixed output in non-streaming as well
+                        json_match = re.search(r"({.*})", stdout_text, re.DOTALL)
+                        if json_match:
+                            result: dict[str, Any] = json.loads(json_match.group(1))
+                        else:
+                            result = {"response": stdout_text.strip(), "format": "text"}
                     except json.JSONDecodeError:
-                        # Fallback to plain text (use "response" to match Gemini CLI JSON format)
                         result = {"response": stdout_text.strip(), "format": "text"}
 
-                    # Add retry information if there were any retries
                     if retry_attempts_log:
                         result["retry_attempts"] = retry_attempts_log
-
                     return result
                 else:
-                    # Error occurred
                     error_msg = stderr_text.strip() or stdout_text.strip()
-
-                    # Log this failed attempt
                     retry_attempts_log.append(
                         {
                             "attempt": attempt + 1,
@@ -690,116 +615,78 @@ class GeminiProvider(LLMProvider):
                         }
                     )
 
-                    # Check for rate limiting
                     if (
                         "rate limit" in error_msg.lower()
                         or "quota" in error_msg.lower()
                     ):
-                        msg = f"Gemini rate limit exceeded: {error_msg}"
-                        raise RateLimitError(msg, provider="gemini", retry_after=3600)
+                        raise RateLimitError(
+                            f"Gemini rate limit exceeded: {error_msg}",
+                            provider="gemini",
+                            retry_after=3600,
+                        )
 
-                    # Check for authentication errors
                     if (
                         "auth" in error_msg.lower()
                         or "unauthorized" in error_msg.lower()
                     ):
-                        msg = f"Gemini authentication failed: {error_msg}"
                         raise ConfigurationError(
-                            msg,
+                            f"Gemini authentication failed: {error_msg}"
                         )
 
                     last_error = ProviderError(
-                        f"Gemini CLI error: {error_msg}",
-                        provider="gemini",
+                        f"Gemini CLI error: {error_msg}", provider="gemini"
                     )
 
             except TimeoutError:
-                attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
                 timeout_error = f"Gemini request timed out after {self.timeout}s"
-
                 retry_attempts_log.append(
                     {
                         "attempt": attempt + 1,
                         "error": timeout_error,
-                        "duration_ms": attempt_duration_ms,
+                        "duration_ms": int((time.time() - attempt_start_time) * 1000),
                         "timestamp": datetime.now().isoformat(),
                     }
                 )
-
-                last_error = ProviderError(
-                    timeout_error,
-                    provider="gemini",
-                )
-            except FileNotFoundError:
-                msg = "Gemini CLI not found. Please install it first."
+                last_error = ProviderError(timeout_error, provider="gemini")
+            except FileNotFoundError as err:
                 raise ConfigurationError(
-                    msg,
-                ) from None
+                    "Gemini CLI not found. Please install it first."
+                ) from err
             except Exception as e:
-                attempt_duration_ms = int((time.time() - attempt_start_time) * 1000)
                 error_msg = f"Gemini execution error: {e}"
-
                 retry_attempts_log.append(
                     {
                         "attempt": attempt + 1,
                         "error": error_msg,
-                        "duration_ms": attempt_duration_ms,
+                        "duration_ms": int((time.time() - attempt_start_time) * 1000),
                         "timestamp": datetime.now().isoformat(),
                     }
                 )
+                last_error = ProviderError(error_msg, provider="gemini")
 
-                last_error = ProviderError(
-                    error_msg,
-                    provider="gemini",
-                )
-
-            # Wait before retry (use configured retry delay)
             if attempt < self.retry_attempts - 1:
-                wait_time = self.retry_delay * (2**attempt)  # Exponential backoff
+                wait_time = self.retry_delay * (2**attempt)
                 logger.warning(
                     f"Gemini attempt {attempt + 1} failed, retrying in {wait_time}s",
                     error=str(last_error),
-                    attempt=attempt + 1,
-                    total_attempts=self.retry_attempts,
-                    duration_ms=retry_attempts_log[-1]["duration_ms"],
                 )
                 await asyncio.sleep(wait_time)
 
-        # All retries failed - raise with detailed attempts
-        error_msg = f"Gemini generation failed after {self.max_retries} attempts"
-        error = ProviderError(error_msg, provider="gemini")
-        error.retry_attempts = retry_attempts_log  # Attach retry log
+        error = ProviderError(
+            f"Gemini generation failed after {self.max_retries} attempts",
+            provider="gemini",
+        )
+        error.retry_attempts = retry_attempts_log
         raise error from last_error
 
     def _estimate_tokens(self, text: str, completion: str = "") -> int:
-        """Estimate token count for text.
-
-        Args:
-            text: Input text
-            completion: Optional completion text
-
-        Returns:
-            Estimated token count
-
-        """
-        # Simple estimation: ~4 characters per token
-        # This is conservative for Gemini
+        """Estimate token count for text."""
         total_chars = len(text) + len(completion)
         return max(1, total_chars // 4)
 
     def _calculate_cost(self, tokens: int, model: str) -> float:
-        """Calculate cost for token usage.
-
-        Args:
-            tokens: Total token count
-            model: Model used
-
-        Returns:
-            Estimated cost in USD
-
-        """
+        """Calculate cost for token usage."""
         pricing = self._get_model_pricing(model)
-        # Assume roughly equal input/output split
         cost = (
             tokens
             * (pricing["input_cost_per_token"] + pricing["output_cost_per_token"])
@@ -808,84 +695,56 @@ class GeminiProvider(LLMProvider):
         return round(cost, 6)
 
     def _get_model_pricing(self, model: str) -> dict[str, Any]:
-        """Get pricing information for model.
-
-        Args:
-            model: Model name
-
-        Returns:
-            Pricing dictionary
-
-        """
-        # Gemini pricing (as of 2024)
+        """Get pricing information for model."""
         pricing_table = {
             "gemini-2.5-flash-lite": {
-                "input_cost_per_token": 0.000000075,  # Estimated based on flash
-                "output_cost_per_token": 0.0000003,  # Estimated based on flash
+                "input_cost_per_token": 0.000000075,
+                "output_cost_per_token": 0.0000003,
                 "tier": "flash-lite",
             },
-            "gemini-1.5-flash": {
-                "input_cost_per_token": 0.000000075,  # $0.075 per 1M tokens
-                "output_cost_per_token": 0.0000003,  # $0.30 per 1M tokens
+            "gemini-2.5-flash": {
+                "input_cost_per_token": 0.000000075,
+                "output_cost_per_token": 0.0000003,
                 "tier": "flash",
             },
             "gemini-1.5-pro": {
-                "input_cost_per_token": 0.00000125,  # $1.25 per 1M tokens
-                "output_cost_per_token": 0.000005,  # $5.00 per 1M tokens
+                "input_cost_per_token": 0.00000125,
+                "output_cost_per_token": 0.000005,
                 "tier": "pro",
             },
             "gemini-pro": {
-                "input_cost_per_token": 0.0000005,  # $0.50 per 1M tokens
-                "output_cost_per_token": 0.0000015,  # $1.50 per 1M tokens
+                "input_cost_per_token": 0.0000005,
+                "output_cost_per_token": 0.0000015,
                 "tier": "legacy",
             },
         }
-
-        return pricing_table.get(
-            model,
-            pricing_table["gemini-2.5-flash-lite"],  # Default to flash pricing
-        )
+        return pricing_table.get(model, pricing_table["gemini-2.5-flash-lite"])
 
     async def health_check(self) -> dict[str, Any]:
-        """Check provider health and availability.
-
-        Returns:
-            Health status information
-
-        """
+        """Check provider health and availability."""
         try:
-            # Test basic CLI availability
             process = await asyncio.create_subprocess_exec(
                 "gemini",
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
-
-            # Decode bytes to strings
-            stdout_text = stdout.decode("utf-8") if stdout else ""
-            stderr_text = stderr.decode("utf-8") if stderr else ""
-
             if process.returncode == 0:
-                version = stdout_text.strip()
                 return {
                     "status": "healthy",
-                    "version": version,
+                    "version": stdout.decode("utf-8").strip(),
                     "provider": "gemini",
                     "timestamp": datetime.now().isoformat(),
                     "capabilities": [cap.value for cap in self.capabilities],
                     "models": [self.model],
                 }
-            error = stderr_text.strip() or "Unknown error"
             return {
                 "status": "unhealthy",
-                "error": error,
+                "error": stderr.decode("utf-8").strip() or "Unknown error",
                 "provider": "gemini",
                 "timestamp": datetime.now().isoformat(),
             }
-
         except FileNotFoundError:
             return {
                 "status": "unavailable",
@@ -902,17 +761,8 @@ class GeminiProvider(LLMProvider):
             }
 
     def validate_config(self, config: ProviderConfig) -> bool:
-        """Validate provider configuration.
-
-        Args:
-            config: Provider configuration to validate
-
-        Returns:
-            True if configuration is valid
-
-        """
+        """Validate provider configuration."""
         try:
-            # Basic validation - Gemini CLI doesn't require API key
             return (
                 config.name == "gemini"
                 and config.provider_type == ProviderType.GEMINI
@@ -922,44 +772,25 @@ class GeminiProvider(LLMProvider):
             return False
 
     async def get_usage(self) -> UsageStats:
-        """Get current usage statistics.
-
-        Returns:
-            Current usage statistics for this provider
-
-        """
+        """Get current usage statistics."""
         return self._usage_stats
 
     async def check_quota(self) -> QuotaStatusInfo:
-        """Check current quota status.
-
-        Returns:
-            Current quota status
-
-        """
+        """Check current quota status."""
         try:
             if self.quota_manager.check_quota():
-                remaining = self.quota_manager.get_remaining_quota()
-                current_usage = self.quota_manager.get_current_usage()
-                quota_limit = self.quota_manager.get_quota_limit()
-
                 return QuotaStatusInfo(
                     provider_name=self.name,
                     quota_type="requests",
-                    current_usage=current_usage,
-                    quota_limit=quota_limit,
-                    quota_remaining=remaining,
+                    current_usage=self.quota_manager.get_current_usage(),
+                    quota_limit=self.quota_manager.get_quota_limit(),
+                    quota_remaining=self.quota_manager.get_remaining_quota(),
                 )
-
-            # Quota exceeded
-            current_usage = self.quota_manager.get_current_usage()
-            quota_limit = self.quota_manager.get_quota_limit()
-
             return QuotaStatusInfo(
                 provider_name=self.name,
                 quota_type="requests",
-                current_usage=current_usage,
-                quota_limit=quota_limit,
+                current_usage=self.quota_manager.get_current_usage(),
+                quota_limit=self.quota_manager.get_quota_limit(),
                 quota_remaining=0,
             )
         except Exception:
@@ -972,45 +803,25 @@ class GeminiProvider(LLMProvider):
             )
 
     async def is_available(self) -> bool:
-        """Check if the Gemini provider is available.
-
-        Returns:
-            True if Gemini CLI is available and quota is not exhausted
-
-        """
+        """Check if the Gemini provider is available."""
         try:
-            # Check CLI availability
             process = await asyncio.create_subprocess_exec(
                 "gemini",
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-
             await process.wait()
-
-            # If CLI is not available, return False
             if process.returncode != 0:
                 return False
-
-            # Check quota status
             quota_status = await self.check_quota()
-            return quota_status != QuotaStatus.EXCEEDED
-
+            return quota_status.quota_remaining > 0
         except (FileNotFoundError, Exception):
-            # CLI not found or other error
             return False
 
     def get_health_status(self) -> dict[str, Any]:
-        """Get provider health status including quota information.
-
-        Returns:
-            Dict containing health status information with quota details
-        """
-        # Get base health status from parent class
+        """Get provider health status including quota information."""
         base_status = super().get_health_status()
-
-        # Add quota information
         base_status.update(
             {
                 "model": self.model,
@@ -1022,9 +833,8 @@ class GeminiProvider(LLMProvider):
                     "max_retries": self.max_retries,
                     "retry_delay": self.retry_delay,
                 },
-            },
+            }
         )
-
         return base_status
 
 
@@ -1032,18 +842,18 @@ class GeminiQuotaManager:
     """Simple quota manager for Gemini provider."""
 
     def __init__(self, daily_limit: int = 1000) -> None:
-        """Initialize quota manager with daily limit."""
+        """Initialize quota manager with daily request limit."""
         self.daily_limit = daily_limit
         self.requests_today = 0
         self.last_reset = datetime.now().date()
 
     def check_quota(self) -> bool:
-        """Check if quota is available."""
+        """Check if quota is available for requests."""
         self._reset_if_needed()
         return self.requests_today < self.daily_limit
 
     def consume_quota(self, amount: int = 1) -> bool:
-        """Consume quota if available."""
+        """Consume quota and return True if successful."""
         if self.check_quota():
             self.requests_today += amount
             return True
@@ -1055,7 +865,7 @@ class GeminiQuotaManager:
         return max(0, self.daily_limit - self.requests_today)
 
     def get_current_usage(self) -> int:
-        """Get current usage for today."""
+        """Get current usage count for today."""
         self._reset_if_needed()
         return self.requests_today
 
@@ -1064,7 +874,6 @@ class GeminiQuotaManager:
         return self.daily_limit
 
     def _reset_if_needed(self) -> None:
-        """Reset quota if new day."""
         today = datetime.now().date()
         if today > self.last_reset:
             self.requests_today = 0
@@ -1075,7 +884,7 @@ class SimpleMetrics:
     """Simple metrics class for compatibility."""
 
     def __init__(self) -> None:
-        """Initialize metrics tracking."""
+        """Initialize metrics with zeroed counters."""
         self.request_timestamps = []
         self.request_count = 0
         self.total_tokens = 0
@@ -1089,7 +898,7 @@ class SimpleMetrics:
         cost: float,
         error: str | None = None,
     ) -> None:
-        """Record a request for metrics tracking."""
+        """Record metrics for a completed request."""
         self.request_timestamps.append(datetime.now())
         self.request_count += 1
         self.total_tokens += token_count
@@ -1097,7 +906,7 @@ class SimpleMetrics:
         self.total_response_time += response_time
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert metrics to dictionary."""
+        """Convert metrics to dictionary representation."""
         return {
             "request_count": self.request_count,
             "total_tokens": self.total_tokens,
@@ -1109,5 +918,5 @@ class SimpleMetrics:
             ),
             "request_timestamps": [
                 ts.isoformat() for ts in self.request_timestamps[-10:]
-            ],  # Last 10
+            ],
         }

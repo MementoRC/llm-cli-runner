@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
+from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
 
 class TestMCPServerIntegration:
