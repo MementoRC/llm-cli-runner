@@ -73,7 +73,7 @@ Users: 100  | Latency: 1.8s   | ████████████████
 ### Gemini
 
 ```
-Model: gemini-1.5-flash
+Model: gemini-2.5-flash-lite
 Prompt: "Write a Python function to sort a list"
 Max Tokens: 256
 

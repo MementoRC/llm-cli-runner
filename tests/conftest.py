@@ -86,7 +86,7 @@ def mock_config_dict() -> dict[str, Any]:
             "gemini": {
                 "enabled": True,
                 "cli_path": "/usr/local/bin/gemini",
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.5-flash-lite",
                 "timeout": 30,
             },
             "codex": {
@@ -135,7 +135,7 @@ def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
                 "name": "gemini",
                 "type": "gemini",
                 "enabled": True,
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.5-flash-lite",
                 "has_api_key": False,
             }
         ],

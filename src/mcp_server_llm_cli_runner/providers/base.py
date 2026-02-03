@@ -159,6 +159,18 @@ class LLMProvider(ABC):
 
         """
 
+    async def is_available(self) -> bool:
+        """Check if provider is available and ready to serve requests.
+
+        Default implementation returns True. Subclasses can override
+        to check CLI availability, API connectivity, quotas, etc.
+
+        Returns:
+            bool: True if provider is available
+
+        """
+        return True
+
     async def _generate_with_circuit_breaker(self, request: LLMRequest) -> LLMResponse:
         """Generate response with circuit breaker protection.
 

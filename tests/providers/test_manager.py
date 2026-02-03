@@ -7,20 +7,20 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.mcp_server_llm_cli_runner.core.models import (
+from mcp_server_llm_cli_runner.core.models import (
     ProviderConfig,
     ProviderStatus,
     ProviderType,
     QuotaStatus,
 )
-from src.mcp_server_llm_cli_runner.providers.manager import (
+from mcp_server_llm_cli_runner.providers.manager import (
     ProviderHealthMonitor,
     ProviderHealthStatus,
     ProviderManager,
     QuotaTracker,
     UsageMetrics,
 )
-from src.mcp_server_llm_cli_runner.providers.registry import ProviderRegistry
+from mcp_server_llm_cli_runner.providers.registry import ProviderRegistry
 
 
 class TestProviderHealthStatus:

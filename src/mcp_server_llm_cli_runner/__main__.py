@@ -13,6 +13,7 @@ Example:
 
 """
 
+import asyncio
 import logging
 import sys
 
@@ -25,7 +26,7 @@ from mcp_server_llm_cli_runner.utils.logging import setup_logging
 logger = logging.getLogger(__name__)
 
 
-def create_server(config_path: str | None = None, debug: bool = False):
+async def create_server(config_path: str | None = None, debug: bool = False):
     """Create and configure the lean MCP server instance.
 
     Args:
@@ -39,7 +40,7 @@ def create_server(config_path: str | None = None, debug: bool = False):
         ConfigurationError: If configuration is invalid
 
     Example:
-        >>> app = create_server(debug=True)
+        >>> app = await create_server(debug=True)
         >>> app.run()
 
     """
@@ -52,15 +53,14 @@ def create_server(config_path: str | None = None, debug: bool = False):
         config_manager = ConfigManager(config_path)
 
         logger.info(
-            "Server created successfully",
+            "Server creating",
             extra={
-                "providers": config_manager.get_enabled_providers(),
                 "debug_mode": debug,
             },
         )
 
         # Create lean MCP interface with 3 meta-tools
-        app = create_lean_interface(config_manager)
+        app = await create_lean_interface(config_manager)
 
         logger.info("Lean MCP interface initialized with meta-tool pattern")
         logger.info("Context consumption: ~500 tokens (vs 10-15K for traditional MCP)")
@@ -96,10 +96,10 @@ def main(config: str | None = None, debug: bool = False) -> None:
 
     """
     try:
-        # Create the FastMCP app
-        app = create_server(config_path=config, debug=debug)
+        # Create the FastMCP app (async initialization)
+        app = asyncio.run(create_server(config_path=config, debug=debug))
 
-        # Run the server (FastMCP handles stdio automatically)
+        # Run the server (FastMCP handles its own event loop)
         logger.info("Starting LLM CLI Runner MCP server...")
         app.run()
 

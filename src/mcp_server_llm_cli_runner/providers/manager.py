@@ -29,9 +29,9 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from src.mcp_server_llm_cli_runner.cache.service import CacheService, MemoryCache
-from src.mcp_server_llm_cli_runner.core.errors import ProviderError
-from src.mcp_server_llm_cli_runner.core.models import (
+from mcp_server_llm_cli_runner.cache.service import CacheService, MemoryCache
+from mcp_server_llm_cli_runner.core.errors import ProviderError
+from mcp_server_llm_cli_runner.core.models import (
     LLMRequest,
     LLMResponse,
     ProviderConfig,
@@ -39,8 +39,8 @@ from src.mcp_server_llm_cli_runner.core.models import (
     ProviderType,
     QuotaStatus,
 )
-from src.mcp_server_llm_cli_runner.utils.config import ConfigManager
-from src.mcp_server_llm_cli_runner.utils.logging import StructuredLogger
+from mcp_server_llm_cli_runner.utils.config import ConfigManager
+from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
 
 from .base import LLMProvider
 from .registry import ProviderRegistry
@@ -630,21 +630,32 @@ class ProviderManager:
 
     async def _load_and_register_providers(self) -> None:
         """Load provider configurations and register providers."""
+        # Register known provider classes
+        try:
+            from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
+
+            self.registry.register_provider(GeminiProvider)
+        except Exception as e:
+            self.logger.warning(f"Failed to register GeminiProvider class: {e}")
+
+        try:
+            from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
+
+            self.registry.register_provider(LLaMAProvider)
+        except Exception as e:
+            self.logger.warning(f"Failed to register LLaMAProvider class: {e}")
+
         # This would load from configuration
         # For now, we'll implement basic provider registration
         provider_configs = self._get_provider_configs()
 
         for config in provider_configs:
             try:
-                # Register provider with registry
-                # Note: Actual provider classes would be imported and registered
-                # provider = self.registry.create_provider(config)
-
                 # Initialize tracking components
                 self.usage_metrics[config.name] = UsageMetrics(config.name)
                 self.quota_trackers[config.name] = QuotaTracker(config.name)
 
-                self.logger.info(f"Registered provider: {config.name}")
+                self.logger.info(f"Registered provider configuration: {config.name}")
 
             except Exception as e:
                 self.logger.exception(f"Failed to register provider {config.name}: {e}")

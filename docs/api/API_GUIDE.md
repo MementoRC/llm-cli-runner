@@ -80,7 +80,7 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
           "type": "object",
           "properties": {
             "prompt": {"type": "string"},
-            "model": {"type": "string", "default": "gemini-1.5-flash"}
+            "model": {"type": "string", "default": "gemini-2.5-flash-lite"}
           },
           "required": ["prompt"]
         }
@@ -106,7 +106,7 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
     "name": "gemini_generate",
     "arguments": {
       "prompt": "Write a haiku about programming",
-      "model": "gemini-1.5-flash"
+      "model": "gemini-2.5-flash-lite"
     }
   }
 }
@@ -139,7 +139,7 @@ Generate text using Google Gemini models.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `prompt` | string | Yes | - | The prompt to generate from |
-| `model` | string | No | `gemini-1.5-flash` | Model to use |
+| `model` | string | No | `gemini-2.5-flash-lite` | Model to use |
 | `max_tokens` | integer | No | 1024 | Maximum tokens to generate |
 | `temperature` | number | No | 0.7 | Sampling temperature (0.0-2.0) |
 
@@ -300,7 +300,7 @@ max_concurrent_requests = 10
 name = "gemini"
 provider_type = "gemini"
 enabled = true
-model_name = "gemini-1.5-flash"
+model_name = "gemini-2.5-flash-lite"
 api_key = "${GEMINI_API_KEY}"
 
 [[providers]]

@@ -44,7 +44,7 @@ LLM_CLI_RUNNER_MAX_CONCURRENT=10
 name = "gemini"
 provider_type = "gemini"
 enabled = true
-model_name = "gemini-1.5-flash"
+model_name = "gemini-2.5-flash-lite"
 api_key = "${GEMINI_API_KEY}"
 
 # Optional settings
@@ -173,7 +173,7 @@ name = "gemini"
 provider_type = "gemini"
 enabled = true
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-1.5-flash"
+model_name = "gemini-2.5-flash-lite"
 rate_limit = 100
 ```
 
@@ -251,7 +251,7 @@ provider_type = "gemini"
 enabled = true
 priority = 2
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-1.5-flash"  # Cheaper than pro
+model_name = "gemini-2.5-flash-lite"  # Cheaper than pro
 max_tokens = 256  # Reduce token usage
 ```
 
@@ -274,7 +274,7 @@ max_size = 10000
 name = "gemini"
 provider_type = "gemini"
 enabled = true
-model_name = "gemini-1.5-flash"  # Fast model
+model_name = "gemini-2.5-flash-lite"  # Fast model
 api_key = "${GEMINI_API_KEY}"
 timeout = 10
 max_concurrent = 20
@@ -563,7 +563,7 @@ provider_type = "gemini"
 enabled = true
 priority = 1
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-1.5-flash"
+model_name = "gemini-2.5-flash-lite"
 max_tokens = 1024
 temperature = 0.7
 timeout = 30

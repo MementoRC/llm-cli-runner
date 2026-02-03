@@ -16,6 +16,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from mcp_server_llm_cli_runner.providers.manager import ProviderManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,9 +37,8 @@ class LeanMCPInterface:
         self.config_manager = config_manager
         self.app = FastMCP("llm-cli-runner")
 
-        # Initialize provider instances
-        self._providers: dict[str, Any] = {}
-        self._init_providers()
+        # Initialize provider manager
+        self.manager = ProviderManager(config_manager)
 
         # Tool registry: maps tool names to their implementations and metadata
         self.tool_registry = self._build_tool_registry()
@@ -45,17 +46,26 @@ class LeanMCPInterface:
         # Setup the 3 meta-tools
         self._setup_meta_tools()
 
+    async def initialize(self) -> None:
+        """Initialize the interface and its components."""
+        await self.manager.initialize()
+        self._init_providers()
+
     def _init_providers(self) -> None:
-        """Initialize available provider instances."""
+        """Initialize and register available provider instances."""
         enabled = self.config_manager.get_enabled_providers()
 
         if "gemini" in enabled:
             try:
-                # Lazy import to avoid circular dependency
                 from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
 
-                self._providers["gemini"] = GeminiProvider()
-                logger.info("Initialized Gemini provider")
+                # Register the class with the manager's registry
+                self.manager.registry.register_provider(GeminiProvider)
+
+                # Create and register the instance (uses built-in defaults)
+                provider = GeminiProvider()
+                self.manager.register_provider("gemini", provider)
+                logger.info("Initialized and registered Gemini provider")
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini provider: {e}")
 
@@ -63,22 +73,18 @@ class LeanMCPInterface:
             try:
                 from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
 
-                self._providers["llama"] = LLaMAProvider()
-                logger.info("Initialized LLaMA provider")
+                # Register the class
+                self.manager.registry.register_provider(LLaMAProvider)
+
+                # Create and register the instance (uses built-in defaults)
+                provider = LLaMAProvider()
+                self.manager.register_provider("llama", provider)
+                logger.info("Initialized and registered LLaMA provider")
             except Exception as e:
                 logger.warning(f"Failed to initialize LLaMA provider: {e}")
 
     def _build_tool_registry(self) -> dict[str, dict[str, Any]]:
-        """Build comprehensive tool registry with metadata for dynamic discovery.
-
-        Each tool entry contains:
-        - implementation: The actual function
-        - schema: Full parameter schema
-        - domain: Tool domain (llm, provider, config)
-        - complexity: Tool complexity (focused, comprehensive)
-        - description: Brief description
-        - examples: Usage examples
-        """
+        """Build comprehensive tool registry with metadata for dynamic discovery."""
         registry = {}
 
         # LLM Completion Tool
@@ -165,26 +171,16 @@ class LeanMCPInterface:
     async def _send_notification(
         self, notification_type: str, data: dict[str, Any]
     ) -> None:
-        """Send MCP notification if server supports it.
-
-        Args:
-            notification_type: Type of notification (e.g., 'llm/started', 'llm/retry')
-            data: Notification data payload
-        """
+        """Send MCP notification if server supports it."""
         try:
-            # FastMCP apps may expose a notification method - use getattr for type safety
             send_notification = getattr(self.app, "send_notification", None)
             if send_notification is not None and callable(send_notification):
-                # Call the method and handle both sync and async cases
                 result = send_notification(notification_type, data)
-                # If result is a coroutine, await it
                 if asyncio.iscoroutine(result):
                     await result
             else:
-                # Log notification for debugging if MCP notifications not available
                 logger.debug(f"Notification [{notification_type}]: {data}")
         except Exception as e:
-            # Don't fail the operation if notification sending fails
             logger.warning(f"Failed to send notification {notification_type}: {e}")
 
     # Tool implementations
@@ -197,7 +193,7 @@ class LeanMCPInterface:
         max_tokens: int | None = None,
         stream: bool = False,
     ) -> dict[str, Any]:
-        """Execute LLM completion."""
+        """Execute LLM completion using ProviderManager."""
         import time
 
         operation_start_time = time.time()
@@ -215,57 +211,22 @@ class LeanMCPInterface:
                 },
             )
 
-            # Check if provider is available
-            providers = self.config_manager.get_enabled_providers()
-            if provider not in providers:
-                await self._send_notification(
-                    "llm/failed",
-                    {
-                        "operation_id": operation_id,
-                        "error": f"Provider '{provider}' not available",
-                        "timestamp": time.time(),
-                    },
-                )
-                return {
-                    "error": f"Provider '{provider}' not available",
-                    "available_providers": providers,
-                }
-
-            # Check if provider is initialized
-            if provider not in self._providers:
-                await self._send_notification(
-                    "llm/failed",
-                    {
-                        "operation_id": operation_id,
-                        "error": f"Provider '{provider}' not initialized",
-                        "timestamp": time.time(),
-                    },
-                )
-                return {
-                    "error": f"Provider '{provider}' not initialized",
-                    "available_providers": list(self._providers.keys()),
-                }
-
             # Lazy import to avoid circular dependency
             from mcp_server_llm_cli_runner.core.models import LLMRequest
 
             # Create LLM request
-            # Note: stream is handled separately via stream_generate()
             request = LLMRequest(
                 prompt=prompt,
+                provider=provider,
                 model=model,
                 temperature=temperature,
                 max_tokens=max_tokens or 1000,
                 system_prompt=None,
             )
 
-            # Get provider instance and execute
-            provider_instance = self._providers[provider]
-
-            # Create a task that sends periodic progress notifications
+            # Create periodic progress notifications
             async def send_progress_heartbeat():
-                """Send periodic heartbeat during long operations."""
-                heartbeat_interval = 2.0  # seconds
+                heartbeat_interval = 2.0
                 while True:
                     await asyncio.sleep(heartbeat_interval)
                     elapsed = time.time() - operation_start_time
@@ -279,14 +240,12 @@ class LeanMCPInterface:
                         },
                     )
 
-            # Start heartbeat task
             heartbeat_task = asyncio.create_task(send_progress_heartbeat())
 
             try:
-                # Await the async generate method
-                response = await provider_instance.generate(request)
+                # Use ProviderManager to route and execute request
+                response = await self.manager.route_request(request)
 
-                # Cancel heartbeat
                 heartbeat_task.cancel()
                 try:
                     await heartbeat_task
@@ -307,7 +266,9 @@ class LeanMCPInterface:
                 )
 
                 result = {
-                    "provider": provider,
+                    "provider": response.provider
+                    if hasattr(response, "provider")
+                    else provider,
                     "model": response.model,
                     "completion": response.content,
                     "success": response.success,
@@ -317,24 +278,20 @@ class LeanMCPInterface:
                     "metadata": response.metadata,
                 }
 
-                # Include retry attempts if present in metadata
                 if "retry_attempts" in response.metadata:
                     result["retry_attempts"] = response.metadata["retry_attempts"]
 
                 return result
 
             except Exception as provider_error:
-                # Cancel heartbeat on error
                 heartbeat_task.cancel()
                 try:
                     await heartbeat_task
                 except asyncio.CancelledError:
                     pass
 
-                # Extract retry information if available - use getattr for type safety
                 retry_info = getattr(provider_error, "retry_attempts", None)
                 if retry_info is not None:
-                    # Send retry notifications for each attempt
                     for attempt in retry_info:
                         await self._send_notification(
                             "llm/retry",
@@ -348,7 +305,6 @@ class LeanMCPInterface:
                             },
                         )
 
-                # Send failure notification
                 await self._send_notification(
                     "llm/failed",
                     {
@@ -359,84 +315,54 @@ class LeanMCPInterface:
                         "timestamp": time.time(),
                     },
                 )
-
                 raise
 
         except Exception as e:
             logger.error(f"Error in llm_complete: {e}")
             error_result = {"error": str(e)}
-
-            # Include retry attempts if available - use getattr for type safety
             retry_attempts = getattr(e, "retry_attempts", None)
             if retry_attempts is not None:
                 error_result["attempts"] = retry_attempts
-
             return error_result
 
     def _list_providers(self) -> dict[str, Any]:
-        """List available providers."""
+        """List available providers using ProviderManager."""
         try:
-            # Return only initialized providers (not just configured ones)
-            initialized = list(self._providers.keys())
+            status = self.manager.health_monitor.get_all_health_statuses()
+            initialized = self.manager.registry.list_providers()
             configured = self.config_manager.get_enabled_providers()
-            # Report both for transparency
+
             return {
                 "providers": initialized,
                 "count": len(initialized),
-                "configured_but_not_initialized": [
-                    p for p in configured if p not in initialized
-                ],
+                "configured": configured,
+                "health_status": status,
             }
         except Exception as e:
             logger.error(f"Error in list_providers: {e}")
             return {"error": str(e)}
 
     async def _provider_info(self, provider: str) -> dict[str, Any]:
-        """Get provider information with actual availability check."""
+        """Get provider information using ProviderManager."""
         try:
-            configured = self.config_manager.get_enabled_providers()
-            initialized = list(self._providers.keys())
+            health = self.manager.health_monitor.get_provider_health(provider)
+            provider_instance = self.manager.get_provider(provider)
 
-            if provider not in configured:
-                return {
-                    "error": f"Provider '{provider}' not configured",
-                    "available_providers": initialized,
-                }
+            if not provider_instance:
+                return {"error": f"Provider '{provider}' not initialized"}
 
-            # Check if provider is initialized
-            is_initialized = provider in self._providers
-
-            # Check actual availability for initialized providers
+            # Try to get detailed health if available
             is_available = False
-            if is_initialized:
-                try:
-                    provider_instance = self._providers[provider]
-                    # Call the async is_available() method if it exists
-                    if hasattr(provider_instance, "is_available"):
-                        is_available = await provider_instance.is_available()
-                    else:
-                        # Fallback: assume available if initialized
-                        is_available = True
-                except Exception as availability_error:
-                    logger.warning(
-                        f"Failed to check availability for {provider}: {availability_error}"
-                    )
-                    is_available = False
-
-            # Determine status based on actual availability
-            if not is_initialized:
-                status = "configured_not_initialized"
-            elif is_available:
-                status = "available"
-            else:
-                status = "initialized_not_available"
+            if hasattr(provider_instance, "is_available"):
+                is_available = await provider_instance.is_available()
 
             return {
                 "provider": provider,
-                "status": status,
-                "initialized": is_initialized,
+                "initialized": True,
                 "available": is_available,
-                "config": {"type": "cli" if provider in ["gemini", "llama"] else "api"},
+                "health": health.to_dict() if health else None,
+                "stats": self.manager.get_provider_stats(provider),
+                "metadata": getattr(provider_instance, "metadata", {}),
             }
         except Exception as e:
             logger.error(f"Error in provider_info: {e}")
@@ -449,21 +375,10 @@ class LeanMCPInterface:
             description="Discover llm-cli-runner tools (3 total) for LLM completions and provider management. USE WHEN: running LLM queries, checking providers, multi-provider access"
         )
         def discover_tools(pattern: str = "") -> dict[str, Any]:
-            """Get available tools with minimal context consumption.
-
-            Args:
-                pattern: Filter by name pattern (substring match, empty string for all tools)
-
-            Returns:
-                Compact tool list with names and brief descriptions
-            """
             tools = []
-
             for name, info in self.tool_registry.items():
-                # Apply pattern filter if provided
                 if pattern and pattern.strip() and pattern.lower() not in name.lower():
                     continue
-
                 tools.append(
                     {
                         "name": name,
@@ -472,80 +387,35 @@ class LeanMCPInterface:
                         "complexity": info.get("complexity", "focused"),
                     }
                 )
-
             return {
                 "available_tools": tools,
                 "total_tools": len(self.tool_registry),
                 "filtered_count": len(tools),
-                "domains": list(
-                    {info.get("domain", "llm") for info in self.tool_registry.values()}
-                ),
-                "complexity_levels": list(
-                    {
-                        info.get("complexity", "focused")
-                        for info in self.tool_registry.values()
-                    }
-                ),
             }
 
         @self.app.tool(
-            description="Get full specification for specific llm-cli-runner tool including schema and examples. USE WHEN: need parameter details for LLM/provider tools before execution"
+            description="Get full specification for specific llm-cli-runner tool including schema and examples."
         )
         def get_tool_spec(tool_name: str) -> dict[str, Any]:
-            """Get full specification for specific tool including schema and examples.
-
-            Args:
-                tool_name: Name of tool to get specification for
-
-            Returns:
-                Complete tool specification with schema, examples, and usage notes
-            """
             if tool_name not in self.tool_registry:
-                available_tools = list(self.tool_registry.keys())
-                return {
-                    "error": f"Tool '{tool_name}' not found",
-                    "available_tools": available_tools,
-                }
-
+                return {"error": f"Tool '{tool_name}' not found"}
             tool_info = self.tool_registry[tool_name]
             return {
                 "name": tool_name,
-                "description": tool_info["description"],
-                "domain": tool_info.get("domain", "llm"),
-                "complexity": tool_info.get("complexity", "focused"),
                 "schema": tool_info["schema"],
                 "examples": tool_info["examples"],
             }
 
-        @self.app.tool(
-            description="Execute llm-cli-runner tool with parameters. Supports LLM completions, provider queries, configuration. USE WHEN: executing LLM queries, checking provider status"
-        )
+        @self.app.tool(description="Execute llm-cli-runner tool with parameters.")
         async def execute_tool(
             tool_name: str, parameters: dict[str, Any]
         ) -> dict[str, Any]:
-            """Execute tool with parameters using dynamic dispatch.
-
-            Args:
-                tool_name: Name of tool to execute
-                parameters: Tool parameters as object
-
-            Returns:
-                Tool execution result with standard error handling
-            """
             if tool_name not in self.tool_registry:
-                available_tools = list(self.tool_registry.keys())
-                return {
-                    "error": f"Tool '{tool_name}' not found",
-                    "available_tools": available_tools,
-                }
-
+                return {"error": f"Tool '{tool_name}' not found"}
             tool_info = self.tool_registry[tool_name]
             tool_func = tool_info["implementation"]
-
             try:
-                # Execute tool with parameters (handle both sync and async)
                 result = tool_func(**parameters)
-                # If result is a coroutine, await it
                 if asyncio.iscoroutine(result):
                     result = await result
                 return {"tool": tool_name, "status": "success", "result": result}
@@ -558,14 +428,8 @@ class LeanMCPInterface:
         return self.app
 
 
-def create_lean_interface(config_manager: Any) -> FastMCP:
-    """Create a lean MCP interface with minimal context consumption.
-
-    Args:
-        config_manager: Initialized configuration manager
-
-    Returns:
-        FastMCP app with 3 meta-tools exposing full functionality
-    """
+async def create_lean_interface(config_manager: Any) -> FastMCP:
+    """Create and initialize a lean MCP interface."""
     lean_interface = LeanMCPInterface(config_manager)
+    await lean_interface.initialize()
     return lean_interface.get_app()

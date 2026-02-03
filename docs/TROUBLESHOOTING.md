@@ -241,7 +241,7 @@ Solution:
 
 3. Use faster models:
    ```json
-   {"arguments": {"model": "gemini-1.5-flash"}}  // Instead of gemini-1.5-pro
+   {"arguments": {"model": "gemini-2.5-flash-lite"}}  // Instead of gemini-1.5-pro
    ```
 
 #### High Memory Usage
