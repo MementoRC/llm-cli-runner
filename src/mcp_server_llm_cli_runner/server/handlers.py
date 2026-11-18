@@ -24,12 +24,12 @@ class _FallbackTool:
         *,
         name: str,
         description: str | None = None,
-        inputSchema: dict[str, Any],
+        input_schema: dict[str, Any],
         **kwargs: Any,
     ) -> None:
         self.name = name
         self.description = description or ""
-        self.inputSchema = inputSchema
+        self.input_schema = input_schema
 
 
 class _FallbackTextContent:
@@ -44,10 +44,10 @@ class _FallbackCallToolResult:
     """Fallback CallToolResult implementation compatible with MCP."""
 
     def __init__(
-        self, *, content: list[Any], isError: bool = False, **kwargs: Any
+        self, *, content: list[Any], is_error: bool = False, **kwargs: Any
     ) -> None:
         self.content = content
-        self.isError = isError
+        self.is_error = is_error
 
 
 class _FallbackCallToolRequest:
@@ -2472,19 +2472,13 @@ class LLMCliRunnerServer:
                 }
 
             # Create tool using appropriate constructor based on MCP availability
-            if _MCP_TYPES_AVAILABLE:
-                tool = Tool(
+            tools.append(
+                Tool(
                     name=tool_name,
                     description=description,
-                    inputSchema=input_schema,
+                    input_schema=input_schema,
                 )
-            else:
-                tool = Tool(
-                    name=tool_name,
-                    description=description,
-                    inputSchema=input_schema,
-                )
-            tools.append(tool)
+            )
 
         return tools
 
@@ -2518,18 +2512,18 @@ class LLMCliRunnerServer:
                             type="text", text=f"Unknown tool: {tool_name}"
                         )
                     ],
-                    isError=True,
+                    is_error=True,
                 )
 
             return CallToolResult(
                 content=[TextContent(type="text", text=result)],  # type: ignore[list-item]
-                isError=False,
+                is_error=False,
             )
 
         except Exception as e:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Error: {str(e)}")],  # type: ignore[list-item]
-                isError=True,
+                is_error=True,
             )
 
     async def _call_gemini(self, arguments: dict[str, Any]) -> str:

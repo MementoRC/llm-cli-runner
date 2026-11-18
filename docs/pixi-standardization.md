@@ -17,8 +17,8 @@ The project now uses a **tiered environment strategy** that provides memory-effi
 ### **Tier 2: Extended Quality & Security**
 - **Environment**: `quality-extended`
 - **Purpose**: Enhanced quality with security scanning
-- **Dependencies**: bandit, safety, pre-commit, hypothesis
-- **Commands**: `security-scan`, `safety-check`, `static-analysis`
+- **Dependencies**: bandit, pip-audit, pre-commit, hypothesis
+- **Commands**: `security-scan`, `audit`, `static-analysis`
 
 ### **Tier 3: CI/CD & Build**
 - **Environment**: `ci`
@@ -45,7 +45,7 @@ pixi run -e quality quality       # Combined quality gate
 ### **Security & Compliance**
 ```bash
 pixi run -e quality-extended security-scan    # High-severity security scan
-pixi run -e quality-extended safety-check     # Dependency vulnerability scan
+pixi run -e quality-extended audit            # Dependency vulnerability scan
 pixi run -e quality-extended static-analysis  # Complete static analysis
 ```
 

@@ -11,14 +11,16 @@ repos:
         args: ["-c", ".bandit", "-r", "src/"]
         pass_filenames: false
 
-  # Safety check for known vulnerabilities
+  # pip-audit check for known vulnerabilities
   - repo: local
     hooks:
-      - id: safety-check
-        name: safety-check
-        entry: pixi run -e quality-extended safety check --ignore=70929 --ignore=70912
+      - id: pip-audit
+        name: pip-audit
+        entry: pixi run -e audit audit
         language: system
         pass_filenames: false
+        require_serial: true
+        files: ^(pyproject\.toml|pixi\.lock)$
 
   # Code formatting and style with Ruff (faster, better than Black)
   - repo: https://github.com/charliermarsh/ruff-pre-commit

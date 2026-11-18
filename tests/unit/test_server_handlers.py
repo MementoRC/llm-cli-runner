@@ -129,7 +129,7 @@ class TestLLMCliRunnerServerTDD:
 
         # Should return error result
         assert isinstance(result, CallToolResult)
-        assert result.isError is True
+        assert result.is_error is True
         assert len(result.content) == 1
         assert "Unknown tool" in result.content[0].text
 
@@ -207,7 +207,7 @@ class TestLLMCliRunnerServerTDD:
 
             # Should return error result
             assert isinstance(result, CallToolResult)
-            assert result.isError is True
+            assert result.is_error is True
             assert len(result.content) == 1
             assert "Error: Test error" in result.content[0].text
 
@@ -229,7 +229,7 @@ class TestToolSchemas:
         assert gemini_tool.description == "Generate text using Gemini CLI"
 
         # Check input schema
-        schema = gemini_tool.inputSchema
+        schema = gemini_tool.input_schema
         assert schema["type"] == "object"
         assert "prompt" in schema["properties"]
         assert "model" in schema["properties"]
@@ -250,7 +250,7 @@ class TestToolSchemas:
         assert codex_tool.description == "Generate code using OpenAI Codex"
 
         # Check input schema
-        schema = codex_tool.inputSchema
+        schema = codex_tool.input_schema
         assert schema["type"] == "object"
         assert "prompt" in schema["properties"]
         assert "language" in schema["properties"]
@@ -271,7 +271,7 @@ class TestToolSchemas:
         assert llama_tool.description == "Generate text using local LLaMA model"
 
         # Check input schema
-        schema = llama_tool.inputSchema
+        schema = llama_tool.input_schema
         assert schema["type"] == "object"
         assert "prompt" in schema["properties"]
         assert "max_tokens" in schema["properties"]

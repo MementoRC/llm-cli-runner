@@ -120,7 +120,7 @@ jobs:
         echo "📦 Testing critical package availability for ${{ matrix.platform }}..."
 
         # Test if critical packages are available on this platform
-        CRITICAL_PACKAGES=("pytest" "ruff" "pyright" "bandit" "safety")
+        CRITICAL_PACKAGES=("pytest" "ruff" "pyright" "bandit" "pip-audit")
 
         for package in "${CRITICAL_PACKAGES[@]}"; do
           if pixi search $package --platform ${{ matrix.platform }} | grep -q $package; then
