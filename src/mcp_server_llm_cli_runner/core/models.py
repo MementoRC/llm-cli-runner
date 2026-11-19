@@ -28,6 +28,7 @@ class ProviderType(str, Enum):
     """Supported LLM provider types."""
 
     GEMINI = "gemini"
+    AGY = "agy"
     OPENAI = "openai"
     CODEX = "codex"
     LLAMA = "llama"

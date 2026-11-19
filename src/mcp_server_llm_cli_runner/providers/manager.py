@@ -639,6 +639,13 @@ class ProviderManager:
             self.logger.warning(f"Failed to register GeminiProvider class: {e}")
 
         try:
+            from mcp_server_llm_cli_runner.providers.agy import AgyProvider
+
+            self.registry.register_provider(AgyProvider)
+        except Exception as e:
+            self.logger.warning(f"Failed to register AgyProvider class: {e}")
+
+        try:
             from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
 
             self.registry.register_provider(LLaMAProvider)

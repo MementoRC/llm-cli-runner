@@ -69,6 +69,16 @@ class LeanMCPInterface:
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini provider: {e}")
 
+        if "agy" in enabled:
+            try:
+                from mcp_server_llm_cli_runner.providers.agy import AgyProvider
+
+                self.manager.registry.register_provider(AgyProvider)
+                self.manager.register_provider("agy", AgyProvider())
+                logger.info("Initialized and registered agy provider")
+            except Exception as e:
+                logger.warning(f"Failed to initialize agy provider: {e}")
+
         if "llama" in enabled:
             try:
                 from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
