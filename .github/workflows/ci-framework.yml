@@ -18,24 +18,54 @@ on:
         default: true
         type: boolean
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  security-events: write
-  actions: read
-  id-token: write
+# Scorecard-safe top level; elevated grants are scoped to the jobs below.
+permissions: read-all
 
 jobs:
   ci:
     name: "CI Pipeline"
-    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.2.0
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write          # OpenSSF Scorecard
+      security-events: write   # SAST + Scorecard SARIF uploads
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@a22c8d9554e84d684c25f4bf3780bd20bbaedd99  # v4.4.0
     with:
       pixi-environment: 'quality'
-      python-versions: '["3.12"]'
+      # pixi.lock is v7, written by pixi 0.82.0 (v7 needs >= 0.68).
+      pixi-version: 'v0.82.0'
+      # Every pixi env here runs Python 3.15, so the matrix has one leg: 3.15.
+      # No per-version env (py315) exists, so the leg falls back to
+      # pixi-environment ('quality') and the interpreter check passes only if
+      # that env really is 3.15. strict makes a mismatch fail instead of warn.
+      python-versions: '["3.15"]'
+      python-version-env-pattern: 'py{nodot}'
+      strict-python-matrix: true
       os-matrix: '["ubuntu-latest"]'  # pixi.lock only has linux-64 packages
       enable-performance: ${{ github.event.inputs.enable-performance == 'true' || github.event_name != 'workflow_dispatch' }}
-      enable-release: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
       allowed-licenses: 'MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, PSF-2.0, ISC, LGPL-3.0'
       package-path: '.'
+      # reusable-ci runs the audit task in pixi-environment ('quality') only, and
+      # the pip-audit task lives in the 'audit' env, so this is skipped with a
+      # notice. The real audit runs in the dependency-audit job below.
+      audit-task: 'audit'
+      conda-first-check: 'warn'
+      pip-policy-check: 'warn'
     secrets: inherit
+
+  # The framework cannot target a non-default pixi env for the audit task, so
+  # run pip-audit (audit env, Python <3.15) against the default env here.
+  dependency-audit:
+    name: "Dependency Audit (pip-audit)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e  # v0.11.3
+        with:
+          pixi-version: v0.82.0
+          cache: false
+      - name: Run pip-audit
+        run: pixi run -e audit audit

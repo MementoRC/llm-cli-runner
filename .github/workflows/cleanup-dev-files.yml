@@ -25,6 +25,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Remove development files
+        env:
+          # Passed via env, not interpolated into the script (script injection).
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           # Remove development-specific files and directories
           rm -rf .taskmaster/
@@ -35,7 +39,7 @@ jobs:
           if git status --porcelain | grep -E "(\.taskmaster|\.claude|\.mcp\.json)"; then
             echo "Development files detected and will be removed"
             git add -A
-            git commit -m "chore: remove development files after merge from ${{ github.event.pull_request.head.ref }}
+            git commit -m "chore: remove development files after merge from ${HEAD_REF}
 
             Automated cleanup of:
             - .taskmaster/ (TaskMaster AI configuration)
@@ -44,7 +48,7 @@ jobs:
 
             These files are preserved in feature branches but removed from stable branches."
 
-            git push origin ${{ github.event.pull_request.base.ref }}
+            git push origin "${BASE_REF}"
           else
             echo "No development files to remove"
           fi

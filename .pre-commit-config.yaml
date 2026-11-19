@@ -22,13 +22,22 @@ repos:
         require_serial: true
         files: ^(pyproject\.toml|pixi\.lock)$
 
-  # Code formatting and style with Ruff (faster, better than Black)
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.7.3
+  # Code formatting and style with Ruff, run from the pixi quality env so
+  # there is one ruff binary shared with CI (no separate rev pin to keep in sync)
+  - repo: local
     hooks:
       - id: ruff
-        args: ["--fix"]
+        name: ruff lint (pixi quality env)
+        entry: pixi run -e quality ruff check --fix --exit-non-zero-on-fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
+        name: ruff format (pixi quality env)
+        entry: pixi run -e quality ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
 
   # Import sorting
   - repo: https://github.com/pycqa/isort
@@ -45,6 +54,7 @@ repos:
         entry: pixi run -e quality pyright src/
         language: system
         pass_filenames: false
+        require_serial: true
 
   # YAML validation
   - repo: https://github.com/adrienverge/yamllint
@@ -52,6 +62,13 @@ repos:
     hooks:
       - id: yamllint
         args: ["-d", "relaxed"]
+
+  # GitHub Actions workflow linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        files: '^\.github/workflows/.*\.ya?ml$'
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -85,3 +102,4 @@ repos:
         entry: pixi run -e quality pytest tests/unit/ -x --tb=short
         language: system
         pass_filenames: false
+        require_serial: true
