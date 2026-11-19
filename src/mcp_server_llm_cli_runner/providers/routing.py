@@ -22,7 +22,7 @@ Example:
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from mcp_server_llm_cli_runner.core.errors import ProviderError
@@ -32,7 +32,7 @@ from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
 from .registry import ProviderRegistry
 
 
-class ComplexityLevel(str, Enum):
+class ComplexityLevel(StrEnum):
     """Complexity level classification."""
 
     SIMPLE = "simple"  # 0-3: Basic queries, simple tasks

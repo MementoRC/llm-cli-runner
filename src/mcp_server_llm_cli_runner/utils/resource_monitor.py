@@ -25,7 +25,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import psutil
@@ -36,7 +36,7 @@ from mcp_server_llm_cli_runner.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ResourceLevel(str, Enum):
+class ResourceLevel(StrEnum):
     """Resource usage level classification."""
 
     NORMAL = "normal"
@@ -44,7 +44,7 @@ class ResourceLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class AlertType(str, Enum):
+class AlertType(StrEnum):
     """Types of resource alerts."""
 
     CPU_HIGH = "cpu_high"

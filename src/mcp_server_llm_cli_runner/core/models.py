@@ -17,14 +17,14 @@ Example:
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     """Supported LLM provider types."""
 
     GEMINI = "gemini"
@@ -35,7 +35,7 @@ class ProviderType(str, Enum):
     ANTHROPIC = "anthropic"
 
 
-class ProviderStatus(str, Enum):
+class ProviderStatus(StrEnum):
     """Provider operational status."""
 
     HEALTHY = "healthy"
@@ -47,7 +47,7 @@ class ProviderStatus(str, Enum):
     RATE_LIMITED = "rate_limited"
 
 
-class QuotaStatus(str, Enum):
+class QuotaStatus(StrEnum):
     """Quota status for providers."""
 
     HEALTHY = "healthy"
@@ -55,7 +55,7 @@ class QuotaStatus(str, Enum):
     EXCEEDED = "exceeded"
 
 
-class BatchPriority(str, Enum):
+class BatchPriority(StrEnum):
     """Priority levels for batch processing."""
 
     URGENT = "urgent"
@@ -64,7 +64,7 @@ class BatchPriority(str, Enum):
     LOW = "low"
 
 
-class BatchStatus(str, Enum):
+class BatchStatus(StrEnum):
     """Status of batch processing operations."""
 
     PENDING = "pending"

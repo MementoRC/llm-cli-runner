@@ -24,7 +24,7 @@ import heapq
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -40,7 +40,7 @@ from mcp_server_llm_cli_runner.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class BackpressureLevel(str, Enum):
+class BackpressureLevel(StrEnum):
     """Backpressure severity levels."""
 
     NONE = "none"
@@ -50,7 +50,7 @@ class BackpressureLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class BackpressureAction(str, Enum):
+class BackpressureAction(StrEnum):
     """Actions to take under backpressure."""
 
     ACCEPT = "accept"  # Accept the request normally

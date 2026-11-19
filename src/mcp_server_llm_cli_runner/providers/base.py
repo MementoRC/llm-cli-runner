@@ -16,7 +16,7 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from mcp_server_llm_cli_runner.core.errors import ProviderError
@@ -34,7 +34,7 @@ from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
 from .circuit_breaker import ProviderCircuitBreaker
 
 
-class ProviderCapabilities(str, Enum):
+class ProviderCapabilities(StrEnum):
     """Enumeration of provider capabilities."""
 
     STREAMING = "streaming"

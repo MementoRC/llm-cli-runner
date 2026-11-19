@@ -23,7 +23,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any, cast
 
 from pydantic import BaseModel, Field
@@ -33,7 +33,7 @@ from mcp_server_llm_cli_runner.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ConnectionState(str, Enum):
+class ConnectionState(StrEnum):
     """State of a pooled connection."""
 
     IDLE = "idle"
