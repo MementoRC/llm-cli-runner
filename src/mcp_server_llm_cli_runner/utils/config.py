@@ -19,6 +19,7 @@ Example:
 import base64
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Any, Literal
 
@@ -1191,7 +1192,8 @@ class ConfigManager:
             {
                 "name": "agy",
                 "provider_type": "agy",
-                "enabled": True,
+                "enabled": shutil.which(os.environ.get("AGY_CLI_PATH") or "agy")
+                is not None,
                 "model_name": "default",
             }
         )

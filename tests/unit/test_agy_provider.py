@@ -1,6 +1,6 @@
 """Unit tests for the agy (Antigravity CLI) provider."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -154,3 +154,72 @@ class TestAgyMessageWording:
 
     def test_display_name(self):
         assert AgyProvider()._display_name() == "agy (Antigravity)"
+
+
+class TestAgyReviewFixes:
+    @pytest.mark.asyncio
+    async def test_quota_error_provider_is_agy(self):
+        provider = AgyProvider(daily_quota=0)
+        with pytest.raises(RateLimitError) as exc_info:
+            await provider.generate(LLMRequest(prompt="hi"))
+        assert exc_info.value.provider == "agy"
+
+    @pytest.mark.asyncio
+    async def test_stream_error_provider_is_agy(self):
+        provider = AgyProvider(max_retries=1)
+        with patch("asyncio.create_subprocess_exec") as mock_exec:
+            mock_exec.return_value = _process(stderr="boom", returncode=1)
+            with pytest.raises(ProviderError) as exc_info:
+                await provider.stream_generate(LLMRequest(prompt="hi"))
+        assert exc_info.value.provider == "agy"
+        assert exc_info.value.__cause__.provider == "agy"
+
+    @pytest.mark.asyncio
+    async def test_wrapped_error_provider_is_agy(self):
+        provider = AgyProvider()
+        with pytest.raises(ProviderError) as exc_info:
+            await provider.generate(LLMRequest(prompt=" "))
+        assert exc_info.value.provider == "agy"
+
+    @pytest.mark.asyncio
+    async def test_timeout_kills_process(self):
+        provider = AgyProvider(max_retries=1)
+        process = _process()
+        process.kill = Mock()
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=process),
+            patch("asyncio.wait_for", side_effect=TimeoutError),
+        ):
+            with pytest.raises(ProviderError):
+                await provider._execute_with_retries(
+                    provider._build_command("hi"), LLMRequest(prompt="hi")
+                )
+        process.kill.assert_called_once()
+        process.wait.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_timeout_kill_tolerates_exited_process(self):
+        provider = AgyProvider(max_retries=1)
+        process = _process()
+        process.kill = Mock(side_effect=ProcessLookupError)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=process),
+            patch("asyncio.wait_for", side_effect=TimeoutError),
+        ):
+            with pytest.raises(ProviderError, match="failed after"):
+                await provider._execute_with_retries(
+                    provider._build_command("hi"), LLMRequest(prompt="hi")
+                )
+
+    def test_cost_is_zero(self):
+        provider = AgyProvider()
+        assert provider._calculate_cost(10682, "some-model") == 0.0
+        assert provider._calculate_cost(10682, "gemini-1.5-pro") == 0.0
+
+    def test_debug_log_omits_prompt_text(self):
+        secret = "super-secret-prompt-text"
+        with patch("mcp_server_llm_cli_runner.providers.agy.logger") as mock_logger:
+            AgyProvider()._build_command(secret, model="m")
+        rendered = repr(mock_logger.debug.call_args)
+        assert secret not in rendered
+        assert mock_logger.debug.call_args.kwargs["prompt_chars"] == len(secret)

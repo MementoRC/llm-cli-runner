@@ -113,8 +113,21 @@ class AgyProvider(GeminiProvider):
         if model and model != "default":
             cmd.extend(["--model", model])
         cmd.extend(["--output-format", "json", "-p", prompt])
-        logger.debug("Built agy command", command=" ".join(cmd))
+        logger.debug(
+            "Built agy command",
+            binary=cmd[0],
+            model=model,
+            prompt_chars=len(prompt),
+        )
         return cmd
+
+    def _get_model_pricing(self, model: str) -> dict[str, Any]:
+        """Agy is a subscription/quota CLI with no per-token price."""
+        return {
+            "input_cost_per_token": 0.0,
+            "output_cost_per_token": 0.0,
+            "tier": "subscription",
+        }
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate a response using the agy CLI."""
@@ -208,6 +221,7 @@ class AgyProvider(GeminiProvider):
 
         for attempt in range(self.retry_attempts):
             attempt_start = time.time()
+            process: asyncio.subprocess.Process | None = None
             try:
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
@@ -252,6 +266,7 @@ class AgyProvider(GeminiProvider):
                     "Please install it first."
                 ) from err
             except TimeoutError:
+                await self._kill_process(process)
                 last_error = ProviderError(
                     f"agy request timed out after {self.timeout}s", provider="agy"
                 )

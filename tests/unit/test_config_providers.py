@@ -73,3 +73,36 @@ class TestProviderConfig:
 
         assert config.provider_specific == provider_specific
         assert len(config.provider_specific) == 2
+
+
+class TestAgyDefaultEnabled:
+    """agy default enablement depends on the binary being discoverable."""
+
+    @staticmethod
+    def _agy_default() -> dict:
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
+
+        defaults = ConfigManager()._create_default_providers()
+        return next(p for p in defaults if p["name"] == "agy")
+
+    def test_agy_disabled_when_binary_missing(self, monkeypatch):
+        monkeypatch.delenv("AGY_CLI_PATH", raising=False)
+        monkeypatch.setattr("shutil.which", lambda _name: None)
+        assert self._agy_default()["enabled"] is False
+
+    def test_agy_enabled_when_binary_found(self, monkeypatch):
+        monkeypatch.delenv("AGY_CLI_PATH", raising=False)
+        monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/agy")
+        assert self._agy_default()["enabled"] is True
+
+    def test_agy_uses_env_override_for_lookup(self, monkeypatch):
+        monkeypatch.setenv("AGY_CLI_PATH", "/opt/custom/agy")
+        seen: list[str] = []
+
+        def fake_which(name: str) -> str:
+            seen.append(name)
+            return name
+
+        monkeypatch.setattr("shutil.which", fake_which)
+        assert self._agy_default()["enabled"] is True
+        assert seen == ["/opt/custom/agy"]

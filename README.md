@@ -83,7 +83,7 @@ pixi run typecheck
 
 # Security scanning
 pixi run -e dev bandit -r src/ --severity-level high
-pixi run -e dev audit
+pixi run -e audit audit
 
 # Complete quality validation
 pixi run quality

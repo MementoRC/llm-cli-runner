@@ -2390,6 +2390,10 @@ class LLMCliRunnerServer:
         enabled_providers = self.config_manager.get_enabled_providers()
 
         for provider in enabled_providers:
+            # Only advertise providers with a _call_<name> dispatch (agy is
+            # reachable via llm_complete(provider="agy") on the lean interface).
+            if not hasattr(self, f"_call_{provider}"):
+                continue
             tool_name = f"{provider}_generate"
 
             # Provider-specific descriptions

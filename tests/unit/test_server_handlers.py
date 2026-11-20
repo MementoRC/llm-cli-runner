@@ -110,6 +110,31 @@ class TestLLMCliRunnerServerTDD:
             assert result.content[0].text == "Test response"
 
     @pytest.mark.asyncio
+    async def test_agy_generate_not_advertised_or_dispatched(self):
+        """agy is lean-interface only: no agy_generate listing or dispatch."""
+        mock_config_manager = Mock()
+        mock_config_manager.get_enabled_providers.return_value = ["gemini", "agy"]
+
+        server = LLMCliRunnerServer(mock_config_manager)
+
+        tools = await server._list_tools()
+        names = [t.name for t in tools]
+        assert "gemini_generate" in names
+        assert "agy_generate" not in names
+
+        request = CallToolRequest(
+            method="tools/call",
+            params=CallToolRequestParams(
+                name="agy_generate",
+                arguments={"prompt": "Hello"},
+            ),
+        )
+        result = await server._call_tool(request)
+
+        assert result.is_error is True
+        assert "Unknown tool: agy_generate" in result.content[0].text
+
+    @pytest.mark.asyncio
     async def test_call_tool_unknown_tool(self):
         """Test _call_tool with unknown tool returns error."""
         mock_config_manager = Mock()
