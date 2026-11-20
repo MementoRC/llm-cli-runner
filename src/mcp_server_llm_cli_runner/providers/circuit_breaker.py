@@ -16,14 +16,14 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from mcp_server_llm_cli_runner.core.errors import ProviderError
 from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
 
 
-class CircuitBreakerState(str, Enum):
+class CircuitBreakerState(StrEnum):
     """Circuit breaker states."""
 
     CLOSED = "closed"  # Normal operation

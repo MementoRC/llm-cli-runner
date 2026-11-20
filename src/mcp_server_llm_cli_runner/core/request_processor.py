@@ -5,6 +5,7 @@ functionality for handling MCP protocol requests efficiently.
 """
 
 import asyncio
+import inspect
 import json
 import time
 import uuid
@@ -301,7 +302,7 @@ class ContextManager:
             # Run cleanup tasks
             for cleanup_task in self._cleanup_tasks:
                 try:
-                    if asyncio.iscoroutinefunction(cleanup_task):
+                    if inspect.iscoroutinefunction(cleanup_task):
                         await cleanup_task()
                     else:
                         cleanup_task()

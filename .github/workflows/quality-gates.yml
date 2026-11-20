@@ -20,10 +20,14 @@ on:
         default: true
         type: boolean
 
+permissions:
+  contents: read
+
 env:
   PYTHONNOUSERSITE: 1
   PYTHONDONTWRITEBYTECODE: 1
-  PIXI_VERSION: v0.49.0
+  # pixi.lock is v7 (written by pixi 0.82.0); v7 needs pixi >= 0.68.
+  PIXI_VERSION: v0.82.0
 
 jobs:
   quality-gates:
@@ -31,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
     - name: Setup pixi
-      uses: prefix-dev/setup-pixi@v0.8.11
+      uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e  # v0.11.3
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: true

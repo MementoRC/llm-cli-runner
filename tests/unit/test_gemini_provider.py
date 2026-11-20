@@ -243,6 +243,38 @@ class TestGeminiProvider:
         assert exc_info.value.provider == "gemini"
 
     @pytest.mark.asyncio
+    async def test_generate_wrapped_error_provider_is_gemini(self):
+        """Outer wrap reports provider 'gemini' for GeminiProvider"""
+        with pytest.raises(ProviderError) as exc_info:
+            await GeminiProvider().generate(LLMRequest(prompt=" "))
+        assert exc_info.value.provider == "gemini"
+
+    @pytest.mark.asyncio
+    async def test_timeout_kills_process(self):
+        """Subprocess is killed and reaped on timeout"""
+        provider = GeminiProvider(max_retries=1)
+        process = AsyncMock()
+        process.kill = Mock()
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=process),
+            patch("asyncio.wait_for", side_effect=TimeoutError),
+        ):
+            with pytest.raises(ProviderError):
+                await provider._execute_with_retries(
+                    ["gemini", "-p", "hi"], LLMRequest(prompt="hi")
+                )
+        process.kill.assert_called_once()
+        process.wait.assert_awaited()
+
+    def test_debug_log_omits_prompt_text(self):
+        """Debug log carries binary/model/prompt length, never prompt text"""
+        secret = "super-secret-prompt-text"
+        with patch("mcp_server_llm_cli_runner.providers.gemini.logger") as mock_logger:
+            GeminiProvider()._build_command(secret, model="gemini-pro")
+        assert secret not in repr(mock_logger.debug.call_args)
+        assert mock_logger.debug.call_args.kwargs["prompt_chars"] == len(secret)
+
+    @pytest.mark.asyncio
     async def test_generate_response_success(self):
         """Test successful response generation"""
         provider = GeminiProvider()

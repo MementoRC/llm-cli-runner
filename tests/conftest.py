@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 from mcp_server_llm_cli_runner.utils.config import ConfigManager
 
 
@@ -147,17 +146,6 @@ def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
     manager.key_manager = key_manager_mock
 
     return manager
-
-
-@pytest.fixture
-def mock_llm_cli_runner_server(
-    mock_config_manager: ConfigManager,
-) -> LLMCliRunnerServer:
-    """Mock LLMCliRunnerServer instance."""
-    server = Mock(spec=LLMCliRunnerServer)
-    server.config_manager = mock_config_manager
-    server.get_mcp_server.return_value = Mock()
-    return server
 
 
 @pytest.fixture

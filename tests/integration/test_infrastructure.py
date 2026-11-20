@@ -20,7 +20,6 @@ class TestInfrastructureIntegration:
         required_dirs = [
             "src/mcp_server_llm_cli_runner",
             "src/mcp_server_llm_cli_runner/core",
-            "src/mcp_server_llm_cli_runner/server",
             "src/mcp_server_llm_cli_runner/utils",
             "tests",
             "tests/unit",
@@ -49,7 +48,6 @@ class TestInfrastructureIntegration:
     def test_dependencies_import(self):
         """Verify all production dependencies can be imported."""
         dependencies = [
-            "mcp",
             "pydantic",
             "aiohttp",
             "httpx",
@@ -70,7 +68,6 @@ class TestInfrastructureIntegration:
         imports = [
             "mcp_server_llm_cli_runner",
             "mcp_server_llm_cli_runner.core.models",
-            "mcp_server_llm_cli_runner.server.handlers",
             "mcp_server_llm_cli_runner.utils.config",
             "mcp_server_llm_cli_runner.utils.errors",
             "mcp_server_llm_cli_runner.utils.logging",

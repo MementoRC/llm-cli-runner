@@ -63,28 +63,26 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "lf"
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]  # Local development on linux-64, CI validates cross-platform
 
 [tool.pixi.dependencies]
 # Core runtime dependencies
 python = ">=3.12"
-pip = "*"
-aiohttp = ">=3.8.0"
+pip = ">=26.2"
+aiohttp = ">=3.13.4"
 click = ">=8.1.7"
-cryptography = ">=41.0.0"
+cryptography = ">=50.0.0"
 httpx = ">=0.24.0"
 llama-cpp-python = ">=0.2.0"
-mcp = ">=1.10.0"
-fastmcp = ">=0.1.0"
+fastmcp = ">=3.2.4"
 openai = ">=1.0.0"
 psutil = ">=5.9.0"
 pydantic = ">=2.0.0"
-python-dotenv = ">=1.0.0"
+python-dotenv = ">=1.2.2"
 structlog = ">=24.0.0"
 tomli = ">=2.0.1"
-lupa = ">=2.6,<3"
 
 # ===== TIERED QUALITY FEATURES =====
 # TIER 1: Essential Quality Gates (ZERO-TOLERANCE)
@@ -110,7 +108,6 @@ toml = ">=0.10.2"  # For test fixtures
 [tool.pixi.feature.quality-extended.dependencies]
 # Security Scanning
 bandit = ">=1.7.0"
-safety = ">=2.3.0"
 
 # Code Quality Analysis
 hypothesis = ">=6.0.0"
@@ -118,6 +115,20 @@ vulture = ">=2.11"  # Dead code detection
 
 # Git Hooks
 pre-commit = ">=3.0.0"
+
+# Dedicated dependency audit env. pip-audit cannot run on Python 3.15: its pip_api
+# dependency vendors a pyparsing that imports `sre_constants`, removed in 3.15.
+# So pip-audit runs on an older Python and scans the default env's site-packages
+# via --path. Move back to the default Python once pip-audit supports 3.15.
+[tool.pixi.feature.audit.dependencies]
+python = ">=3.13,<3.15"
+pip-audit = ">=2.6.0"
+filelock = "*"  # needed by cachecontrol's FileCache; not pulled in by the conda pip-audit package
+
+[tool.pixi.feature.audit.tasks]
+# Depends on the default env being installed (the dependency task installs it first).
+# diskcache (transitive via fastmcp) has no upstream fix; ignore until a release exists.
+audit = { cmd = "pip-audit --skip-editable --path .pixi/envs/default/lib/python3.*/site-packages --ignore-vuln CVE-2025-69872", depends-on = [{ task = "dev-setup", environment = "default" }] }
 
 # TIER 3: CI/CD & Build
 [tool.pixi.feature.quality-ci.dependencies]
@@ -174,6 +185,9 @@ quality-ci = {features = ["quality", "quality-ci"], solve-group = "default"}
 # Minimal CI environment (for GitHub Actions compatibility)
 ci-minimal = {features = ["ci-minimal"], solve-group = "default"}
 
+# Dependency audit environment (older Python; scans the default env)
+audit = {features = ["audit"], no-default-feature = true}
+
 [tool.pixi.tasks]
 # ===== TIER 1: CORE DEVELOPMENT TASKS (ESSENTIAL) =====
 # Installation & Setup
@@ -204,14 +218,13 @@ quality = { depends-on = ["test", "lint", "typecheck"] }
 # ===== TIER 2: SECURITY & COMPLIANCE TASKS =====
 # Security Scanning
 security-scan = "bandit -r src/ --severity-level high"
-safety-check = "safety check"
 
 # Dead Code Detection
 dead-code = "vulture src/ --min-confidence 80"
 dead-code-all = "vulture src/ tests/ --min-confidence 60"
 
 # Static Analysis Suite
-static-analysis = { depends-on = ["security-scan", "safety-check", "dead-code"] }
+static-analysis = { depends-on = ["security-scan", "dead-code"] }
 
 # Comprehensive Check
 check-all = { depends-on = ["quality", "static-analysis"] }

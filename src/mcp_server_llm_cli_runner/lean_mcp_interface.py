@@ -51,6 +51,12 @@ class LeanMCPInterface:
         await self.manager.initialize()
         self._init_providers()
 
+    def _configured_model(self, name: str) -> str:
+        """Return the configured model for a provider ("" when default/unset)."""
+        cfg = self.config_manager.get_provider_config(name) or {}
+        model = cfg.get("model_name") or ""
+        return "" if model == "default" else str(model)
+
     def _init_providers(self) -> None:
         """Initialize and register available provider instances."""
         enabled = self.config_manager.get_enabled_providers()
@@ -63,11 +69,24 @@ class LeanMCPInterface:
                 self.manager.registry.register_provider(GeminiProvider)
 
                 # Create and register the instance (uses built-in defaults)
-                provider = GeminiProvider()
+                model = self._configured_model("gemini")
+                provider = GeminiProvider(model=model) if model else GeminiProvider()
                 self.manager.register_provider("gemini", provider)
                 logger.info("Initialized and registered Gemini provider")
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini provider: {e}")
+
+        if "agy" in enabled:
+            try:
+                from mcp_server_llm_cli_runner.providers.agy import AgyProvider
+
+                self.manager.registry.register_provider(AgyProvider)
+                self.manager.register_provider(
+                    "agy", AgyProvider(model=self._configured_model("agy"))
+                )
+                logger.info("Initialized and registered agy provider")
+            except Exception as e:
+                logger.warning(f"Failed to initialize agy provider: {e}")
 
         if "llama" in enabled:
             try:

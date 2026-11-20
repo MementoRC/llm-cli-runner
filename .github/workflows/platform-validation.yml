@@ -37,27 +37,41 @@ permissions:
   pull-requests: write
 
 env:
-  PIXI_VERSION: v0.49.0
+  # pixi.lock is v7 (written by pixi 0.82.0); v7 needs pixi >= 0.68.
+  PIXI_VERSION: v0.82.0
 
 jobs:
   # Memory-efficient platform validation
   validate-platforms:
-    name: Validate ${{ matrix.platform }}
+    name: Validate ${{ matrix.platform }} (${{ matrix.environment }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     strategy:
       fail-fast: false  # Continue testing other platforms if one fails
       matrix:
-        platform: [linux-64, osx-64, osx-arm64, win-64]  # Cross-platform validation
-        environment: [quality, quality-extended, ci]
+        # linux-64: real install per environment (host can run it).
+        # other platforms: one solve-only leg each (`pixi lock` solves all
+        # environments at once and needs no runnable host).
+        include:
+          - {platform: linux-64, environment: quality, mode: install}
+          - {platform: linux-64, environment: quality-extended, mode: install}
+          - {platform: linux-64, environment: ci, mode: install}
+          - {platform: osx-64, environment: all, mode: solve}
+          - {platform: osx-arm64, environment: all, mode: solve}
+          - {platform: win-64, environment: all, mode: solve}
+
+    env:
+      MATRIX_PLATFORM: ${{ matrix.platform }}
+      MATRIX_ENVIRONMENT: ${{ matrix.environment }}
+      REPORT_FILE: platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
     - name: Setup pixi
-      uses: prefix-dev/setup-pixi@v0.8.11
+      uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e  # v0.11.3
       with:
         pixi-version: ${{ env.PIXI_VERSION }}
         cache: false  # Disable cache to save memory
@@ -78,73 +92,88 @@ jobs:
         echo "💾 Available memory:"
         free -h
 
-    - name: Create temporary pyproject.toml for platform testing
+    - name: Rewrite platforms in pyproject.toml (solve-only legs)
+      if: matrix.mode == 'solve'
       run: |
-        echo "🎯 Testing platform: ${{ matrix.platform }}"
+        echo "🎯 Testing platform: $MATRIX_PLATFORM"
 
-        # Create a temporary pyproject.toml with single platform
         cp pyproject.toml pyproject.toml.backup
 
-        # Fix the sed command to handle the comment
-        sed -i 's/platforms = \[.*\].*$/platforms = ["${{ matrix.platform }}"]/' pyproject.toml
+        # Replace the platforms list (handles a trailing comment)
+        sed -i "s/platforms = \[.*\].*\$/platforms = [\"$MATRIX_PLATFORM\"]/" pyproject.toml
 
         echo "📋 Platform configuration:"
         grep -A5 -B5 "platforms.*=" pyproject.toml
 
-    - name: Test dependency resolution for ${{ matrix.platform }}
+    - name: Solve dependencies for non-linux platform (no install)
+      if: matrix.mode == 'solve'
       timeout-minutes: 30
       run: |
-        echo "🔍 Testing dependency resolution for ${{ matrix.platform }} environment ${{ matrix.environment }}..."
+        echo "🔍 Solving all environments for $MATRIX_PLATFORM (solve-only)..."
 
-        # Test if pixi can install the environment (actual dependency resolution test)
-        if pixi install -e ${{ matrix.environment }}; then
-          echo "✅ Dependency resolution successful for ${{ matrix.platform }}"
+        # `pixi lock` solves without installing, so the linux host is fine.
+        if pixi lock; then
+          echo "✅ Dependency resolution successful for $MATRIX_PLATFORM"
+        else
+          echo "##[error]Dependency solve failed for platform $MATRIX_PLATFORM"
+          exit 1
+        fi
 
-          # Get environment info
-          echo "📦 Environment ${{ matrix.environment }} installed successfully"
+    - name: Install and check environment (linux-64)
+      if: matrix.mode == 'install'
+      timeout-minutes: 30
+      run: |
+        echo "🔍 Installing environment $MATRIX_ENVIRONMENT on $MATRIX_PLATFORM..."
+
+        if pixi install -e "$MATRIX_ENVIRONMENT"; then
+          echo "✅ Dependency resolution successful for $MATRIX_PLATFORM"
 
           # Test quality commands (dry run)
           echo "🧪 Testing quality commands..."
-          pixi run -e ${{ matrix.environment }} --dry-run lint || echo "⚠️ lint command not available"
-          pixi run -e ${{ matrix.environment }} --dry-run test || echo "⚠️ test command not available"
-          pixi run -e ${{ matrix.environment }} --dry-run typecheck || echo "⚠️ typecheck command not available"
-
+          pixi run -e "$MATRIX_ENVIRONMENT" --dry-run lint || echo "⚠️ lint command not available"
+          pixi run -e "$MATRIX_ENVIRONMENT" --dry-run test || echo "⚠️ test command not available"
+          pixi run -e "$MATRIX_ENVIRONMENT" --dry-run typecheck || echo "⚠️ typecheck command not available"
         else
-          echo "❌ Dependency resolution failed for ${{ matrix.platform }}"
-          echo "::error::Platform ${{ matrix.platform }} is not compatible with environment ${{ matrix.environment }}"
+          echo "##[error]Platform $MATRIX_PLATFORM is not compatible with environment $MATRIX_ENVIRONMENT"
           exit 1
         fi
 
     - name: Test package availability
       run: |
-        echo "📦 Testing critical package availability for ${{ matrix.platform }}..."
+        echo "📦 Testing critical package availability for $MATRIX_PLATFORM..."
 
         # Test if critical packages are available on this platform
-        CRITICAL_PACKAGES=("pytest" "ruff" "pyright" "bandit" "safety")
+        CRITICAL_PACKAGES=("pytest" "ruff" "pyright" "bandit" "pip-audit")
 
         for package in "${CRITICAL_PACKAGES[@]}"; do
-          if pixi search $package --platform ${{ matrix.platform }} | grep -q $package; then
-            echo "✅ $package available on ${{ matrix.platform }}"
+          if pixi search "$package" --platform "$MATRIX_PLATFORM" | grep -q "$package"; then
+            echo "✅ $package available on $MATRIX_PLATFORM"
           else
-            echo "⚠️ $package might not be available on ${{ matrix.platform }}"
+            echo "⚠️ $package might not be available on $MATRIX_PLATFORM"
           fi
         done
 
     - name: Generate platform compatibility report
       if: always()
+      env:
+        JOB_STATUS: ${{ job.status }}
       run: |
-        echo "📊 Platform Compatibility Report" > platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "=================================" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "**Platform**: ${{ matrix.platform }}" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "**Environment**: ${{ matrix.environment }}" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "**Status**: ${{ job.status }}" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "**Date**: $(date)" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        echo "" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
+        {
+          echo "📊 Platform Compatibility Report"
+          echo "================================="
+          echo ""
+          echo "**Platform**: $MATRIX_PLATFORM"
+          echo "**Environment**: $MATRIX_ENVIRONMENT"
+          echo "**Status**: $JOB_STATUS"
+          echo "**Date**: $(date)"
+          echo ""
+          echo "### Dependencies"
+        } > "$REPORT_FILE"
 
-        # Add dependency info
-        echo "### Dependencies" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
-        pixi info -e ${{ matrix.environment }} | grep "Dependency count:" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md || echo "N/A" >> platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
+        # pixi 0.82: `pixi info` takes no -e; read per-environment data from JSON
+        pixi info --json \
+          | jq -r '.environments_info[] | "- \(.name): \(.dependencies | length) dependencies"' \
+          >> "$REPORT_FILE" || echo "N/A" >> "$REPORT_FILE"
 
     - name: Upload platform report
       if: always()
@@ -154,7 +183,7 @@ jobs:
         path: platform-report-${{ matrix.platform }}-${{ matrix.environment }}.md
 
     - name: Restore original pyproject.toml
-      if: always()
+      if: always() && matrix.mode == 'solve'
       run: |
         mv pyproject.toml.backup pyproject.toml
 
@@ -187,8 +216,14 @@ jobs:
           echo -n "| $platform |" >> compatibility-summary.md
 
           for env in quality quality-extended ci; do
-            if [ -f "platform-report-$platform-$env.md" ]; then
-              if grep -q "Status.*success" "platform-report-$platform-$env.md"; then
+            # Non-linux platforms are solved once for all environments
+            if [ "$platform" = "linux-64" ]; then
+              report="platform-report-$platform-$env.md"
+            else
+              report="platform-report-$platform-all.md"
+            fi
+            if [ -f "$report" ]; then
+              if grep -q "Status.*success" "$report"; then
                 echo -n " ✅ |" >> compatibility-summary.md
               else
                 echo -n " ❌ |" >> compatibility-summary.md
@@ -242,7 +277,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
     - name: Download compatibility summary
       uses: actions/download-artifact@v4

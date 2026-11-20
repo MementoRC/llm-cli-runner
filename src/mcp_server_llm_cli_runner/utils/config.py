@@ -19,6 +19,7 @@ Example:
 import base64
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Any, Literal
 
@@ -985,6 +986,7 @@ class ConfigManager:
                         "anthropic": "codex",  # Map Anthropic to codex type
                         "llama": "llama",
                         "gemini": "gemini",
+                        "agy": "agy",
                         "codex": "codex",
                     }
                     provider_config["provider_type"] = provider_type_map.get(
@@ -1024,6 +1026,7 @@ class ConfigManager:
                             "anthropic": "claude-3-sonnet",
                             "llama": "llama-2-7b-chat",
                             "gemini": "gemini-pro",
+                            "agy": "default",
                             "codex": "code-davinci-002",
                         }
                         provider_config["model_name"] = model_defaults.get(
@@ -1181,6 +1184,17 @@ class ConfigManager:
                 "provider_type": "gemini",
                 "enabled": True,
                 "model_name": "gemini-2.5-flash-lite",
+            }
+        )
+
+        # Agy (Antigravity) provider (CLI-based; "default" lets agy pick its model)
+        defaults.append(
+            {
+                "name": "agy",
+                "provider_type": "agy",
+                "enabled": shutil.which(os.environ.get("AGY_CLI_PATH") or "agy")
+                is not None,
+                "model_name": "default",
             }
         )
 

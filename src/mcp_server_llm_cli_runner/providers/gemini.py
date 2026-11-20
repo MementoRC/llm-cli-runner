@@ -124,11 +124,19 @@ class GeminiProvider(LLMProvider):
             self.quota_manager = GeminiQuotaManager()
 
         logger.info(
-            "Initialized Gemini provider",
+            f"Initialized {self._display_name()} provider",
             model=self.model,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
         )
+
+    def _cli_binary(self) -> str:
+        """Return the CLI executable used by this provider."""
+        return "gemini"
+
+    def _display_name(self) -> str:
+        """Return the human-readable provider name used in messages."""
+        return "Gemini"
 
     @property
     def usage_stats(self) -> UsageStats:
@@ -155,8 +163,8 @@ class GeminiProvider(LLMProvider):
             # Check quota before processing
             if not self.quota_manager.check_quota():
                 raise RateLimitError(
-                    "Gemini daily quota exhausted",
-                    provider="gemini",
+                    f"{self._display_name()} daily quota exhausted",
+                    provider=self.name,
                     retry_after=86400,  # Retry after 24 hours (daily quota)
                 )
 
@@ -224,7 +232,7 @@ class GeminiProvider(LLMProvider):
             # Create response
             response = LLMResponse(
                 content=response_content,
-                provider="gemini",
+                provider=self.name,
                 model=model,
                 success=True,
                 tokens_used=tokens_used,
@@ -271,14 +279,16 @@ class GeminiProvider(LLMProvider):
             # If the error has retry attempts, log them
             if hasattr(e, "retry_attempts") and e.retry_attempts:
                 logger.error(
-                    f"Gemini generation failed: {e}",
+                    f"{self._display_name()} generation failed: {e}",
                     error=e,
                     model=request.model,
                     retry_attempts=e.retry_attempts,
                 )
             else:
                 logger.exception(
-                    f"Gemini generation failed: {e}", error=e, model=request.model
+                    f"{self._display_name()} generation failed: {e}",
+                    error=e,
+                    model=request.model,
                 )
             raise
         except Exception as e:
@@ -291,9 +301,9 @@ class GeminiProvider(LLMProvider):
                 error=str(e),
             )
 
-            error_msg = f"Gemini generation failed: {e}"
+            error_msg = f"{self._display_name()} generation failed: {e}"
             logger.exception(error_msg, error=e, model=request.model)
-            raise ProviderError(error_msg, provider="gemini") from e
+            raise ProviderError(error_msg, provider=self.name) from e
 
     async def stream_generate(
         self,
@@ -343,7 +353,7 @@ class GeminiProvider(LLMProvider):
             try:
                 if process.stdout is None:
                     raise ProviderError(
-                        "No stdout available from Gemini process", provider="gemini"
+                        "No stdout available from Gemini process", provider=self.name
                     )
                 async for line in process.stdout:
                     line_text = (
@@ -378,7 +388,7 @@ class GeminiProvider(LLMProvider):
 
                             chunk = StreamingResponse(
                                 content=content,
-                                provider="gemini",
+                                provider=self.name,
                                 model=model,
                                 is_final=is_final,
                                 chunk_index=chunk_index,
@@ -397,7 +407,7 @@ class GeminiProvider(LLMProvider):
                         # Non-JSON output - treat as raw content chunk
                         chunk = StreamingResponse(
                             content=line_text,
-                            provider="gemini",
+                            provider=self.name,
                             model=model,
                             is_final=False,
                             chunk_index=chunk_index,
@@ -412,12 +422,12 @@ class GeminiProvider(LLMProvider):
                 process.terminate()
                 await process.wait()
                 msg = f"Streaming failed: {e}"
-                raise ProviderError(msg, provider="gemini") from e
+                raise ProviderError(msg, provider=self.name) from e
 
         except Exception as e:
             error_msg = f"Gemini streaming failed: {e}"
             logger.exception(error_msg, error=e)
-            raise ProviderError(error_msg, provider="gemini") from e
+            raise ProviderError(error_msg, provider=self.name) from e
 
     async def generate_streaming_response(self, request: LLMRequest):
         """Generate streaming response by simulating chunked delivery.
@@ -458,7 +468,7 @@ class GeminiProvider(LLMProvider):
         except Exception as e:
             error_msg = f"Streaming response generation failed: {e}"
             logger.exception(error_msg, error=e)
-            raise ProviderError(error_msg, provider="gemini") from e
+            raise ProviderError(error_msg, provider=self.name) from e
 
     async def estimate_cost(self, request: LLMRequest) -> CostEstimate:
         """Estimate cost for Gemini request."""
@@ -485,7 +495,7 @@ class GeminiProvider(LLMProvider):
         except Exception as e:
             error_msg = f"Cost estimation failed: {e}"
             logger.exception(error_msg, error=e)
-            raise ProviderError(error_msg, provider="gemini") from e
+            raise ProviderError(error_msg, provider=self.name) from e
 
     def get_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive usage statistics."""
@@ -549,7 +559,7 @@ class GeminiProvider(LLMProvider):
                 "Gemini CLI does not support 'system_prompt'. It will be ignored."
             )
 
-        cmd = ["gemini"]
+        cmd = [self._cli_binary()]
         if model != "gemini-2.5-flash-lite":
             cmd.extend(["--model", model])
 
@@ -559,8 +569,26 @@ class GeminiProvider(LLMProvider):
             cmd.extend(["--output-format", "json"])
 
         cmd.extend(["-p", prompt])
-        logger.debug("Built Gemini command", command=" ".join(cmd))
+        logger.debug(
+            "Built Gemini command",
+            binary=cmd[0],
+            model=model,
+            prompt_chars=len(prompt),
+        )
         return cmd
+
+    @staticmethod
+    async def _kill_process(
+        process: "asyncio.subprocess.Process | None",
+    ) -> None:
+        """Kill and reap a subprocess, tolerating unbound or already-exited ones."""
+        if process is None:
+            return
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        await process.wait()
 
     async def _execute_with_retries(
         self,
@@ -573,6 +601,7 @@ class GeminiProvider(LLMProvider):
 
         for attempt in range(self.retry_attempts):
             attempt_start_time = time.time()
+            process: asyncio.subprocess.Process | None = None
 
             try:
                 process = await asyncio.create_subprocess_exec(
@@ -621,7 +650,7 @@ class GeminiProvider(LLMProvider):
                     ):
                         raise RateLimitError(
                             f"Gemini rate limit exceeded: {error_msg}",
-                            provider="gemini",
+                            provider=self.name,
                             retry_after=3600,
                         )
 
@@ -634,10 +663,11 @@ class GeminiProvider(LLMProvider):
                         )
 
                     last_error = ProviderError(
-                        f"Gemini CLI error: {error_msg}", provider="gemini"
+                        f"Gemini CLI error: {error_msg}", provider=self.name
                     )
 
             except TimeoutError:
+                await self._kill_process(process)
                 timeout_error = f"Gemini request timed out after {self.timeout}s"
                 retry_attempts_log.append(
                     {
@@ -647,7 +677,7 @@ class GeminiProvider(LLMProvider):
                         "timestamp": datetime.now().isoformat(),
                     }
                 )
-                last_error = ProviderError(timeout_error, provider="gemini")
+                last_error = ProviderError(timeout_error, provider=self.name)
             except FileNotFoundError as err:
                 raise ConfigurationError(
                     "Gemini CLI not found. Please install it first."
@@ -662,7 +692,7 @@ class GeminiProvider(LLMProvider):
                         "timestamp": datetime.now().isoformat(),
                     }
                 )
-                last_error = ProviderError(error_msg, provider="gemini")
+                last_error = ProviderError(error_msg, provider=self.name)
 
             if attempt < self.retry_attempts - 1:
                 wait_time = self.retry_delay * (2**attempt)
@@ -674,7 +704,7 @@ class GeminiProvider(LLMProvider):
 
         error = ProviderError(
             f"Gemini generation failed after {self.max_retries} attempts",
-            provider="gemini",
+            provider=self.name,
         )
         error.retry_attempts = retry_attempts_log
         raise error from last_error
@@ -724,7 +754,7 @@ class GeminiProvider(LLMProvider):
         """Check provider health and availability."""
         try:
             process = await asyncio.create_subprocess_exec(
-                "gemini",
+                self._cli_binary(),
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -748,7 +778,7 @@ class GeminiProvider(LLMProvider):
         except FileNotFoundError:
             return {
                 "status": "unavailable",
-                "error": "Gemini CLI not installed",
+                "error": f"{self._display_name()} CLI not installed",
                 "provider": "gemini",
                 "timestamp": datetime.now().isoformat(),
             }
@@ -806,7 +836,7 @@ class GeminiProvider(LLMProvider):
         """Check if the Gemini provider is available."""
         try:
             process = await asyncio.create_subprocess_exec(
-                "gemini",
+                self._cli_binary(),
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
