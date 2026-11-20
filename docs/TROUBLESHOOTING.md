@@ -61,6 +61,8 @@
 
 #### Gemini API Errors
 
+> **Deprecated:** the `gemini` provider is a deprecated alias for `agy`. If `agy` is not installed, `gemini` calls fail (there is no fallback to the old Gemini CLI).
+
 **Symptoms:**
 - `API key invalid` errors
 - Rate limit exceeded
@@ -291,7 +293,7 @@ top -p $(pgrep -f mcp_server_llm_cli_runner)
 
 3. Use environment variables instead:
    ```bash
-   export LLM_CLI_RUNNER_DEFAULT_PROVIDER=gemini
+   export LLM_CLI_RUNNER_DEFAULT_PROVIDER=agy
    export LLM_CLI_RUNNER_MAX_CONCURRENT=10
    ```
 

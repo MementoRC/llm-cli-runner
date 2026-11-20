@@ -43,7 +43,7 @@ pixi run serve
 ### Environment Variables
 
 ```bash
-# Required for Gemini
+# Required for Gemini (deprecated alias for agy; prefer agy)
 export GEMINI_API_KEY="your-gemini-api-key"
 
 # Required for OpenAI/Codex
@@ -385,7 +385,7 @@ spec:
   "status": "healthy",
   "version": "0.1.0",
   "providers": {
-    "gemini": "available",
+    "agy": "available",
     "llama": "available",
     "codex": "unavailable"
   }

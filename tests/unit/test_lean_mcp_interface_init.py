@@ -18,7 +18,7 @@ def _make_interface(enabled: list[str], models: dict[str, str | None]):
     return interface
 
 
-def test_init_providers_passes_configured_model_to_both():
+def test_init_providers_gemini_not_registered_and_model_not_applied_to_agy():
     interface = _make_interface(
         ["gemini", "agy"], {"gemini": "gemini-2.5-pro", "agy": "agy-model-x"}
     )
@@ -28,20 +28,24 @@ def test_init_providers_passes_configured_model_to_both():
     ):
         interface._init_providers()
 
-    gem.assert_called_once_with(model="gemini-2.5-pro")
+    gem.assert_not_called()
     agy.assert_called_once_with(model="agy-model-x")
+    names = [c.args[0] for c in interface.manager.register_provider.call_args_list]
+    assert names == ["agy"]
+
+
+def test_init_providers_gemini_only_still_registers_agy_without_gemini_model():
+    interface = _make_interface(["gemini"], {"gemini": "gemini-2.5-pro"})
+    with patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy:
+        interface._init_providers()
+
+    agy.assert_called_once_with(model="")
 
 
 @pytest.mark.parametrize("configured", ["default", "", None])
 def test_init_providers_default_model_means_no_override(configured):
-    interface = _make_interface(
-        ["gemini", "agy"], {"gemini": configured, "agy": configured}
-    )
-    with (
-        patch("mcp_server_llm_cli_runner.providers.gemini.GeminiProvider") as gem,
-        patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy,
-    ):
+    interface = _make_interface(["agy"], {"agy": configured})
+    with patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy:
         interface._init_providers()
 
-    gem.assert_called_once_with()
     agy.assert_called_once_with(model="")

@@ -1,5 +1,7 @@
 # Gemini AI Integration Setup Guide
 
+> **Deprecated:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI, binary `agy` or `AGY_CLI_PATH`). New setups should use `agy`; this guide is kept for the legacy Gemini setup.
+
 This guide explains how to set up and configure Gemini AI analysis for the MCP Server LLM CLI Runner project.
 
 ## 🚀 Quick Setup

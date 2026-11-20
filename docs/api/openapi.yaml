@@ -6,7 +6,7 @@ info:
 
     ## Overview
     This API provides MCP-compliant access to multiple LLM providers:
-    - **Gemini**: Google's Gemini models via CLI
+    - **agy** (Antigravity CLI, default). **Gemini** is a deprecated alias served by agy
     - **OpenAI Codex**: Code generation models
     - **LLaMA**: Local inference with llama-cpp-python
 
@@ -16,7 +16,7 @@ info:
 
     ## Authentication
     Provider-specific API keys are required:
-    - `GEMINI_API_KEY` for Gemini provider
+    - `GEMINI_API_KEY` for legacy Gemini provider (deprecated alias for agy)
     - `OPENAI_API_KEY` for OpenAI/Codex provider
     - LLaMA runs locally without authentication
 
@@ -358,7 +358,7 @@ components:
 
 x-mcp-tools:
   gemini_generate:
-    description: Generate text using Gemini CLI
+    description: Generate text via agy (DEPRECATED - gemini_generate is a deprecated alias served by agy)
     inputSchema:
       $ref: '#/components/schemas/GeminiGenerateParams'
     examples:

@@ -12,13 +12,34 @@ Meta-Tool Pattern:
 
 import asyncio
 import logging
+import warnings
 from typing import Any
 
 from fastmcp import FastMCP
 
+from mcp_server_llm_cli_runner.core.models import (
+    map_legacy_model,
+    resolve_provider_name,
+)
 from mcp_server_llm_cli_runner.providers.manager import ProviderManager
 
 logger = logging.getLogger(__name__)
+
+_DEPRECATION_MESSAGE = (
+    "Provider 'gemini' is deprecated and is served by 'agy' (Antigravity CLI); "
+    "use provider='agy' instead"
+)
+_deprecation_warned = False
+
+
+def _warn_gemini_deprecated() -> None:
+    """Emit the gemini->agy deprecation warning once per process."""
+    global _deprecation_warned
+    if _deprecation_warned:
+        return
+    _deprecation_warned = True
+    logger.warning(_DEPRECATION_MESSAGE)
+    warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=3)
 
 
 class LeanMCPInterface:
@@ -62,21 +83,9 @@ class LeanMCPInterface:
         enabled = self.config_manager.get_enabled_providers()
 
         if "gemini" in enabled:
-            try:
-                from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
+            logger.info("gemini is deprecated; served by agy")
 
-                # Register the class with the manager's registry
-                self.manager.registry.register_provider(GeminiProvider)
-
-                # Create and register the instance (uses built-in defaults)
-                model = self._configured_model("gemini")
-                provider = GeminiProvider(model=model) if model else GeminiProvider()
-                self.manager.register_provider("gemini", provider)
-                logger.info("Initialized and registered Gemini provider")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Gemini provider: {e}")
-
-        if "agy" in enabled:
+        if "agy" in enabled or "gemini" in enabled:
             try:
                 from mcp_server_llm_cli_runner.providers.agy import AgyProvider
 
@@ -121,7 +130,7 @@ class LeanMCPInterface:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider to use (gemini, openai, llama)",
+                        "description": "Provider to use (agy, openai, llama). 'gemini' is a deprecated alias for agy",
                         "default": "llama",
                     },
                     "model": {
@@ -146,7 +155,7 @@ class LeanMCPInterface:
                 "required": ["prompt"],
             },
             "examples": [
-                {"prompt": "What is the capital of France?", "provider": "gemini"},
+                {"prompt": "What is the capital of France?", "provider": "agy"},
                 {
                     "prompt": "Explain quantum computing",
                     "provider": "openai",
@@ -177,12 +186,12 @@ class LeanMCPInterface:
                 "properties": {
                     "provider": {
                         "type": "string",
-                        "description": "Provider name (gemini, openai, llama)",
+                        "description": "Provider name (agy, openai, llama). 'gemini' is a deprecated alias for agy",
                     }
                 },
                 "required": ["provider"],
             },
-            "examples": [{"provider": "gemini"}, {"provider": "llama"}],
+            "examples": [{"provider": "agy"}, {"provider": "llama"}],
         }
 
         return registry
@@ -202,6 +211,19 @@ class LeanMCPInterface:
         except Exception as e:
             logger.warning(f"Failed to send notification {notification_type}: {e}")
 
+    async def _ensure_agy_available(self) -> None:
+        """Raise a clear error when a redirected gemini call cannot be served by agy."""
+        hint = (
+            "Provider 'gemini' is deprecated and served by 'agy', but agy is not "
+            "installed or not available; install the Antigravity CLI or set AGY_CLI_PATH"
+        )
+        instance = self.manager.get_provider("agy")
+        if instance is None:
+            raise RuntimeError(hint)
+        check = getattr(instance, "is_available", None)
+        if check is not None and not await check():
+            raise RuntimeError(hint)
+
     # Tool implementations
     async def _llm_complete(
         self,
@@ -216,9 +238,25 @@ class LeanMCPInterface:
         import time
 
         operation_start_time = time.time()
+        extras: dict[str, str] = {}
+        provider, aliased = resolve_provider_name(provider)
+        if aliased:
+            _warn_gemini_deprecated()
+            extras["deprecated_alias"] = "gemini->agy"
+            original_model = model
+            model, model_warning = map_legacy_model(model)
+            if model_warning:
+                logger.warning(model_warning)
+            if (original_model or None) != model and original_model not in (
+                "",
+                "default",
+            ):
+                extras["model_mapped"] = f"{original_model}->{model or 'default'}"
         operation_id = f"{provider}_{int(operation_start_time * 1000)}"
 
         try:
+            if aliased:
+                await self._ensure_agy_available()
             # Send operation started notification
             await self._send_notification(
                 "llm/started",
@@ -300,6 +338,7 @@ class LeanMCPInterface:
                 if "retry_attempts" in response.metadata:
                     result["retry_attempts"] = response.metadata["retry_attempts"]
 
+                result.update(extras)
                 return result
 
             except Exception as provider_error:
@@ -351,11 +390,13 @@ class LeanMCPInterface:
             initialized = self.manager.registry.list_providers()
             configured = self.config_manager.get_enabled_providers()
 
+            visible = [p for p in initialized if p != "gemini"]
             return {
-                "providers": initialized,
-                "count": len(initialized),
-                "configured": configured,
+                "providers": visible,
+                "count": len(visible),
+                "configured": [p for p in configured if p != "gemini"],
                 "health_status": status,
+                "deprecated": {"gemini": "agy"},
             }
         except Exception as e:
             logger.error(f"Error in list_providers: {e}")
@@ -364,6 +405,8 @@ class LeanMCPInterface:
     async def _provider_info(self, provider: str) -> dict[str, Any]:
         """Get provider information using ProviderManager."""
         try:
+            requested = provider
+            provider, aliased = resolve_provider_name(provider)
             health = self.manager.health_monitor.get_provider_health(provider)
             provider_instance = self.manager.get_provider(provider)
 
@@ -375,7 +418,7 @@ class LeanMCPInterface:
             if hasattr(provider_instance, "is_available"):
                 is_available = await provider_instance.is_available()
 
-            return {
+            info = {
                 "provider": provider,
                 "initialized": True,
                 "available": is_available,
@@ -383,6 +426,15 @@ class LeanMCPInterface:
                 "stats": self.manager.get_provider_stats(provider),
                 "metadata": getattr(provider_instance, "metadata", {}),
             }
+            if aliased:
+                info.update(
+                    {
+                        "deprecated": True,
+                        "redirected_to": provider,
+                        "requested_provider": requested,
+                    }
+                )
+            return info
         except Exception as e:
             logger.error(f"Error in provider_info: {e}")
             return {"error": str(e)}

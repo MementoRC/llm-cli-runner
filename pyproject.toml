@@ -1,12 +1,12 @@
 [project]
 name = "mcp-server-llm-cli-runner"
 version = "0.1.0"
-description = "A Model Context Protocol server providing multi-provider LLM access via CLI tools (Gemini, OpenAI, LLaMA)"
+description = "A Model Context Protocol server providing multi-provider LLM access via CLI tools (Antigravity agy, OpenAI, LLaMA)"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Anthropic, PBC." }]
 maintainers = [{ name = "Claude Code Team", email = "noreply@anthropic.com" }]
-keywords = ["mcp", "llm", "gemini", "openai", "llama", "ai", "multi-provider"]
+keywords = ["mcp", "llm", "agy", "antigravity", "gemini", "openai", "llama", "ai", "multi-provider"]
 license = { text = "MIT" }
 classifiers = [
     "Development Status :: 3 - Alpha",

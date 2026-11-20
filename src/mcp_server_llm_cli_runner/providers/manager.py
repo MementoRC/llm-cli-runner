@@ -38,6 +38,7 @@ from mcp_server_llm_cli_runner.core.models import (
     ProviderStatus,
     ProviderType,
     QuotaStatus,
+    resolve_provider_name,
 )
 from mcp_server_llm_cli_runner.utils.config import ConfigManager
 from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
@@ -631,13 +632,8 @@ class ProviderManager:
     async def _load_and_register_providers(self) -> None:
         """Load provider configurations and register providers."""
         # Register known provider classes
-        try:
-            from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
-
-            self.registry.register_provider(GeminiProvider)
-        except Exception as e:
-            self.logger.warning(f"Failed to register GeminiProvider class: {e}")
-
+        # GeminiProvider is deprecated and intentionally not registered; "gemini"
+        # requests are redirected to agy.
         try:
             from mcp_server_llm_cli_runner.providers.agy import AgyProvider
 
@@ -678,9 +674,9 @@ class ProviderManager:
         # In real implementation, this would load from config_manager
         return [
             ProviderConfig(
-                name="gemini",
+                name="gemini",  # deprecated: served by agy
                 provider_type=ProviderType.GEMINI,
-                enabled=True,
+                enabled=False,
                 api_key="placeholder",
                 base_url="https://api.gemini.com",
                 models=["gemini-2.5-flash-lite", "gemini-2.5-flash"],
@@ -912,7 +908,7 @@ class ProviderManager:
             Provider instance or None if not found
 
         """
-        return self.registry.get_provider(name)
+        return self.registry.get_provider(resolve_provider_name(name)[0])
 
     def list_providers(self) -> list[LLMProvider]:
         """Get list of all registered provider instances.

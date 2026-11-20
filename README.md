@@ -1,10 +1,10 @@
 # MCP Server LLM CLI Runner
 
-A Model Context Protocol server providing access to multi-provider Large Language Model providers including Gemini CLI, Codex, and LLaMA.
+A Model Context Protocol server providing access to multi-provider Large Language Model providers including Antigravity CLI (`agy`), Codex, and LLaMA.
 
 ## 🚀 Features
 
-- **Multiple Provider Support**: Gemini CLI, OpenAI Codex, and local LLaMA models
+- **Multiple Provider Support**: Antigravity CLI (`agy`, default), OpenAI Codex, and local LLaMA models. The `gemini` provider is a deprecated alias for `agy` (see [Gemini deprecation](#gemini-deprecation))
 - **Cost-Effective**: Optimized for efficient LLM access
 - **MCP Protocol**: Full Model Context Protocol compliance
 - **Enterprise Security**: Comprehensive security scanning and validation
@@ -14,7 +14,7 @@ A Model Context Protocol server providing access to multi-provider Large Languag
 
 - Python ≥ 3.12
 - [Pixi](https://pixi.sh/) for environment management
-- Optional: API keys for Gemini/Codex providers
+- Optional: `agy` CLI (Antigravity) on `PATH` or `AGY_CLI_PATH`; API key for Codex
 
 ## 🛠️ Installation
 
@@ -38,8 +38,8 @@ pixi run install-pre-commit
 Set up environment variables for your chosen providers:
 
 ```bash
-# For Gemini
-export GEMINI_API_KEY="your-gemini-api-key"
+# For agy (Antigravity CLI): install the `agy` binary, or point to it
+export AGY_CLI_PATH="/path/to/agy"   # optional if `agy` is on PATH
 
 # For OpenAI Codex
 export OPENAI_API_KEY="your-openai-api-key"
@@ -119,15 +119,14 @@ Create a configuration file or use environment variables:
 
 ```toml
 # config.toml
-default_provider = "gemini"
+default_provider = "agy"
 max_concurrent_requests = 10
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
-model_name = "gemini-pro"
-api_key = "${GEMINI_API_KEY}"
+model_name = "gemini-3.8-flash-medium"
 
 [[providers]]
 name = "llama"
@@ -135,6 +134,23 @@ provider_type = "llama"
 enabled = true
 model_name = "llama-2-7b-chat"
 ```
+
+Available `agy` models: `gemini-3.8-flash-high`, `gemini-3.8-flash-medium`, `gemini-3.8-flash-low`, `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium`. `agy` returns a single chunk (no true streaming) and ignores `system_prompt`.
+
+### Gemini deprecation
+
+The `gemini` provider is deprecated. `llm_complete(provider="gemini", ...)` is a permanent alias served by the `agy` provider, and responses report `provider: "agy"` with `deprecated_alias: "gemini->agy"`.
+
+Legacy Gemini model names on redirected calls are mapped by tier:
+
+| Legacy model name | Mapped to |
+|-------------------|-----------|
+| `gemini-*flash-lite*` | `gemini-3.8-flash-low` |
+| other `gemini-*flash*` | `gemini-3.8-flash-medium` |
+| `gemini-*pro*` | `gemini-3.8-flash-high` |
+| unknown `gemini-*` | dropped (agy default) |
+
+If `agy` is not installed, `gemini` calls fail. There is no fallback to the old Gemini CLI.
 
 ## 🏗️ Architecture
 

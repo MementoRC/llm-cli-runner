@@ -4,6 +4,8 @@
 
 This document provides performance benchmarks and optimization guidelines for MCP Server LLM CLI Runner.
 
+> **Deprecation:** the `gemini` provider is a deprecated alias for `agy`. Gemini rows in the historical results below were measured against the legacy Gemini CLI and are kept as recorded.
+
 ## Benchmark Methodology
 
 ### Test Environment
@@ -229,12 +231,12 @@ max_tokens_summary = 128
 # Route based on estimated complexity
 [[routing.rules]]
 pattern = "simple|short|quick"
-provider = "gemini-flash"
+provider = "agy"  # was gemini-flash (deprecated alias)
 max_tokens = 128
 
 [[routing.rules]]
 pattern = "detailed|comprehensive|explain"
-provider = "gemini-pro"
+provider = "agy"  # was gemini-pro (deprecated alias)
 max_tokens = 1024
 ```
 
@@ -296,8 +298,8 @@ metrics = {
 ### Latency Test
 
 ```bash
-# Single provider latency
-pixi run benchmark --provider gemini --requests 100
+# Single provider latency (gemini is a deprecated alias for agy)
+pixi run benchmark --provider agy --requests 100
 
 # All providers
 pixi run benchmark --all --requests 100
@@ -307,7 +309,7 @@ pixi run benchmark --all --requests 100
 
 ```bash
 # Concurrent load test
-pixi run benchmark --provider gemini \
+pixi run benchmark --provider agy \
   --requests 1000 \
   --concurrency 50 \
   --duration 60
