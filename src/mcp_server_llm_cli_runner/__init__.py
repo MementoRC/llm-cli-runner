@@ -7,7 +7,7 @@ multiple Large Language Model providers via CLI tools:
 - LLaMA: Local LLaMA models via llama-cpp-python
 
 Key components:
-    LLMCliRunnerServer: Main MCP server implementation
+    lean_mcp_interface.create_lean_interface: FastMCP-based lean MCP interface
     ProviderManager: Manages multiple LLM providers
     ConfigManager: Handles provider configuration
 
@@ -17,7 +17,6 @@ Example usage:
 """
 
 from mcp_server_llm_cli_runner.__main__ import main
-from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
 
 __version__ = "0.1.0"
-__all__ = ["LLMCliRunnerServer", "main"]
+__all__ = ["main"]

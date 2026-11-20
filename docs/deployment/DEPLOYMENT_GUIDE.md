@@ -271,23 +271,19 @@ spec:
 
 ```python
 # lambda_handler.py
-import json
-from mcp_server_llm_cli_runner.server.handlers import LLMCliRunnerServer
+from mcp_server_llm_cli_runner.__main__ import create_server
 
-server = LLMCliRunnerServer()
+# The server is a FastMCP app built by the lean interface
+# (lean_mcp_interface.create_lean_interface). Locally: `pixi run serve`.
+_app = None
 
 async def handler(event, context):
-    """AWS Lambda handler for MCP requests."""
-    await server.initialize()
-
-    body = json.loads(event.get('body', '{}'))
-    response = await server.process_request(body)
-
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps(response)
-    }
+    """AWS Lambda handler: lazily builds the lean FastMCP app."""
+    global _app
+    if _app is None:
+        _app = await create_server()
+    # Route the request to the FastMCP app (e.g. via its HTTP/ASGI transport).
+    ...
 ```
 
 ### SAM Template

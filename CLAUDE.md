@@ -8,7 +8,7 @@ MCP server providing unified access to multiple LLM providers (OpenAI, Gemini, L
 src/mcp_server_llm_cli_runner/
 ├── core/           # Core models and base classes
 ├── providers/      # LLM provider implementations (openai, gemini, llama)
-├── server/         # MCP server handlers and protocol
+├── lean_mcp_interface.py  # Lean FastMCP interface (entrypoint via __main__.py)
 ├── cache/          # Response caching backends
 └── utils/          # Configuration, logging, helpers
 tests/              # Test suite
@@ -25,7 +25,7 @@ pixi run -e quality quality       # Full quality check (lint + types + tests)
 pixi run -e quality pyright src/  # Type checking
 
 # Server execution
-pixi run server                   # Start MCP server
+pixi run serve                    # Start MCP server
 ```
 
 ## Quality Standards
@@ -40,7 +40,7 @@ pixi run server                   # Start MCP server
 - Providers implement a common interface for LLM completions
 - Configuration via `utils/config.py` with environment variable support
 - Structured logging via `utils/logging.py` with correlation IDs
-- MCP protocol handlers in `server/handlers.py`
+- MCP tools exposed via the lean FastMCP interface in `lean_mcp_interface.py` (`create_lean_interface`)
 
 ## Session Intelligence
 

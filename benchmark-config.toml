@@ -33,8 +33,6 @@ timeout = 1200   # 20 minutes
 [benchmark_groups]
 # Core MCP server operations
 mcp_operations = [
-    "test_mcp_protocol",
-    "test_server_handlers",
     "test_request_processor"
 ]
 
