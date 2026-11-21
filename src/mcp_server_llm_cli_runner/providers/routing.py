@@ -443,8 +443,61 @@ class ProviderRouter:
         # Performance tracking for ML optimization
         self.routing_history: list[dict[str, Any]] = []
 
+    def _explicit_decision(
+        self,
+        request: LLMRequest,
+        provider_type: ProviderType,
+        reasoning: str,
+        start_time: datetime,
+    ) -> RoutingDecision:
+        """Build and log a full-confidence decision for a chosen provider."""
+        routing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+        # Still analyze complexity for logging/ML
+        score, level, features = self.analyzer.analyze_complexity(request.prompt)
+
+        decision = RoutingDecision(
+            selected_provider=provider_type,
+            complexity_score=score,
+            complexity_level=level,
+            confidence=1.0,
+            reasoning=reasoning,
+            fallback_providers=self._get_fallback_providers(provider_type),
+            features=features,
+            routing_time_ms=routing_time,
+        )
+
+        self._log_routing_decision(decision, request)
+        self._track_routing_decision(decision, request)
+        return decision
+
+    def _preferred_provider(self, request: LLMRequest) -> ProviderType | None:
+        """Return the available soft-preference provider hint, if any (never raises)."""
+        hint = request.metadata.get("preferred_provider")
+        if not isinstance(hint, str) or not hint:
+            return None
+        resolved, _ = resolve_provider_name(hint)
+        try:
+            provider_type = ProviderType(resolved)
+        except ValueError:
+            self.logger.info(
+                "Ignoring unknown preferred provider hint",
+                extra={"preferred_provider": hint},
+            )
+            return None
+        if not self._is_provider_available(provider_type):
+            self.logger.info(
+                "Preferred provider unavailable, using automatic routing",
+                extra={"preferred_provider": hint},
+            )
+            return None
+        return provider_type
+
     def route_request(self, request: LLMRequest) -> RoutingDecision:
         """Route request to optimal provider based on complexity analysis.
+
+        An omitted provider may carry a soft ``metadata["preferred_provider"]``
+        hint: it is used when available, otherwise automatic routing applies.
 
         Args:
             request: LLM request to route
@@ -453,37 +506,36 @@ class ProviderRouter:
             RoutingDecision with selected provider and reasoning
 
         Raises:
-            ProviderError: If no suitable provider is available
+            ProviderError: If an explicitly requested provider is unavailable
+                (error_code "PROVIDER_UNAVAILABLE"), or if no suitable provider
+                is available during automatic routing
 
         """
         start_time = datetime.now()
 
-        # Override provider if explicitly specified and available
+        # Explicit provider: use it if available, otherwise fail (no fallback)
         if request.provider:
             resolved, aliased = resolve_provider_name(request.provider)
             aliased = aliased or bool(request.metadata.get("deprecated_alias"))
-            provider_type = ProviderType(resolved)
+            try:
+                provider_type = ProviderType(resolved)
+            except ValueError:
+                raise ProviderError(
+                    f"Unknown provider '{request.provider}'",
+                    provider=resolved,
+                    error_code="INVALID_PROVIDER",
+                    context={
+                        "requested_provider": request.provider,
+                        "valid_providers": [p.value for p in ProviderType],
+                    },
+                ) from None
             if self._is_provider_available(provider_type):
-                routing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-                # Still analyze complexity for logging/ML
-                score, level, features = self.analyzer.analyze_complexity(
-                    request.prompt,
+                return self._explicit_decision(
+                    request,
+                    provider_type,
+                    f"Explicitly requested provider: {request.provider}",
+                    start_time,
                 )
-
-                decision = RoutingDecision(
-                    selected_provider=provider_type,
-                    complexity_score=score,
-                    complexity_level=level,
-                    confidence=1.0,  # Explicit choice
-                    reasoning=f"Explicitly requested provider: {request.provider}",
-                    fallback_providers=self._get_fallback_providers(provider_type),
-                    features=features,
-                    routing_time_ms=routing_time,
-                )
-
-                self._log_routing_decision(decision, request)
-                return decision
             if aliased:
                 msg = (
                     f"Provider '{request.metadata.get('deprecated_alias', request.provider)}' "
@@ -497,9 +549,20 @@ class ProviderRouter:
                     error_code="PROVIDER_UNAVAILABLE",
                     context={"requested_provider": request.provider},
                 )
-            self.logger.warning(
-                "Requested provider unavailable, falling back to automatic routing",
-                extra={"requested_provider": request.provider},
+            raise ProviderError(
+                f"Requested provider '{request.provider}' is not available",
+                provider=resolved,
+                error_code="PROVIDER_UNAVAILABLE",
+                context={"requested_provider": request.provider},
+            )
+
+        preferred = self._preferred_provider(request)
+        if preferred is not None:
+            return self._explicit_decision(
+                request,
+                preferred,
+                f"Preferred (default) provider: {preferred.value}",
+                start_time,
             )
 
         # Analyze prompt complexity

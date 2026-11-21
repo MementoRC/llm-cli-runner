@@ -17,6 +17,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from mcp_server_llm_cli_runner.core.errors import ProviderError
 from mcp_server_llm_cli_runner.core.models import (
     map_legacy_model,
     resolve_provider_name,
@@ -141,7 +142,7 @@ class LeanMCPInterface:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider to use (agy, openai, llama); defaults to the configured default_provider (llama). 'gemini' is a deprecated alias for agy",
+                        "description": "Provider to use (agy, openai, llama). If omitted, prefers the configured default_provider and auto-routes if it is unavailable; a named provider fails with PROVIDER_UNAVAILABLE if it is unavailable (no fallback). 'gemini' is a deprecated alias for agy",
                     },
                     "model": {
                         "type": "string",
@@ -230,11 +231,21 @@ class LeanMCPInterface:
                 "installed or not available; install the Antigravity CLI or set "
                 "AGY_CLI_PATH"
             )
-            raise RuntimeError(msg)
+            raise ProviderError(
+                msg,
+                provider="agy",
+                error_code="PROVIDER_UNAVAILABLE",
+                context={"requested_provider": "gemini"},
+            )
         check = getattr(instance, "is_available", None)
         if check is not None and not await check():
             msg = "agy provider unavailable (CLI error or daily quota exhausted)"
-            raise RuntimeError(msg)
+            raise ProviderError(
+                msg,
+                provider="agy",
+                error_code="PROVIDER_UNAVAILABLE",
+                context={"requested_provider": "gemini"},
+            )
 
     def _default_provider(self) -> str:
         """Return the configured default provider (falls back to llama)."""
@@ -259,8 +270,14 @@ class LeanMCPInterface:
 
         operation_start_time = time.time()
         extras: dict[str, str] = {}
-        provider = provider or self._default_provider()
-        provider, aliased = resolve_provider_name(provider)
+        requested_provider = provider
+        default_provider = None if requested_provider else self._default_provider()
+        provider, aliased = resolve_provider_name(
+            requested_provider or default_provider or "llama"
+        )
+        aliased = aliased and requested_provider is not None
+        # Label for notifications until a response names the actual provider
+        label = provider if requested_provider else (default_provider or "auto")
         if aliased:
             _warn_gemini_deprecated()
             extras["deprecated_alias"] = "gemini->agy"
@@ -273,7 +290,7 @@ class LeanMCPInterface:
                 "default",
             ):
                 extras["model_mapped"] = f"{original_model}->{model or 'default'}"
-        operation_id = f"{provider}_{int(operation_start_time * 1000)}"
+        operation_id = f"{label}_{int(operation_start_time * 1000)}"
 
         try:
             if aliased:
@@ -283,7 +300,7 @@ class LeanMCPInterface:
                 "llm/started",
                 {
                     "operation_id": operation_id,
-                    "provider": provider,
+                    "provider": label,
                     "model": model,
                     "timestamp": time.time(),
                 },
@@ -295,11 +312,14 @@ class LeanMCPInterface:
             # Create LLM request
             request = LLMRequest(
                 prompt=prompt,
-                provider=provider,
+                provider=provider if requested_provider else None,
                 model=model,
                 temperature=temperature,
                 max_tokens=max_tokens or 1000,
                 system_prompt=None,
+                metadata={"preferred_provider": default_provider}
+                if default_provider
+                else {},
             )
 
             # Create periodic progress notifications
@@ -312,7 +332,7 @@ class LeanMCPInterface:
                         "llm/progress",
                         {
                             "operation_id": operation_id,
-                            "provider": provider,
+                            "provider": label,
                             "elapsed_seconds": elapsed,
                             "timestamp": time.time(),
                         },
@@ -330,12 +350,14 @@ class LeanMCPInterface:
                 except asyncio.CancelledError:
                     pass
 
+                used_provider = getattr(response, "provider", None) or label
+
                 # Send completion notification
                 await self._send_notification(
                     "llm/completed",
                     {
                         "operation_id": operation_id,
-                        "provider": provider,
+                        "provider": used_provider,
                         "model": response.model,
                         "tokens_used": response.tokens_used,
                         "response_time_ms": response.response_time_ms,
@@ -344,9 +366,7 @@ class LeanMCPInterface:
                 )
 
                 result = {
-                    "provider": response.provider
-                    if hasattr(response, "provider")
-                    else provider,
+                    "provider": used_provider,
                     "model": response.model,
                     "completion": response.content,
                     "success": response.success,
@@ -376,7 +396,7 @@ class LeanMCPInterface:
                             "llm/retry",
                             {
                                 "operation_id": operation_id,
-                                "provider": provider,
+                                "provider": label,
                                 "attempt": attempt["attempt"],
                                 "error": attempt["error"],
                                 "duration_ms": attempt["duration_ms"],
@@ -388,7 +408,7 @@ class LeanMCPInterface:
                     "llm/failed",
                     {
                         "operation_id": operation_id,
-                        "provider": provider,
+                        "provider": label,
                         "error": str(provider_error),
                         "retry_attempts": retry_info,
                         "timestamp": time.time(),
@@ -399,6 +419,9 @@ class LeanMCPInterface:
         except Exception as e:
             logger.error(f"Error in llm_complete: {e}")
             error_result = {"error": str(e)}
+            error_code = getattr(e, "error_code", None)
+            if error_code:
+                error_result["error_code"] = error_code
             retry_attempts = getattr(e, "retry_attempts", None)
             if retry_attempts is not None:
                 error_result["attempts"] = retry_attempts

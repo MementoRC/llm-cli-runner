@@ -146,27 +146,56 @@ async def test_llm_complete_gemini_agy_unavailable_clear_error(kwargs):
         assert result["error"] == (
             "agy provider unavailable (CLI error or daily quota exhausted)"
         )
+    assert result["error_code"] == "PROVIDER_UNAVAILABLE"
     interface.manager.route_request.assert_not_called()
 
 
-async def test_llm_complete_omitted_provider_uses_config_default_llama():
+async def test_llm_complete_omitted_provider_sets_default_hint():
     interface = _interface()
     interface.config_manager.get_default_provider.return_value = "llama"
 
     await interface._llm_complete("hello")
 
-    assert interface.manager.route_request.call_args.args[0].provider == "llama"
+    request = interface.manager.route_request.call_args.args[0]
+    assert request.provider is None
+    assert request.metadata["preferred_provider"] == "llama"
 
 
-async def test_llm_complete_config_default_gemini_resolves_to_agy():
+async def test_llm_complete_omitted_provider_config_default_gemini_hint_no_alias():
     interface = _interface()
     interface.config_manager.get_default_provider.return_value = "gemini"
 
-    with pytest.warns(DeprecationWarning):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         result = await interface._llm_complete("hello")
 
-    assert interface.manager.route_request.call_args.args[0].provider == "agy"
-    assert result["deprecated_alias"] == "gemini->agy"
+    request = interface.manager.route_request.call_args.args[0]
+    assert request.provider is None
+    assert request.metadata["preferred_provider"] == "gemini"
+    assert "deprecated_alias" not in result
+
+
+async def test_llm_complete_explicit_unavailable_returns_error_code():
+    interface = _interface()
+    manager, _ = _manager(agy_available=False)
+    interface.manager.route_request = manager.route_request
+
+    result = await interface._llm_complete("hello", provider="agy")
+
+    assert result["error_code"] == "PROVIDER_UNAVAILABLE"
+    assert "error" in result
+
+
+async def test_llm_complete_notification_labels():
+    interface = _interface()
+    interface.config_manager.get_default_provider.return_value = "llama"
+    interface._send_notification = AsyncMock()
+
+    await interface._llm_complete("hello")
+
+    sent = {c.args[0]: c.args[1] for c in interface._send_notification.call_args_list}
+    assert sent["llm/started"]["provider"] == "llama"
+    assert sent["llm/completed"]["provider"] == "agy"
 
 
 def _manager(agy_available: bool, llama_available: bool = True):
@@ -230,21 +259,85 @@ async def test_manager_route_request_gemini_agy_unavailable_raises_no_fallback()
     manager, instances = _manager(agy_available=False)
     request = LLMRequest(prompt="hi", provider="gemini", model="gemini-2.5-pro")
 
-    with pytest.raises(ProviderError, match="AGY_CLI_PATH"):
+    with pytest.raises(ProviderError, match="AGY_CLI_PATH") as exc_info:
         await manager.route_request(request)
 
+    assert exc_info.value.error_code == "PROVIDER_UNAVAILABLE"
     instances["llama"].generate.assert_not_called()
 
 
-async def test_manager_route_request_non_aliased_unavailable_still_falls_back():
+async def test_manager_hint_fallback_drops_model_without_mutating_request():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=False)
+    request = LLMRequest(
+        prompt="hi",
+        model="agy-only-model",
+        metadata={"preferred_provider": "agy"},
+    )
+
+    await manager.route_request(request)
+
+    sent = instances["llama"].generate.call_args.args[0]
+    assert sent.model is None
+    assert request.model == "agy-only-model"
+
+
+async def test_manager_hint_preferred_keeps_model():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=True)
+    request = LLMRequest(
+        prompt="hi", model="agy-model", metadata={"preferred_provider": "agy"}
+    )
+
+    await manager.route_request(request)
+
+    assert instances["agy"].generate.call_args.args[0].model == "agy-model"
+
+
+async def test_manager_explicit_provider_keeps_model():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=True)
+    request = LLMRequest(
+        prompt="hi",
+        provider="llama",
+        model="m1",
+        metadata={"preferred_provider": "agy"},
+    )
+
+    await manager.route_request(request)
+
+    assert instances["llama"].generate.call_args.args[0].model == "m1"
+
+
+async def test_manager_route_request_unknown_provider_raises_invalid_provider():
+    from mcp_server_llm_cli_runner.core.errors import ProviderError
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, _ = _manager(agy_available=True)
+    request = LLMRequest(prompt="hi", provider="nope")
+
+    with pytest.raises(ProviderError) as exc_info:
+        await manager.route_request(request)
+
+    assert exc_info.value.error_code == "INVALID_PROVIDER"
+    assert "llama" in exc_info.value.context["valid_providers"]
+
+
+async def test_manager_route_request_non_aliased_unavailable_raises_provider_unavailable():
+    from mcp_server_llm_cli_runner.core.errors import ProviderError
     from mcp_server_llm_cli_runner.core.models import LLMRequest
 
     manager, instances = _manager(agy_available=False)
     request = LLMRequest(prompt="hi", provider="agy")
 
-    await manager.route_request(request)
+    with pytest.raises(ProviderError) as exc_info:
+        await manager.route_request(request)
 
-    instances["llama"].generate.assert_called_once()
+    assert exc_info.value.error_code == "PROVIDER_UNAVAILABLE"
+    instances["llama"].generate.assert_not_called()
 
 
 async def test_get_healthy_provider_gemini_returns_agy():

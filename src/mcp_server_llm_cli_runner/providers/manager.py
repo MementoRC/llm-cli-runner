@@ -778,6 +778,7 @@ class ProviderManager:
 
             # Get the selected provider and make the actual request
             provider_name = routing_decision.selected_provider.value
+            request = self._drop_model_for_fallback(request, provider_name)
             provider = self.get_provider(provider_name)
 
             if not provider:
@@ -809,6 +810,8 @@ class ProviderManager:
 
             return response
 
+        except ProviderError:
+            raise
         except Exception as e:
             self.logger.exception(f"Request routing failed: {e}")
             msg = f"Request routing failed: {e}"
@@ -818,6 +821,21 @@ class ProviderManager:
                 error_code="ROUTING_FAILED",
                 context={"error": str(e)},
             ) from e
+
+    def _drop_model_for_fallback(
+        self, request: LLMRequest, selected: str
+    ) -> LLMRequest:
+        """Drop a caller model meant for the preferred provider when another is used."""
+        hint = request.metadata.get("preferred_provider")
+        if request.provider or not request.model or not isinstance(hint, str):
+            return request
+        if resolve_provider_name(hint)[0] == selected:
+            return request
+        self.logger.warning(
+            f"Dropping model '{request.model}' meant for preferred provider "
+            f"'{hint}': auto-routed to '{selected}'"
+        )
+        return request.model_copy(update={"model": None})
 
     def get_provider_stats(self, provider_name: str | None = None) -> dict[str, Any]:
         """Get comprehensive provider statistics.
