@@ -2,7 +2,7 @@
 
 This module provides a Model Context Protocol server that integrates with
 multiple Large Language Model providers via CLI tools:
-- Gemini CLI: Google Gemini models via command-line interface
+- agy: Antigravity CLI (the deprecated "gemini" name is an alias for agy)
 - OpenAI: OpenAI models via API
 - LLaMA: Local LLaMA models via llama-cpp-python
 

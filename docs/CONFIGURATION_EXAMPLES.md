@@ -29,7 +29,7 @@ enabled = true
 
 ```bash
 # .env file
-GEMINI_API_KEY=your-gemini-api-key
+# GEMINI_API_KEY is no longer used: the gemini provider is a deprecated alias for agy
 OPENAI_API_KEY=your-openai-api-key
 LLAMA_MODEL_PATH=/path/to/model.gguf
 
@@ -49,7 +49,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 model_name = "gemini-3.8-flash-low"
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 
 # Optional settings
 max_tokens = 1024
@@ -138,7 +138,7 @@ default_provider = "agy"
 name = "agy"
 provider_type = "agy"
 enabled = true
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 ```
 
 ### Production
@@ -176,7 +176,7 @@ default_provider = "agy"
 name = "agy"
 provider_type = "agy"
 enabled = true
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 model_name = "gemini-3.8-flash-low"
 rate_limit = 100
 ```
@@ -211,7 +211,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 priority = 1  # Primary
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 
 [[providers]]
 name = "codex"
@@ -254,7 +254,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 priority = 2
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 model_name = "gemini-3.8-flash-low"  # Cheaper than pro
 max_tokens = 256  # Reduce token usage
 ```
@@ -279,7 +279,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 model_name = "gemini-3.8-flash-low"  # Fast model
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 timeout = 10
 max_concurrent = 20
 ```
@@ -304,7 +304,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 model_name = "gemini-3.8-flash-high"
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 temperature = 0.2
 ```
 
@@ -335,7 +335,7 @@ temperature = 0.9
 name = "agy"
 provider_type = "agy"
 enabled = true
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 
 [[providers]]
 name = "codex"
@@ -566,7 +566,7 @@ name = "agy"
 provider_type = "agy"
 enabled = true
 priority = 1
-api_key = "${GEMINI_API_KEY}"
+# agy needs no api_key (uses AGY_CLI_PATH or PATH)
 model_name = "gemini-3.8-flash-low"
 max_tokens = 1024
 temperature = 0.7

@@ -33,8 +33,8 @@ This document provides performance benchmarks and optimization guidelines for MC
 
 | Provider | p50 | p95 | p99 | Notes |
 |----------|-----|-----|-----|-------|
-| Gemini Flash | 450ms | 780ms | 1.2s | Network-bound |
-| Gemini Pro | 890ms | 1.5s | 2.1s | More complex |
+| Gemini Flash (historical, gemini provider removed) | 450ms | 780ms | 1.2s | Network-bound |
+| Gemini Pro (historical, gemini provider removed) | 890ms | 1.5s | 2.1s | More complex |
 | LLaMA 7B (GPU) | 180ms | 350ms | 520ms | Local inference |
 | LLaMA 7B (CPU) | 2.1s | 3.8s | 5.2s | CPU-only |
 | OpenAI GPT-3.5 | 520ms | 950ms | 1.4s | Network-bound |
@@ -43,7 +43,7 @@ This document provides performance benchmarks and optimization guidelines for MC
 
 | Provider | 1 Worker | 4 Workers | 8 Workers |
 |----------|----------|-----------|-----------|
-| Gemini Flash | 2.1 | 8.2 | 15.8 |
+| Gemini Flash (historical, gemini provider removed) | 2.1 | 8.2 | 15.8 |
 | LLaMA 7B (GPU) | 5.2 | 18.5 | 32.1 |
 | LLaMA 7B (CPU) | 0.4 | 1.5 | 2.8 |
 | OpenAI GPT-3.5 | 1.8 | 7.1 | 13.2 |
@@ -51,7 +51,7 @@ This document provides performance benchmarks and optimization guidelines for MC
 ### Concurrent User Scaling
 
 ```
-Concurrent Users vs Response Time (Gemini Flash)
+Concurrent Users vs Response Time (historical Gemini Flash, gemini provider removed)
 
 Users: 1    | Latency: 450ms  | ████████
 Users: 5    | Latency: 520ms  | █████████
@@ -66,13 +66,15 @@ Users: 100  | Latency: 1.8s   | ████████████████
 | Configuration | Idle | Under Load | Peak |
 |---------------|------|------------|------|
 | Server Only | 85 MB | 150 MB | 250 MB |
-| + Gemini | 95 MB | 180 MB | 320 MB |
+| + Gemini (historical, gemini provider removed) | 95 MB | 180 MB | 320 MB |
 | + LLaMA 7B | 4.2 GB | 5.1 GB | 6.8 GB |
 | + LLaMA 13B | 8.5 GB | 10.2 GB | 13.5 GB |
 
 ## Provider Benchmarks
 
-### Gemini
+### Gemini (historical; gemini provider removed)
+
+Measured against the legacy Gemini CLI provider, which has been removed. Figures are kept as recorded.
 
 ```
 Model: gemini-2.5-flash-lite
@@ -221,8 +223,8 @@ max_tokens_summary = 128
 |----------|----------|-----|
 | Fastest | LLaMA (GPU) | Local, no network |
 | Most Cost-Effective | LLaMA (CPU) | Free (after setup) |
-| Best Quality | Gemini Pro | Largest model |
-| Balanced | Gemini Flash | Fast + cost-effective |
+| Best Quality | agy (formerly Gemini Pro) | Largest model |
+| Balanced | agy (formerly Gemini Flash) | Fast + cost-effective |
 
 #### Automatic Routing
 
@@ -330,8 +332,8 @@ pixi run benchmark --provider llama \
 
 | Provider | Input (1K tokens) | Output (1K tokens) |
 |----------|-------------------|---------------------|
-| Gemini Flash | $0.00015 | $0.0006 |
-| Gemini Pro | $0.00125 | $0.005 |
+| Gemini Flash (historical, gemini provider removed) | $0.00015 | $0.0006 |
+| Gemini Pro (historical, gemini provider removed) | $0.00125 | $0.005 |
 | GPT-3.5 | $0.0005 | $0.0015 |
 | GPT-4 | $0.03 | $0.06 |
 | LLaMA (local) | ~$0.0001* | ~$0.0001* |
@@ -340,7 +342,7 @@ pixi run benchmark --provider llama \
 
 ### Monthly Cost Projections
 
-| Usage Level | Gemini Flash | GPT-3.5 | LLaMA |
+| Usage Level | Gemini Flash (historical) | GPT-3.5 | LLaMA |
 |-------------|--------------|---------|-------|
 | 10K requests | $15 | $25 | $5* |
 | 100K requests | $150 | $250 | $15* |

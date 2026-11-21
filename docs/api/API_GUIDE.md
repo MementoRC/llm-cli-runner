@@ -75,7 +75,7 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
     "tools": [
       {
         "name": "gemini_generate",
-        "description": "Generate text using Gemini CLI",
+        "description": "Generate text via agy (Antigravity CLI); deprecated alias, the Gemini CLI provider has been removed",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -130,9 +130,9 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
 
 ## Available Tools
 
-### gemini_generate
+### gemini_generate (deprecated alias for agy)
 
-Generate text using Google Gemini models.
+Served by the agy (Antigravity CLI) provider. The GeminiProvider implementation (Gemini CLI) has been removed; legacy `gemini-*` model names are tier-mapped to agy models.
 
 **Parameters:**
 
@@ -287,7 +287,7 @@ When a tool fails, the response includes `isError: true`:
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key | For Gemini provider |
+| `GEMINI_API_KEY` | Google Gemini API key | Not used; legacy only (deprecated alias for agy) |
 | `OPENAI_API_KEY` | OpenAI API key | For Codex provider |
 | `LLAMA_MODEL_PATH` | Path to LLaMA model file | For LLaMA provider |
 
@@ -327,7 +327,7 @@ The server implements rate limiting per provider:
 
 | Provider | Default Limit | Burst |
 |----------|---------------|-------|
-| Gemini | 60 req/min | 10 |
+| Gemini (deprecated alias for agy; historical Gemini CLI limit) | 60 req/min | 10 |
 | Codex | 20 req/min | 5 |
 | LLaMA | No limit | - |
 

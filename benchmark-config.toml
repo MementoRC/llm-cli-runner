@@ -39,7 +39,6 @@ mcp_operations = [
 # LLM provider performance
 provider_operations = [
     "test_openai_provider",
-    "test_gemini_provider",
     "test_llama_provider"
 ]
 

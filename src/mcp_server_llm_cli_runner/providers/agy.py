@@ -1,9 +1,8 @@
 """Agy (Google Antigravity CLI) provider implementation.
 
-Reuses the Gemini CLI provider machinery, since the ``agy`` CLI accepts the
-same ``-p``, ``--model`` and ``--output-format`` flags. Because ``agy`` is an
-agentic CLI, it is always run with ``--mode plan`` so it behaves as a plain
-text generator.
+The ``agy`` CLI accepts ``-p``, ``--model`` and ``--output-format`` flags.
+Because ``agy`` is an agentic CLI, it is always run with ``--mode plan`` so it
+behaves as a plain text generator.
 
 Example:
     >>> provider = AgyProvider()
@@ -20,20 +19,24 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
+from mcp_server_llm_cli_runner.cache.metrics import CacheMetrics
 from mcp_server_llm_cli_runner.core.errors import (
     ConfigurationError,
     ProviderError,
     RateLimitError,
 )
 from mcp_server_llm_cli_runner.core.models import (
+    CostEstimate,
     LLMRequest,
     LLMResponse,
     ProviderConfig,
     ProviderType,
+    QuotaStatusInfo,
     StreamingResponse,
     UsageStats,
 )
-from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
+from mcp_server_llm_cli_runner.providers.base import LLMProvider, ProviderCapabilities
+from mcp_server_llm_cli_runner.providers.quota import QuotaManager, SimpleMetrics
 from mcp_server_llm_cli_runner.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -51,7 +54,7 @@ _AUTH_MARKERS = (
 _RATE_LIMIT_MARKERS = ("rate limit", "quota")
 
 
-class AgyProvider(GeminiProvider):
+class AgyProvider(LLMProvider):
     """Provider for Google's Antigravity CLI (``agy``)."""
 
     PROVIDER_TYPE = ProviderType.AGY
@@ -77,16 +80,39 @@ class AgyProvider(GeminiProvider):
                 },
             )
 
-        super().__init__(
-            config,
-            model=model,
-            temperature=temperature,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            daily_quota=daily_quota,
-        )
+        super().__init__(config)
         self.name = "agy"
+
+        self.capabilities = {
+            ProviderCapabilities.STREAMING,
+            ProviderCapabilities.ASYNC_GENERATION,
+        }
+
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = 4096
+
         self._usage_stats = UsageStats(provider_name="agy")
+        self.cache_metrics = CacheMetrics()
+        self.metrics = SimpleMetrics()
+
+        # CLI-based LLMs need longer timeout (reads project context on startup)
+        self.timeout = config.timeout if config else 120
+        self.retry_attempts = max_retries
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
+        if daily_quota is not None:
+            self.quota_manager = QuotaManager(daily_limit=daily_quota)
+        else:
+            self.quota_manager = QuotaManager()
+
+        logger.info(
+            f"Initialized {self._display_name()} provider",
+            model=self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
 
     def _cli_binary(self) -> str:
         """Return the agy executable, overridable via AGY_CLI_PATH."""
@@ -95,6 +121,22 @@ class AgyProvider(GeminiProvider):
     def _display_name(self) -> str:
         """Return the name used in user-facing messages."""
         return "agy (Antigravity)"
+
+    @property
+    def usage_stats(self) -> UsageStats:
+        """Get usage statistics."""
+        return self._usage_stats
+
+    def _reserve_quota_or_raise(self) -> int:
+        """Reserve one request of quota or raise RateLimitError when exhausted."""
+        token = self.quota_manager.reserve()
+        if token is None:
+            raise RateLimitError(
+                f"{self._display_name()} daily quota exhausted",
+                provider=self.name,
+                retry_after=86400,  # Retry after 24 hours (daily quota)
+            )
+        return token
 
     def _build_command(
         self,
@@ -130,10 +172,149 @@ class AgyProvider(GeminiProvider):
         }
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate a response using the agy CLI."""
-        response = await super().generate(request)
-        response.provider = "agy"
-        return response
+        """Generate a response using the agy CLI.
+
+        Args:
+            request: The LLM request containing prompt and parameters
+
+        Returns:
+            Structured response from agy
+
+        Raises:
+            ProviderError: If generation fails
+            RateLimitError: If rate limit exceeded
+
+        """
+        start_time = time.time()
+
+        try:
+            # Validate request (before reserving so invalid requests use no quota)
+            self._validate_request(request)
+
+            model = request.model or self.model
+            temperature = request.temperature or self.temperature
+            max_tokens = min(request.max_tokens or self.max_tokens, self.max_tokens)
+
+            cmd = self._build_command(
+                prompt=request.prompt,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                system_prompt=request.system_prompt,
+            )
+
+            # Atomically reserve quota; retries share this single reservation
+            token = self._reserve_quota_or_raise()
+
+            # Execute with retries; any failure (incl. cancellation) releases
+            try:
+                result = await self._execute_with_retries(cmd, request)
+            except BaseException:
+                self.quota_manager.release(token)
+                raise
+
+            response_time = time.time() - start_time
+            response_content = result.get("response", "")
+
+            # Extract actual token counts from stats if available
+            # Structure: stats.models.[model_name].tokens.{prompt, candidates, total}
+            stats = result.get("stats", {})
+            models_stats = stats.get("models", {})
+
+            actual_tokens = None
+            for model_stats in models_stats.values():
+                tokens_info = model_stats.get("tokens", {})
+                if tokens_info:
+                    actual_tokens = {
+                        "prompt": tokens_info.get("prompt", 0),
+                        "completion": tokens_info.get("candidates", 0),
+                        "total": tokens_info.get("total", 0),
+                    }
+                    break
+
+            if actual_tokens:
+                tokens_used = actual_tokens["total"]
+            else:
+                tokens_used = self._estimate_tokens(request.prompt, response_content)
+
+            cost = self._calculate_cost(tokens_used, model)
+
+            self.metrics.record_request(
+                response_time=response_time,
+                token_count=tokens_used,
+                cost=cost,
+            )
+
+            response = LLMResponse(
+                content=response_content,
+                provider=self.name,
+                model=model,
+                success=True,
+                tokens_used=tokens_used,
+                cost=cost,
+                response_time_ms=int(response_time * 1000),
+                metadata={
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "session_id": result.get("session_id"),
+                    "usage": actual_tokens
+                    or {
+                        "total_tokens": tokens_used,
+                        "estimated_input_tokens": self._estimate_tokens(request.prompt),
+                        "estimated_output_tokens": tokens_used
+                        - self._estimate_tokens(request.prompt),
+                    },
+                },
+            )
+
+            logger.debug(
+                "Generated response",
+                model=model,
+                tokens=tokens_used,
+                cost=cost,
+                response_time_ms=response.response_time_ms,
+            )
+
+            return response
+
+        except RateLimitError:
+            raise
+        except ProviderError as e:
+            response_time = time.time() - start_time
+            self.metrics.record_request(
+                response_time=response_time,
+                token_count=0,
+                cost=0.0,
+                error=str(e),
+            )
+
+            if hasattr(e, "retry_attempts") and e.retry_attempts:
+                logger.error(
+                    f"{self._display_name()} generation failed: {e}",
+                    error=e,
+                    model=request.model,
+                    retry_attempts=e.retry_attempts,
+                )
+            else:
+                logger.exception(
+                    f"{self._display_name()} generation failed: {e}",
+                    error=e,
+                    model=request.model,
+                )
+            raise
+        except Exception as e:
+            response_time = time.time() - start_time
+            self.metrics.record_request(
+                response_time=response_time,
+                token_count=0,
+                cost=0.0,
+                error=str(e),
+            )
+
+            error_msg = f"{self._display_name()} generation failed: {e}"
+            logger.exception(error_msg, error=e, model=request.model)
+            raise ProviderError(error_msg, provider=self.name) from e
 
     async def stream_generate(self, request: LLMRequest) -> list[StreamingResponse]:
         """Return the full response as a single chunk.
@@ -157,6 +338,123 @@ class AgyProvider(GeminiProvider):
         """Yield the full response as one chunk (stream-json not yet supported)."""
         for chunk in await self.stream_generate(request):
             yield chunk
+
+    async def estimate_cost(self, request: LLMRequest) -> CostEstimate:
+        """Estimate cost for an agy request."""
+        try:
+            model = request.model or self.model
+            input_tokens = self._estimate_tokens(request.prompt)
+            output_tokens = min(request.max_tokens or 1000, self.max_tokens)
+            pricing = self._get_model_pricing(model)
+
+            input_cost = input_tokens * pricing["input_cost_per_token"]
+            output_cost = output_tokens * pricing["output_cost_per_token"]
+            total_cost = input_cost + output_cost
+
+            return CostEstimate(
+                provider_name=self.name,
+                estimated_tokens=input_tokens + output_tokens,
+                cost_per_token=total_cost / (input_tokens + output_tokens)
+                if (input_tokens + output_tokens) > 0
+                else 0.0,
+                estimated_cost_usd=total_cost,
+                confidence_score=0.9,
+                estimation_method="pricing_table",
+            )
+        except Exception as e:
+            error_msg = f"Cost estimation failed: {e}"
+            logger.exception(error_msg, error=e)
+            raise ProviderError(error_msg, provider=self.name) from e
+
+    def get_usage_stats(self) -> dict[str, Any]:
+        """Get comprehensive usage statistics."""
+        base_stats = self.metrics.to_dict()
+        provider_stats = {
+            "provider_name": self.name,
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "capabilities": [cap.value for cap in self.capabilities],
+            **base_stats,
+        }
+
+        if hasattr(self, "_usage_stats") and self._usage_stats:
+            provider_stats.update(
+                {
+                    "total_tokens_consumed": self._usage_stats.total_tokens,
+                    "total_cost_usd": self._usage_stats.total_cost,
+                    "average_response_time_ms": self._usage_stats.average_response_time,
+                    "last_request_time": self._usage_stats.last_updated,
+                },
+            )
+
+        self._usage_stats.total_requests += 1
+        self._usage_stats.last_updated = datetime.now()
+        return provider_stats
+
+    def _validate_request(self, request: LLMRequest) -> None:
+        """Validate LLM request parameters."""
+        if not request.prompt or not request.prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+
+        if request.max_tokens and request.max_tokens > self.max_tokens:
+            raise ValueError(f"max_tokens cannot exceed {self.max_tokens}")
+
+        if request.temperature is not None and not 0 <= request.temperature <= 1:
+            raise ValueError("temperature must be between 0 and 1")
+
+    @staticmethod
+    async def _kill_process(
+        process: "asyncio.subprocess.Process | None",
+    ) -> None:
+        """Kill and reap a subprocess, tolerating unbound or already-exited ones."""
+        if process is None:
+            return
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        # Shield the reap so a second cancellation cannot leave a zombie child.
+        waiter = asyncio.ensure_future(process.wait())
+        while not waiter.done():
+            try:
+                await asyncio.shield(waiter)
+            except asyncio.CancelledError:
+                continue
+            except Exception:
+                break
+
+    async def _communicate(
+        self, process: "asyncio.subprocess.Process"
+    ) -> tuple[bytes, bytes]:
+        """Run process.communicate() with the timeout, reaping the child on abort.
+
+        On timeout the caller's handler kills the process; on any other
+        interruption (including cancellation) the child is killed and reaped
+        here before the exception propagates.
+        """
+        try:
+            return await asyncio.wait_for(process.communicate(), timeout=self.timeout)
+        except TimeoutError:
+            raise
+        except BaseException:
+            await self._kill_process(process)
+            raise
+
+    def _estimate_tokens(self, text: str, completion: str = "") -> int:
+        """Estimate token count for text."""
+        total_chars = len(text) + len(completion)
+        return max(1, total_chars // 4)
+
+    def _calculate_cost(self, tokens: int, model: str) -> float:
+        """Calculate cost for token usage."""
+        pricing = self._get_model_pricing(model)
+        cost = (
+            tokens
+            * (pricing["input_cost_per_token"] + pricing["output_cost_per_token"])
+            / 2
+        )
+        return round(cost, 6)
 
     @staticmethod
     def _parse_payload(*outputs: str) -> dict[str, Any] | None:
@@ -188,7 +486,7 @@ class AgyProvider(GeminiProvider):
 
     @staticmethod
     def _normalize(payload: dict[str, Any]) -> dict[str, Any]:
-        """Map agy JSON onto the structure GeminiProvider.generate consumes."""
+        """Map agy JSON onto the structure ``generate`` consumes."""
         response = str(payload.get("response") or "").rstrip()
         result: dict[str, Any] = {"response": response}
         usage = payload.get("usage")
@@ -296,10 +594,110 @@ class AgyProvider(GeminiProvider):
 
     async def health_check(self) -> dict[str, Any]:
         """Check agy availability via ``agy --version``."""
-        result = await super().health_check()
-        result["provider"] = "agy"
-        return result
+        try:
+            process = await asyncio.create_subprocess_exec(
+                self._cli_binary(),
+                "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+            if process.returncode == 0:
+                return {
+                    "status": "healthy",
+                    "version": stdout.decode("utf-8").strip(),
+                    "provider": "agy",
+                    "timestamp": datetime.now().isoformat(),
+                    "capabilities": [cap.value for cap in self.capabilities],
+                    "models": [self.model],
+                }
+            return {
+                "status": "unhealthy",
+                "error": stderr.decode("utf-8").strip() or "Unknown error",
+                "provider": "agy",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except FileNotFoundError:
+            return {
+                "status": "unavailable",
+                "error": f"{self._display_name()} CLI not installed",
+                "provider": "agy",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "provider": "agy",
+                "timestamp": datetime.now().isoformat(),
+            }
 
     def validate_config(self, config: ProviderConfig) -> bool:
         """Validate provider configuration (a model is optional for agy)."""
         return config.name == "agy" and config.provider_type == ProviderType.AGY
+
+    async def get_usage(self) -> UsageStats:
+        """Get current usage statistics."""
+        return self._usage_stats
+
+    async def check_quota(self) -> QuotaStatusInfo:
+        """Check current quota status."""
+        try:
+            if self.quota_manager.check_quota():
+                return QuotaStatusInfo(
+                    provider_name=self.name,
+                    quota_type="requests",
+                    current_usage=self.quota_manager.get_current_usage(),
+                    quota_limit=self.quota_manager.get_quota_limit(),
+                    quota_remaining=self.quota_manager.get_remaining_quota(),
+                )
+            return QuotaStatusInfo(
+                provider_name=self.name,
+                quota_type="requests",
+                current_usage=self.quota_manager.get_current_usage(),
+                quota_limit=self.quota_manager.get_quota_limit(),
+                quota_remaining=0,
+            )
+        except Exception:
+            return QuotaStatusInfo(
+                provider_name=self.name,
+                quota_type="requests",
+                current_usage=0,
+                quota_limit=1000,
+                quota_remaining=0,
+            )
+
+    async def is_available(self) -> bool:
+        """Check if the agy provider is available."""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                self._cli_binary(),
+                "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await process.wait()
+            if process.returncode != 0:
+                return False
+            quota_status = await self.check_quota()
+            return quota_status.quota_remaining > 0
+        except (FileNotFoundError, Exception):
+            return False
+
+    def get_health_status(self) -> dict[str, Any]:
+        """Get provider health status including quota information."""
+        base_status = super().get_health_status()
+        base_status.update(
+            {
+                "model": self.model,
+                "quota_remaining": self.quota_manager.get_remaining_quota(),
+                "quota_limit": self.quota_manager.daily_limit,
+                "configuration": {
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                    "max_retries": self.max_retries,
+                    "retry_delay": self.retry_delay,
+                },
+            }
+        )
+        return base_status

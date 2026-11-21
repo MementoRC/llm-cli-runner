@@ -142,7 +142,7 @@ Available `agy` models: `gemini-3.8-flash-high`, `gemini-3.8-flash-medium`, `gem
 
 ### Gemini deprecation
 
-The `gemini` provider is deprecated. `llm_complete(provider="gemini", ...)` is a permanent alias served by the `agy` provider, and responses report `provider: "agy"` with `deprecated_alias: "gemini->agy"`.
+The `gemini` provider is deprecated. The GeminiProvider implementation (which drove the Gemini CLI) has been removed; `gemini` remains an alias for `agy`. `llm_complete(provider="gemini", ...)` is a permanent alias served by the `agy` provider, and responses report `provider: "agy"` with `deprecated_alias: "gemini->agy"`.
 
 Legacy Gemini model names on redirected calls are mapped by tier:
 
