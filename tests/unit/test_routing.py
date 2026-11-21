@@ -376,9 +376,12 @@ class TestProviderRouter:
             prompt="Simple question", metadata={"preferred_provider": "llama"}
         )
 
+        before = len(self.router.routing_history)
+
         decision = self.router.route_request(request)
 
         assert decision.selected_provider == ProviderType.LLAMA
+        assert len(self.router.routing_history) == before + 1
 
     def test_preferred_provider_hint_unavailable_auto_routes(self):
         self.mock_registry.list_available_types.return_value = [
@@ -391,7 +394,8 @@ class TestProviderRouter:
 
         decision = self.router.route_request(request)
 
-        assert decision.selected_provider in [ProviderType.AGY, ProviderType.CODEX]
+        # "Simple question" is SIMPLE -> ROUTING_RULES primary [AGY]
+        assert decision.selected_provider == ProviderType.AGY
 
     def test_preferred_provider_hint_invalid_auto_routes(self):
         request = LLMRequest(
@@ -400,7 +404,7 @@ class TestProviderRouter:
 
         decision = self.router.route_request(request)
 
-        assert decision.selected_provider in list(ProviderType)
+        assert decision.selected_provider == ProviderType.AGY
 
     def test_route_with_unknown_explicit_provider_raises_invalid_provider(self):
         request = LLMRequest(prompt="Simple question", provider="nope")

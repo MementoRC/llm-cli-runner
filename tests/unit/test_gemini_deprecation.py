@@ -146,6 +146,7 @@ async def test_llm_complete_gemini_agy_unavailable_clear_error(kwargs):
         assert result["error"] == (
             "agy provider unavailable (CLI error or daily quota exhausted)"
         )
+    assert result["error_code"] == "PROVIDER_UNAVAILABLE"
     interface.manager.route_request.assert_not_called()
 
 
@@ -263,6 +264,52 @@ async def test_manager_route_request_gemini_agy_unavailable_raises_no_fallback()
 
     assert exc_info.value.error_code == "PROVIDER_UNAVAILABLE"
     instances["llama"].generate.assert_not_called()
+
+
+async def test_manager_hint_fallback_drops_model_without_mutating_request():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=False)
+    request = LLMRequest(
+        prompt="hi",
+        model="agy-only-model",
+        metadata={"preferred_provider": "agy"},
+    )
+
+    await manager.route_request(request)
+
+    sent = instances["llama"].generate.call_args.args[0]
+    assert sent.model is None
+    assert request.model == "agy-only-model"
+
+
+async def test_manager_hint_preferred_keeps_model():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=True)
+    request = LLMRequest(
+        prompt="hi", model="agy-model", metadata={"preferred_provider": "agy"}
+    )
+
+    await manager.route_request(request)
+
+    assert instances["agy"].generate.call_args.args[0].model == "agy-model"
+
+
+async def test_manager_explicit_provider_keeps_model():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=True)
+    request = LLMRequest(
+        prompt="hi",
+        provider="llama",
+        model="m1",
+        metadata={"preferred_provider": "agy"},
+    )
+
+    await manager.route_request(request)
+
+    assert instances["llama"].generate.call_args.args[0].model == "m1"
 
 
 async def test_manager_route_request_unknown_provider_raises_invalid_provider():

@@ -17,6 +17,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from mcp_server_llm_cli_runner.core.errors import ProviderError
 from mcp_server_llm_cli_runner.core.models import (
     map_legacy_model,
     resolve_provider_name,
@@ -230,11 +231,21 @@ class LeanMCPInterface:
                 "installed or not available; install the Antigravity CLI or set "
                 "AGY_CLI_PATH"
             )
-            raise RuntimeError(msg)
+            raise ProviderError(
+                msg,
+                provider="agy",
+                error_code="PROVIDER_UNAVAILABLE",
+                context={"requested_provider": "gemini"},
+            )
         check = getattr(instance, "is_available", None)
         if check is not None and not await check():
             msg = "agy provider unavailable (CLI error or daily quota exhausted)"
-            raise RuntimeError(msg)
+            raise ProviderError(
+                msg,
+                provider="agy",
+                error_code="PROVIDER_UNAVAILABLE",
+                context={"requested_provider": "gemini"},
+            )
 
     def _default_provider(self) -> str:
         """Return the configured default provider (falls back to llama)."""

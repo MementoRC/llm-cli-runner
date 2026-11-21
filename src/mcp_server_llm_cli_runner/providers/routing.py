@@ -468,6 +468,7 @@ class ProviderRouter:
         )
 
         self._log_routing_decision(decision, request)
+        self._track_routing_decision(decision, request)
         return decision
 
     def _preferred_provider(self, request: LLMRequest) -> ProviderType | None:
