@@ -20,6 +20,7 @@ Example:
 import asyncio
 import json
 import re
+import threading
 import time
 from datetime import datetime
 from typing import Any
@@ -160,15 +161,7 @@ class GeminiProvider(LLMProvider):
         start_time = time.time()
 
         try:
-            # Check quota before processing
-            if not self.quota_manager.check_quota():
-                raise RateLimitError(
-                    f"{self._display_name()} daily quota exhausted",
-                    provider=self.name,
-                    retry_after=86400,  # Retry after 24 hours (daily quota)
-                )
-
-            # Validate request
+            # Validate request (before reserving so invalid requests use no quota)
             self._validate_request(request)
 
             # Get effective model
@@ -185,11 +178,21 @@ class GeminiProvider(LLMProvider):
                 system_prompt=request.system_prompt,
             )
 
-            # Execute with retries
-            result = await self._execute_with_retries(cmd, request)
+            # Atomically reserve quota; retries share this single reservation
+            token = self.quota_manager.reserve()
+            if token is None:
+                raise RateLimitError(
+                    f"{self._display_name()} daily quota exhausted",
+                    provider=self.name,
+                    retry_after=86400,  # Retry after 24 hours (daily quota)
+                )
 
-            # Consume quota after successful generation
-            self.quota_manager.consume_quota()
+            # Execute with retries; any failure (incl. cancellation) releases
+            try:
+                result = await self._execute_with_retries(cmd, request)
+            except BaseException:
+                self.quota_manager.release(token)
+                raise
 
             # Calculate metrics
             response_time = time.time() - start_time
@@ -876,18 +879,39 @@ class GeminiQuotaManager:
         self.daily_limit = daily_limit
         self.requests_today = 0
         self.last_reset = datetime.now().date()
+        # Threading lock: critical sections never await and the manager may be
+        # constructed outside a running event loop.
+        self._lock = threading.Lock()
 
     def check_quota(self) -> bool:
         """Check if quota is available for requests."""
-        self._reset_if_needed()
-        return self.requests_today < self.daily_limit
+        with self._lock:
+            self._reset_if_needed()
+            return self.requests_today < self.daily_limit
+
+    def reserve(self, amount: int = 1) -> int | None:
+        """Atomically reserve quota; return a reservation token or None.
+
+        The token identifies the current day so that release() after a daily
+        reset does not decrement the new day's counter.
+        """
+        with self._lock:
+            self._reset_if_needed()
+            if self.requests_today + amount > self.daily_limit:
+                return None
+            self.requests_today += amount
+            return self.last_reset.toordinal()
+
+    def release(self, token: int, amount: int = 1) -> None:
+        """Return a reservation made by reserve() if still in the same day."""
+        with self._lock:
+            self._reset_if_needed()
+            if token == self.last_reset.toordinal():
+                self.requests_today = max(0, self.requests_today - amount)
 
     def consume_quota(self, amount: int = 1) -> bool:
         """Consume quota and return True if successful."""
-        if self.check_quota():
-            self.requests_today += amount
-            return True
-        return False
+        return self.reserve(amount) is not None
 
     def get_remaining_quota(self) -> int:
         """Get remaining quota for today."""
