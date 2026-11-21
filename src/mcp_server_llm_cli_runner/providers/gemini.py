@@ -18,6 +18,7 @@ Example:
 """
 
 import asyncio
+import itertools
 import json
 import re
 import threading
@@ -144,6 +145,17 @@ class GeminiProvider(LLMProvider):
         """Get usage statistics."""
         return self._usage_stats
 
+    def _reserve_quota_or_raise(self) -> int:
+        """Reserve one request of quota or raise RateLimitError when exhausted."""
+        token = self.quota_manager.reserve()
+        if token is None:
+            raise RateLimitError(
+                f"{self._display_name()} daily quota exhausted",
+                provider=self.name,
+                retry_after=86400,  # Retry after 24 hours (daily quota)
+            )
+        return token
+
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate response using Gemini CLI.
 
@@ -179,13 +191,7 @@ class GeminiProvider(LLMProvider):
             )
 
             # Atomically reserve quota; retries share this single reservation
-            token = self.quota_manager.reserve()
-            if token is None:
-                raise RateLimitError(
-                    f"{self._display_name()} daily quota exhausted",
-                    provider=self.name,
-                    retry_after=86400,  # Retry after 24 hours (daily quota)
-                )
+            token = self._reserve_quota_or_raise()
 
             # Execute with retries; any failure (incl. cancellation) releases
             try:
@@ -340,6 +346,25 @@ class GeminiProvider(LLMProvider):
                 stream=True,
             )
 
+            # Reserve quota before the CLI starts; a failed or cancelled
+            # stream releases it, a completed one keeps it (like generate()).
+            token = self._reserve_quota_or_raise()
+        except RateLimitError:
+            raise
+        except Exception as e:
+            error_msg = f"Gemini streaming failed: {e}"
+            logger.exception(error_msg, error=e)
+            raise ProviderError(error_msg, provider=self.name) from e
+
+        try:
+            return await self._run_stream(cmd, model)
+        except BaseException:
+            self.quota_manager.release(token)
+            raise
+
+    async def _run_stream(self, cmd: list[str], model: str) -> list[StreamingResponse]:
+        """Run the streaming CLI command and collect its chunks."""
+        try:
             # Execute streaming command
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -426,6 +451,10 @@ class GeminiProvider(LLMProvider):
                 await process.wait()
                 msg = f"Streaming failed: {e}"
                 raise ProviderError(msg, provider=self.name) from e
+            except BaseException:
+                # Cancellation: kill and reap the child before propagating
+                await self._kill_process(process)
+                raise
 
         except Exception as e:
             error_msg = f"Gemini streaming failed: {e}"
@@ -591,7 +620,32 @@ class GeminiProvider(LLMProvider):
             process.kill()
         except ProcessLookupError:
             pass
-        await process.wait()
+        # Shield the reap so a second cancellation cannot leave a zombie child.
+        waiter = asyncio.ensure_future(process.wait())
+        while not waiter.done():
+            try:
+                await asyncio.shield(waiter)
+            except asyncio.CancelledError:
+                continue
+            except Exception:
+                break
+
+    async def _communicate(
+        self, process: "asyncio.subprocess.Process"
+    ) -> tuple[bytes, bytes]:
+        """Run process.communicate() with the timeout, reaping the child on abort.
+
+        On timeout the caller's handler kills the process; on any other
+        interruption (including cancellation) the child is killed and reaped
+        here before the exception propagates.
+        """
+        try:
+            return await asyncio.wait_for(process.communicate(), timeout=self.timeout)
+        except TimeoutError:
+            raise
+        except BaseException:
+            await self._kill_process(process)
+            raise
 
     async def _execute_with_retries(
         self,
@@ -613,10 +667,7 @@ class GeminiProvider(LLMProvider):
                     stderr=asyncio.subprocess.PIPE,
                 )
 
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout,
-                )
+                stdout, stderr = await self._communicate(process)
 
                 stdout_text = stdout.decode("utf-8") if stdout else ""
                 stderr_text = stderr.decode("utf-8") if stderr else ""
@@ -882,6 +933,8 @@ class GeminiQuotaManager:
         # Threading lock: critical sections never await and the manager may be
         # constructed outside a running event loop.
         self._lock = threading.Lock()
+        self._token_ids = itertools.count(1)
+        self._outstanding: dict[int, int] = {}
 
     def check_quota(self) -> bool:
         """Check if quota is available for requests."""
@@ -890,23 +943,33 @@ class GeminiQuotaManager:
             return self.requests_today < self.daily_limit
 
     def reserve(self, amount: int = 1) -> int | None:
-        """Atomically reserve quota; return a reservation token or None.
+        """Atomically reserve quota; return a unique reservation token or None.
 
-        The token identifies the current day so that release() after a daily
-        reset does not decrement the new day's counter.
+        Each reservation is tracked individually, so releasing the same token
+        twice, or releasing after a daily reset (which clears all outstanding
+        reservations), never frees another request's slot.
+
+        Raises:
+            ValueError: If amount is not positive.
+
         """
+        if amount <= 0:
+            raise ValueError(f"amount must be positive, got {amount}")
         with self._lock:
             self._reset_if_needed()
             if self.requests_today + amount > self.daily_limit:
                 return None
             self.requests_today += amount
-            return self.last_reset.toordinal()
+            token = next(self._token_ids)
+            self._outstanding[token] = amount
+            return token
 
-    def release(self, token: int, amount: int = 1) -> None:
-        """Return a reservation made by reserve() if still in the same day."""
+    def release(self, token: int) -> None:
+        """Return an outstanding reservation; unknown or repeated tokens are no-ops."""
         with self._lock:
             self._reset_if_needed()
-            if token == self.last_reset.toordinal():
+            amount = self._outstanding.pop(token, None)
+            if amount is not None:
                 self.requests_today = max(0, self.requests_today - amount)
 
     def consume_quota(self, amount: int = 1) -> bool:
@@ -915,22 +978,26 @@ class GeminiQuotaManager:
 
     def get_remaining_quota(self) -> int:
         """Get remaining quota for today."""
-        self._reset_if_needed()
-        return max(0, self.daily_limit - self.requests_today)
+        with self._lock:
+            self._reset_if_needed()
+            return max(0, self.daily_limit - self.requests_today)
 
     def get_current_usage(self) -> int:
         """Get current usage count for today."""
-        self._reset_if_needed()
-        return self.requests_today
+        with self._lock:
+            self._reset_if_needed()
+            return self.requests_today
 
     def get_quota_limit(self) -> int:
         """Get the daily quota limit."""
         return self.daily_limit
 
     def _reset_if_needed(self) -> None:
+        """Reset counters on a new day. Caller must hold self._lock."""
         today = datetime.now().date()
         if today > self.last_reset:
             self.requests_today = 0
+            self._outstanding.clear()
             self.last_reset = today
 
 

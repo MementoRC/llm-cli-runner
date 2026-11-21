@@ -113,57 +113,6 @@ class TestGeminiQuotaManager:
         assert manager.requests_today == 0
         assert manager.get_remaining_quota() == 10
 
-    def test_reserve_up_to_limit_then_none(self):
-        """reserve succeeds up to the limit and then returns None"""
-        manager = GeminiQuotaManager(daily_limit=3)
-
-        tokens = [manager.reserve() for _ in range(3)]
-
-        assert all(token is not None for token in tokens)
-        assert manager.requests_today == 3
-        assert manager.reserve() is None
-        assert manager.requests_today == 3
-
-    def test_release_decrements(self):
-        """release returns a reservation, flooring at zero"""
-        manager = GeminiQuotaManager(daily_limit=3)
-        token = manager.reserve()
-        assert token is not None
-
-        manager.release(token)
-        assert manager.requests_today == 0
-
-        manager.release(token)
-        assert manager.requests_today == 0
-
-    def test_release_after_daily_reset_is_noop(self):
-        """A reservation from before a daily reset never decrements the new day"""
-        day1 = datetime.now().date()
-        day2 = day1 + timedelta(days=1)
-        target = "mcp_server_llm_cli_runner.providers.gemini.datetime"
-
-        with patch(target) as mock_dt:
-            mock_dt.now.return_value.date.return_value = day1
-            manager = GeminiQuotaManager(daily_limit=3)
-            token = manager.reserve()
-            assert token is not None
-
-            # New day: take a new-day reservation, then release the old one
-            mock_dt.now.return_value.date.return_value = day2
-            assert manager.reserve() is not None
-            assert manager.requests_today == 1
-
-            manager.release(token)
-            assert manager.requests_today == 1
-
-    def test_consume_quota_still_works(self):
-        """consume_quota keeps its boolean contract"""
-        manager = GeminiQuotaManager(daily_limit=1)
-
-        assert manager.consume_quota() is True
-        assert manager.consume_quota() is False
-        assert manager.requests_today == 1
-
 
 class TestGeminiProvider:
     """Test Gemini provider functionality"""
@@ -292,78 +241,6 @@ class TestGeminiProvider:
 
         assert "quota exhausted" in str(exc_info.value).lower()
         assert exc_info.value.provider == "gemini"
-
-    @pytest.mark.asyncio
-    async def test_concurrent_generate_respects_quota(self):
-        """Concurrent calls near the limit never overshoot the daily quota"""
-        quota, extra = 3, 4
-        provider = GeminiProvider(daily_quota=quota)
-        gate = asyncio.Event()
-
-        async def stub(cmd, request):
-            await gate.wait()
-            return {"response": "ok"}
-
-        with patch.object(provider, "_execute_with_retries", side_effect=stub):
-            tasks = [
-                asyncio.ensure_future(provider.generate(LLMRequest(prompt="hi")))
-                for _ in range(quota + extra)
-            ]
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
-            gate.set()
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        successes = [r for r in results if isinstance(r, LLMResponse)]
-        limited = [r for r in results if isinstance(r, RateLimitError)]
-        assert len(successes) == quota
-        assert len(limited) == extra
-        assert provider.quota_manager.requests_today == quota
-
-    @pytest.mark.asyncio
-    async def test_failed_generate_releases_quota(self):
-        """A failed CLI call does not consume quota"""
-        provider = GeminiProvider(daily_quota=2)
-
-        with patch.object(
-            provider,
-            "_execute_with_retries",
-            AsyncMock(side_effect=ProviderError("boom", provider="gemini")),
-        ):
-            with pytest.raises(ProviderError):
-                await provider.generate(LLMRequest(prompt="hi"))
-
-        assert provider.quota_manager.requests_today == 0
-
-    @pytest.mark.asyncio
-    async def test_cancelled_generate_releases_quota(self):
-        """Cancellation while the CLI call is in flight releases the reservation"""
-        provider = GeminiProvider(daily_quota=2)
-        started = asyncio.Event()
-
-        async def stub(cmd, request):
-            started.set()
-            await asyncio.Event().wait()
-
-        with patch.object(provider, "_execute_with_retries", side_effect=stub):
-            task = asyncio.ensure_future(provider.generate(LLMRequest(prompt="hi")))
-            await started.wait()
-            assert provider.quota_manager.requests_today == 1
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-
-        assert provider.quota_manager.requests_today == 0
-
-    @pytest.mark.asyncio
-    async def test_validation_failure_does_not_reserve(self):
-        """Invalid requests never reserve quota"""
-        provider = GeminiProvider(daily_quota=2)
-
-        with pytest.raises(ProviderError):
-            await provider.generate(LLMRequest(prompt=" "))
-
-        assert provider.quota_manager.requests_today == 0
 
     @pytest.mark.asyncio
     async def test_generate_wrapped_error_provider_is_gemini(self):

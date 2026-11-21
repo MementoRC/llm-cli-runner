@@ -228,9 +228,7 @@ class AgyProvider(GeminiProvider):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout
-                )
+                stdout, stderr = await self._communicate(process)
                 stdout_text = stdout.decode("utf-8") if stdout else ""
                 stderr_text = stderr.decode("utf-8") if stderr else ""
 
