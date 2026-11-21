@@ -40,7 +40,7 @@ logger = structlog.get_logger(__name__)
 
 # Define allowed log levels and providers
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-ProviderType = Literal["openai", "google", "anthropic", "llama", "codex"]
+ProviderType = Literal["google", "llama"]
 
 
 class CacheConfig(BaseModel):
@@ -125,8 +125,8 @@ class ConfigModel(BaseModel):
     Example:
         >>> config = ConfigModel(
         ...     server_name="mcp-llm-cli-runner",
-        ...     enabled_providers=["openai", "google"],
-        ...     default_provider="openai"
+        ...     enabled_providers=["llama", "google"],
+        ...     default_provider="llama"
         ... )
     """
 
@@ -174,8 +174,8 @@ class APIKeyConfig(BaseModel):
 
     Example:
         >>> key_config = APIKeyConfig(
-        ...     provider="openai",
-        ...     api_key="sk-...",
+        ...     provider="google",
+        ...     api_key="AIzaSy...",
         ...     is_encrypted=False
         ... )
     """
@@ -214,11 +214,11 @@ class ProviderConfig(BaseModel):
 
     Example:
         >>> provider = ProviderConfig(
-        ...     name="openai",
-        ...     endpoint="https://api.openai.com/v1",
+        ...     name="llama",
+        ...     endpoint="http://localhost:8080",
         ...     rate_limit=100,
         ...     model_settings={
-        ...         "gpt-4": {"max_tokens": 8192}
+        ...         "llama-2-7b-chat": {"max_tokens": 8192}
         ...     }
         ... )
     """
@@ -329,8 +329,8 @@ class APIKeyManager:
 
     Example:
         >>> manager = APIKeyManager()
-        >>> manager.store_encrypted_key("openai", "sk-...")
-        >>> key = manager.get_decrypted_key("openai")
+        >>> manager.store_encrypted_key("google", "AIzaSy...")
+        >>> key = manager.get_decrypted_key("google")
     """
 
     def __init__(self, encryption_key: bytes | None = None):
@@ -410,7 +410,7 @@ class APIKeyManager:
 
         Args:
             api_key: The API key to validate
-            provider: The provider name (openai, google, anthropic)
+            provider: The provider name (google, anthropic)
 
         Returns:
             True if valid, False otherwise
@@ -419,18 +419,14 @@ class APIKeyManager:
             ValueError: If provider is not supported
 
         Example:
-            >>> is_valid = manager.validate_api_key("sk-...", "openai")
+            >>> is_valid = manager.validate_api_key("AIzaSy...", "google")
         """
         if not api_key or not api_key.strip():
             return False
 
         api_key = api_key.strip()
 
-        if provider.lower() == "openai":
-            # OpenAI keys start with "sk-" and are typically 51+ characters
-            return api_key.startswith(("sk-", "sk-proj-")) and len(api_key) >= 20
-
-        elif provider.lower() == "google":
+        if provider.lower() == "google":
             # Google API keys start with "AIza" and are typically 39 characters
             return (
                 api_key.startswith("AIzaSy")
@@ -456,7 +452,7 @@ class APIKeyManager:
             ConfigurationError: If the API key is invalid
 
         Example:
-            >>> manager.store_encrypted_key("openai", "sk-...")
+            >>> manager.store_encrypted_key("google", "AIzaSy...")
         """
         if not self.validate_api_key(api_key, provider):
             raise ConfigurationError(f"Invalid API key format for provider: {provider}")
@@ -476,7 +472,7 @@ class APIKeyManager:
             The decrypted API key or None if not found
 
         Example:
-            >>> key = manager.get_decrypted_key("openai")
+            >>> key = manager.get_decrypted_key("google")
         """
         encrypted_key = self._encrypted_keys.get(provider)
         if encrypted_key is None:
@@ -542,7 +538,7 @@ class APIKeyManager:
             True if key was removed, False if not found
 
         Example:
-            >>> removed = manager.remove_stored_key("openai")
+            >>> removed = manager.remove_stored_key("google")
         """
         if provider in self._encrypted_keys:
             del self._encrypted_keys[provider]
@@ -570,7 +566,7 @@ class APIKeyManager:
             True if key exists, False otherwise
 
         Example:
-            >>> exists = manager.key_exists("openai")
+            >>> exists = manager.key_exists("google")
         """
         return provider in self._encrypted_keys
 
@@ -617,7 +613,7 @@ class APIKeyManager:
             Decrypted API key or None if not found
 
         Example:
-            >>> key = manager.load_from_environment("openai")
+            >>> key = manager.load_from_environment("google")
         """
         env_var_name = f"{provider.upper()}_API_KEY_ENCRYPTED"
         encrypted_key = os.getenv(env_var_name)
@@ -779,7 +775,7 @@ class EnvironmentLoader:
 
         Example:
             >>> loader = EnvironmentLoader()
-            >>> config = {"default_provider": "openai", "log_level": "INFO"}
+            >>> config = {"default_provider": "llama", "log_level": "INFO"}
             >>> loader._validate_required_vars(config)
         """
         from mcp_server_llm_cli_runner.utils.errors import ValidationError
@@ -981,17 +977,18 @@ class ConfigManager:
 
                     # Map provider names to valid types
                     provider_type_map = {
-                        "openai": "codex",  # Map OpenAI to codex type
                         "google": "gemini",  # Map Google to gemini type
-                        "anthropic": "codex",  # Map Anthropic to codex type
                         "llama": "llama",
                         "gemini": "gemini",
                         "agy": "agy",
-                        "codex": "codex",
                     }
-                    provider_config["provider_type"] = provider_type_map.get(
-                        name, "codex"
-                    )
+                    if name not in provider_type_map:
+                        valid_names = ", ".join(sorted(provider_type_map))
+                        raise ConfigurationError(
+                            f"Unknown provider '{name}' in configuration. "
+                            f"Valid providers: {valid_names}"
+                        )
+                    provider_config["provider_type"] = provider_type_map[name]
 
                     # Environment API keys override file API keys
                     env_loader = EnvironmentLoader()
@@ -1021,13 +1018,10 @@ class ConfigManager:
                     elif "model_name" not in provider_config:
                         # Add default model_name if neither is present
                         model_defaults = {
-                            "openai": "gpt-3.5-turbo",
                             "google": "gemini-pro",
-                            "anthropic": "claude-3-sonnet",
                             "llama": "llama-2-7b-chat",
                             "gemini": "gemini-pro",
                             "agy": "default",
-                            "codex": "code-davinci-002",
                         }
                         provider_config["model_name"] = model_defaults.get(
                             name, "default-model"
@@ -1198,19 +1192,6 @@ class ConfigManager:
                 "model_name": "default",
             }
         )
-
-        # Codex provider
-        openai_key = EnvironmentLoader.get_api_key("openai")  # type: ignore
-        if openai_key:
-            defaults.append(
-                {
-                    "name": "codex",
-                    "provider_type": "codex",
-                    "enabled": True,
-                    "api_key": openai_key,
-                    "model_name": "gpt-3.5-turbo-instruct",
-                }
-            )
 
         # LLaMA provider (no API key needed for local)
         defaults.append(

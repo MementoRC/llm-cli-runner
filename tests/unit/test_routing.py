@@ -256,12 +256,10 @@ class TestProviderRouter:
         self.mock_registry = Mock(spec=ProviderRegistry)
         self.mock_registry.list_available_types.return_value = [
             ProviderType.AGY,
-            ProviderType.CODEX,
             ProviderType.LLAMA,
         ]
         self.mock_registry.list_providers.return_value = [
             "gemini_provider",
-            "codex_provider",
             "llama_provider",
         ]
 
@@ -270,10 +268,6 @@ class TestProviderRouter:
         self.mock_gemini.provider_type = ProviderType.AGY
         self.mock_gemini.is_healthy = True
 
-        self.mock_codex = Mock()
-        self.mock_codex.provider_type = ProviderType.CODEX
-        self.mock_codex.is_healthy = True
-
         self.mock_llama = Mock()
         self.mock_llama.provider_type = ProviderType.LLAMA
         self.mock_llama.is_healthy = True
@@ -281,7 +275,6 @@ class TestProviderRouter:
         # Set up provider mapping
         provider_map = {
             "gemini_provider": self.mock_gemini,
-            "codex_provider": self.mock_codex,
             "llama_provider": self.mock_llama,
         }
         self.mock_registry.get_provider.side_effect = lambda name: provider_map.get(
@@ -326,7 +319,7 @@ class TestProviderRouter:
 
         decision = self.router.route_request(request)
 
-        assert decision.selected_provider in [ProviderType.CODEX, ProviderType.LLAMA]
+        assert decision.selected_provider in [ProviderType.AGY, ProviderType.LLAMA]
         assert decision.complexity_level in [
             ComplexityLevel.COMPLEX,
             ComplexityLevel.EXPERT,
@@ -358,7 +351,6 @@ class TestProviderRouter:
         # Mock provider as unavailable
         self.mock_registry.list_available_types.return_value = [
             ProviderType.AGY,
-            ProviderType.CODEX,
         ]
 
         request = LLMRequest(
@@ -386,7 +378,6 @@ class TestProviderRouter:
     def test_preferred_provider_hint_unavailable_auto_routes(self):
         self.mock_registry.list_available_types.return_value = [
             ProviderType.AGY,
-            ProviderType.CODEX,
         ]
         request = LLMRequest(
             prompt="Simple question", metadata={"preferred_provider": "llama"}
@@ -417,13 +408,12 @@ class TestProviderRouter:
     def test_route_without_provider_auto_routes_when_some_unavailable(self):
         """No provider given: automatic routing still picks an available one."""
         self.mock_registry.list_available_types.return_value = [
-            ProviderType.AGY,
-            ProviderType.CODEX,
+            ProviderType.LLAMA,
         ]
 
         decision = self.router.route_request(LLMRequest(prompt="Simple question"))
 
-        assert decision.selected_provider in [ProviderType.AGY, ProviderType.CODEX]
+        assert decision.selected_provider == ProviderType.LLAMA
         assert decision.confidence < 1.0
 
     def test_route_no_providers_available(self):
@@ -577,7 +567,7 @@ class TestRoutingDecision:
             complexity_level=ComplexityLevel.SIMPLE,
             confidence=0.95,
             reasoning="Test reasoning",
-            fallback_providers=[ProviderType.CODEX, ProviderType.LLAMA],
+            fallback_providers=[ProviderType.AGY, ProviderType.LLAMA],
             features=features,
             routing_time_ms=15.5,
         )
@@ -595,7 +585,7 @@ class TestRoutingDecision:
         features = ComplexityFeatures(prompt_length=50, word_count=10)
 
         decision = RoutingDecision(
-            selected_provider=ProviderType.CODEX,
+            selected_provider=ProviderType.AGY,
             complexity_score=5.75,
             complexity_level=ComplexityLevel.COMPLEX,
             confidence=0.85,
@@ -608,7 +598,7 @@ class TestRoutingDecision:
         decision_dict = decision.to_dict()
 
         assert isinstance(decision_dict, dict)
-        assert decision_dict["selected_provider"] == ProviderType.CODEX
+        assert decision_dict["selected_provider"] == ProviderType.AGY
         assert decision_dict["complexity_score"] == 5.75  # Rounded in to_dict
         assert decision_dict["complexity_level"] == ComplexityLevel.COMPLEX
         assert decision_dict["confidence"] == 0.85  # Rounded in to_dict
@@ -653,7 +643,6 @@ class TestEdgeCases:
         self.mock_registry = Mock(spec=ProviderRegistry)
         self.mock_registry.list_available_types.return_value = [
             ProviderType.AGY,
-            ProviderType.CODEX,
             ProviderType.LLAMA,
         ]
         self.mock_registry.list_providers.return_value = ["test_provider"]

@@ -567,7 +567,7 @@ class SemanticGrouper:
 
         This is a placeholder implementation. In production, this could use:
         - Sentence-BERT for semantic embeddings
-        - OpenAI embeddings API
+        - Hosted embeddings APIs
         - Other transformer-based models
 
         Args:

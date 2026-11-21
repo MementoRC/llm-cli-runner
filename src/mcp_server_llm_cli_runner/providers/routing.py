@@ -416,15 +416,15 @@ class ProviderRouter:
             "description": "Simple tasks → Free tier (agy)",
         },
         ComplexityLevel.MODERATE: {
-            "primary": [ProviderType.AGY, ProviderType.CODEX],
+            "primary": [ProviderType.AGY, ProviderType.LLAMA],
             "description": "Moderate complexity → Batch API or cached responses",
         },
         ComplexityLevel.COMPLEX: {
-            "primary": [ProviderType.CODEX, ProviderType.LLAMA],
+            "primary": [ProviderType.AGY, ProviderType.LLAMA],
             "description": "Complex tasks → Premium models",
         },
         ComplexityLevel.EXPERT: {
-            "primary": [ProviderType.CODEX, ProviderType.LLAMA],
+            "primary": [ProviderType.AGY, ProviderType.LLAMA],
             "description": "Expert-level → Highest capability models",
         },
     }
@@ -584,7 +584,6 @@ class ProviderRouter:
         if not selected_provider:
             all_providers = [
                 ProviderType.AGY,
-                ProviderType.CODEX,
                 ProviderType.LLAMA,
             ]
             for provider in all_providers:
@@ -734,7 +733,6 @@ class ProviderRouter:
         provider_rationale = {
             ProviderType.AGY: "cost-effective for basic tasks",
             ProviderType.GEMINI: "deprecated alias of agy",
-            ProviderType.CODEX: "balanced performance and cost",
             ProviderType.LLAMA: "high performance for complex reasoning",
         }
 
@@ -750,7 +748,7 @@ class ProviderRouter:
             List of fallback providers in priority order
 
         """
-        all_providers = [ProviderType.AGY, ProviderType.CODEX, ProviderType.LLAMA]
+        all_providers = [ProviderType.AGY, ProviderType.LLAMA]
         return [p for p in all_providers if p != primary]
 
     def _log_routing_decision(

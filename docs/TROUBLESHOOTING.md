@@ -113,30 +113,16 @@
    use_mlock = false
    ```
 
-#### OpenAI/Codex Errors
+#### Codex / OpenAI
+
+Codex is not a provider here. Use the `codex` MCP server (`codex mcp-server`) directly; this server only provides `agy` (alias `gemini`) and `llama`.
+
+#### Unknown provider in configuration
 
 **Symptoms:**
-- `Authentication failed`
-- `Model not found`
+- `Unknown provider '<name>' in configuration. Valid providers: agy, gemini, google, llama`
 
-**Solutions:**
-
-1. Verify API key format:
-   ```bash
-   # Should start with "sk-"
-   echo $OPENAI_API_KEY | head -c 3
-   ```
-
-2. Check model availability:
-   ```bash
-   curl https://api.openai.com/v1/models \
-     -H "Authorization: Bearer $OPENAI_API_KEY"
-   ```
-
-3. Verify organization (if applicable):
-   ```bash
-   export OPENAI_ORG_ID="org-xxxxx"
-   ```
+**Solution:** Rename the entry under `[providers]` to one of the listed names.
 
 ### Protocol Issues
 

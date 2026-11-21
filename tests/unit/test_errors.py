@@ -179,8 +179,8 @@ class TestProviderError:
 
     def test_provider_error_provider_in_context(self):
         """Test that provider is automatically added to context."""
-        error = ProviderError("Error", provider="codex")
-        assert error.context["provider"] == "codex"
+        error = ProviderError("Error", provider="agy")
+        assert error.context["provider"] == "agy"
 
     def test_provider_error_to_dict(self):
         """Test ProviderError to_dict method."""
@@ -532,7 +532,7 @@ class TestExceptionHierarchy:
     def test_provider_error_mapping_accuracy(self):
         """Test provider error mapping accuracy."""
         # Test mapping of different provider errors
-        providers = ["gemini", "openai", "anthropic", "codex", "llama"]
+        providers = ["gemini", "openai", "anthropic", "agy", "llama"]
 
         for provider in providers:
             error = ProviderError(

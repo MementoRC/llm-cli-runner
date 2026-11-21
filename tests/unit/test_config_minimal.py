@@ -7,8 +7,6 @@ import pytest
 from mcp_server_llm_cli_runner.core.models import ProviderType
 from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
 
-# from tests.test_helpers import ConfigBuilder  # TODO: Create test helpers
-
 
 class TestConfigManagerTDD:
     """Test ConfigManager using TDD approach - start simple."""
@@ -55,10 +53,10 @@ class TestConfigManagerTDD:
         """Test ConfigBuilder creates valid configuration objects."""
         # Skip test since ConfigBuilder doesn't exist
         pytest.skip("ConfigBuilder class not implemented")
-        codex_config = (
+        agy_config = (
             ConfigBuilder()
-            .with_name("codex")
-            .with_provider_type(ProviderType.OPENAI)
+            .with_name("agy")
+            .with_provider_type(ProviderType.AGY)
             .disabled()
             .build()
         )
@@ -74,9 +72,9 @@ class TestConfigManagerTDD:
         assert gemini_config.enabled is True
         assert gemini_config.provider_type == ProviderType.GEMINI
 
-        assert codex_config.name == "codex"
-        assert codex_config.enabled is False
-        assert codex_config.provider_type == ProviderType.OPENAI
+        assert agy_config.name == "agy"
+        assert agy_config.enabled is False
+        assert agy_config.provider_type == ProviderType.AGY
 
         assert llama_config.name == "llama"
         assert llama_config.enabled is True

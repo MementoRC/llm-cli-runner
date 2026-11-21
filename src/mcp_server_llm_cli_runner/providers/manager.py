@@ -684,16 +684,6 @@ class ProviderManager:
                 max_tokens=8192,
                 rate_limit={"requests_per_minute": 60},
             ),
-            ProviderConfig(
-                name="openai",
-                provider_type=ProviderType.OPENAI,
-                enabled=True,
-                api_key="placeholder",
-                base_url="https://api.openai.com/v1",
-                models=["gpt-4", "gpt-3.5-turbo"],
-                max_tokens=4096,
-                rate_limit={"requests_per_minute": 60},
-            ),
         ]
 
     async def get_healthy_provider(

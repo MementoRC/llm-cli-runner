@@ -74,20 +74,18 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
   "result": {
     "tools": [
       {
-        "name": "gemini_generate",
-        "description": "Generate text via agy (Antigravity CLI); deprecated alias, the Gemini CLI provider has been removed",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "prompt": {"type": "string"},
-            "model": {"type": "string", "default": "gemini-2.5-flash-lite"}
-          },
-          "required": ["prompt"]
-        }
+        "name": "llm_complete",
+        "description": "Execute LLM completion with provider selection and streaming support",
+        "inputSchema": {...}
       },
       {
-        "name": "llama_generate",
-        "description": "Generate text using local LLaMA model",
+        "name": "list_providers",
+        "description": "List available LLM providers and their status",
+        "inputSchema": {...}
+      },
+      {
+        "name": "provider_info",
+        "description": "Get detailed information about a specific provider",
         "inputSchema": {...}
       }
     ]
@@ -103,10 +101,10 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "gemini_generate",
+    "name": "llm_complete",
     "arguments": {
       "prompt": "Write a haiku about programming",
-      "model": "gemini-2.5-flash-lite"
+      "provider": "agy"
     }
   }
 }
@@ -130,83 +128,47 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
 
 ## Available Tools
 
-### llm_complete with provider="gemini" (deprecated alias for agy)
+The server registers three tools. Providers are `agy` (Antigravity CLI; `gemini` is a deprecated alias) and `llama`. Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
 
-There is no `gemini_generate` tool. The server registers a single `llm_complete` tool; `provider="gemini"` is a deprecated alias of `provider="agy"` (Antigravity CLI). The GeminiProvider implementation (Gemini CLI) has been removed, so the alias needs an installed, authenticated `agy` CLI, and legacy `gemini-*` model names are tier-mapped to agy models. Prefer `provider="agy"` in new code.
+### llm_complete
+
+Execute an LLM completion with provider selection and optional streaming.
 
 **Parameters:**
 
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `prompt` | string | Yes | - | The prompt to generate from |
-| `provider` | string | No | server default | `agy` (or the deprecated alias `gemini`) |
-| `model` | string | No | agy default | Model to use |
+| `prompt` | string | Yes | - | The prompt to send to the LLM |
+| `provider` | string | No | server default | `agy` (alias `gemini`) or `llama`. If omitted, the configured default is used and auto-routing applies if it is unavailable; a named provider fails with `PROVIDER_UNAVAILABLE` if unavailable |
+| `model` | string | No | provider default | Provider-specific model name |
 | `temperature` | number | No | 0.7 | Sampling temperature (0.0-2.0) |
-| `max_tokens` | integer | No | 1000 | Maximum tokens to generate |
+| `max_tokens` | integer | No | provider default | Maximum tokens to generate |
+| `stream` | boolean | No | false | Enable streaming response |
 
 **Example:**
 ```json
 {
   "name": "llm_complete",
   "arguments": {
-    "prompt": "Explain REST APIs in simple terms",
-    "provider": "gemini",
+    "prompt": "Explain quantum computing",
+    "provider": "llama",
+    "temperature": 0.3,
     "max_tokens": 500
   }
 }
 ```
 
-> Note: the other `*_generate` sections of this guide are outdated; a broader documentation cleanup is pending.
+### list_providers
 
-### llama_generate
+List available providers and their status. Takes no parameters.
 
-Generate text using local LLaMA model via llama-cpp-python.
+### provider_info
 
-**Parameters:**
+Get detailed information about one provider.
 
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `prompt` | string | Yes | - | The prompt to generate from |
-| `max_tokens` | integer | No | 256 | Maximum tokens to generate |
-| `temperature` | number | No | 0.7 | Sampling temperature |
-| `top_p` | number | No | 0.9 | Top-p (nucleus) sampling |
-| `top_k` | integer | No | 40 | Top-k sampling |
-
-**Example:**
-```json
-{
-  "name": "llama_generate",
-  "arguments": {
-    "prompt": "Write a short story about a robot",
-    "max_tokens": 200,
-    "temperature": 0.8
-  }
-}
-```
-
-### codex_generate
-
-Generate code using OpenAI Codex models.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `prompt` | string | Yes | - | The prompt describing code to generate |
-| `language` | string | No | `python` | Target programming language |
-| `max_tokens` | integer | No | 512 | Maximum tokens to generate |
-
-**Example:**
-```json
-{
-  "name": "codex_generate",
-  "arguments": {
-    "prompt": "Write a function to merge two sorted arrays",
-    "language": "python",
-    "max_tokens": 300
-  }
-}
-```
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `provider` | string | Yes | `agy` (alias `gemini`) or `llama` |
 
 ## Error Handling
 
@@ -291,7 +253,6 @@ When a tool fails, the response includes `isError: true`:
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `GEMINI_API_KEY` | Google Gemini API key | Not used; legacy only (deprecated alias for agy) |
-| `OPENAI_API_KEY` | OpenAI API key | For Codex provider |
 | `LLAMA_MODEL_PATH` | Path to LLaMA model file | For LLaMA provider |
 
 ### Provider Configuration
@@ -315,13 +276,6 @@ provider_type = "llama"
 enabled = true
 model_path = "${LLAMA_MODEL_PATH}"
 context_size = 4096
-
-[[providers]]
-name = "codex"
-provider_type = "openai"
-enabled = true
-model_name = "code-davinci-002"
-api_key = "${OPENAI_API_KEY}"
 ```
 
 ## Rate Limiting
@@ -331,7 +285,6 @@ The server implements rate limiting per provider:
 | Provider | Default Limit | Burst |
 |----------|---------------|-------|
 | Gemini (deprecated alias for agy; historical Gemini CLI limit) | 60 req/min | 10 |
-| Codex | 20 req/min | 5 |
 | LLaMA | No limit | - |
 
 ## Streaming Responses
@@ -344,7 +297,7 @@ For long-running generations, streaming is supported:
   "id": 6,
   "method": "tools/call",
   "params": {
-    "name": "gemini_generate",
+    "name": "llm_complete",
     "arguments": {
       "prompt": "Write a long essay about AI",
       "stream": true
@@ -378,7 +331,7 @@ async def call_tool(prompt: str) -> str:
         "id": 1,
         "method": "tools/call",
         "params": {
-            "name": "gemini_generate",
+            "name": "llm_complete",
             "arguments": {"prompt": prompt}
         }
     }

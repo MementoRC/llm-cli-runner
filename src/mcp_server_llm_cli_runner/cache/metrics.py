@@ -98,7 +98,7 @@ class CacheMetrics:
     Example:
         >>> metrics = CacheMetrics(target_hit_rate=45.0)
         >>> metrics.record_hit("gemini", "sha256:abc...", 2.1)
-        >>> metrics.record_miss("openai", "sha256:def...", 180.5)
+        >>> metrics.record_miss("llama", "sha256:def...", 180.5)
         >>> print(f"Hit rate: {metrics.get_hit_rate():.1f}%")
 
     """
@@ -155,7 +155,7 @@ class CacheMetrics:
         """Record a cache hit.
 
         Args:
-            provider: Provider name (gemini, openai, etc.)
+            provider: Provider name (agy, llama, etc.)
             cache_key: Cache key that was hit
             response_time_ms: Response time from cache
             cost_saved: Estimated cost savings from cache hit
