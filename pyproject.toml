@@ -42,7 +42,6 @@ markers = [
     "unit: marks tests as unit tests",
     "property: marks tests as property-based tests",
     "performance: marks tests as performance tests",
-    "requires_gemini: tests that require Gemini CLI access",
     "requires_llama: tests that require LLaMA models",
 ]
 

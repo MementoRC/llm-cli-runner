@@ -4,14 +4,15 @@
 
 This guide explains how to extend MCP Server LLM CLI Runner with custom LLM providers.
 
-> **Deprecation:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI). The `gemini.py` reference below describes the legacy implementation.
+> **Deprecation:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI). The GeminiProvider implementation (Gemini CLI) has been removed; `gemini` requests are served by `AgyProvider`.
 
 ## Provider Architecture
 
 ```
 providers/
 ├── base.py          # Abstract base class
-├── gemini.py        # Gemini implementation
+├── agy.py           # Antigravity CLI (also serves the deprecated gemini alias)
+├── quota.py         # QuotaManager
 ├── openai.py        # OpenAI/Codex implementation
 ├── llama.py         # LLaMA implementation
 └── your_provider.py # Your custom provider
@@ -245,13 +246,14 @@ The base class requires these methods:
 # src/mcp_server_llm_cli_runner/providers/__init__.py
 
 from .base import BaseProvider
-from .gemini import GeminiProvider
+from .agy import AgyProvider
 from .openai import OpenAIProvider
 from .llama import LlamaProvider
 from .your_provider import YourProvider  # Add this
 
 PROVIDER_REGISTRY = {
-    "gemini": GeminiProvider,
+    "agy": AgyProvider,
+    "gemini": AgyProvider,  # deprecated alias for agy
     "openai": OpenAIProvider,
     "llama": LlamaProvider,
     "your-provider": YourProvider,  # Add this

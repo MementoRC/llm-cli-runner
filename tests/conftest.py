@@ -149,15 +149,6 @@ def mock_config_manager(mock_config_dict: dict[str, Any]) -> ConfigManager:
 
 
 @pytest.fixture
-def mock_gemini_cli() -> Mock:
-    """Mock Gemini CLI provider."""
-    cli = Mock()
-    cli.is_available.return_value = True
-    cli.generate_response = AsyncMock(return_value="Mock response")
-    return cli
-
-
-@pytest.fixture
 def mock_llama_provider() -> Mock:
     """Mock LLaMA provider."""
     provider = Mock()

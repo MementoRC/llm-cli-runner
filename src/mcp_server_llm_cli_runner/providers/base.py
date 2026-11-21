@@ -60,10 +60,10 @@ class LLMProvider(ABC):
         logger: Structured logger instance
 
     Example:
-        >>> class GeminiProvider(LLMProvider):
+        >>> class MyProvider(LLMProvider):
         ...     def __init__(self, config: ProviderConfig):
         ...         super().__init__(config)
-        ...         self.api_client = GeminiClient(config.api_key)
+        ...         self.api_client = MyClient(config.api_key)
         ...
         ...     async def generate(self, request: LLMRequest) -> LLMResponse:
         ...         return await self._generate_with_circuit_breaker(request)

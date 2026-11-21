@@ -277,6 +277,7 @@ components:
     # Provider-specific schemas
     GeminiGenerateParams:
       type: object
+      description: "DEPRECATED: the gemini provider is a permanent alias served by agy (Antigravity CLI). The GeminiProvider (Gemini CLI) implementation has been removed. The model enum lists legacy names that are still accepted and tier-mapped to agy models."
       required:
         - prompt
       properties:
@@ -349,7 +350,7 @@ components:
       type: apiKey
       in: header
       name: X-Gemini-API-Key
-      description: Gemini API key (or set GEMINI_API_KEY env var)
+      description: "DEPRECATED: legacy Gemini API key; it is unused and GEMINI_API_KEY has no effect. The gemini alias is served by agy and needs an installed, authenticated agy CLI."
     OpenAIApiKey:
       type: apiKey
       in: header

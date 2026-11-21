@@ -8,7 +8,7 @@ Key classes:
 
 Example:
     >>> registry = ProviderRegistry()
-    >>> registry.register_provider(GeminiProvider)
+    >>> registry.register_provider(AgyProvider)
     >>> provider = registry.create_provider(config)
 
 """
@@ -37,7 +37,7 @@ class ProviderRegistry:
         >>> registry = ProviderRegistry()
         >>>
         >>> # Register a provider class
-        >>> registry.register_provider(GeminiProvider)
+        >>> registry.register_provider(AgyProvider)
         >>>
         >>> # Create provider instance
         >>> config = ProviderConfig(name="my_gemini", provider_type=ProviderType.GEMINI)

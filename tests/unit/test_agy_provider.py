@@ -243,6 +243,15 @@ class TestAgyReviewFixes:
         assert provider._calculate_cost(10682, "some-model") == 0.0
         assert provider._calculate_cost(10682, "gemini-1.5-pro") == 0.0
 
+    @pytest.mark.asyncio
+    async def test_estimate_cost_reports_agy(self):
+        estimate = await AgyProvider().estimate_cost(LLMRequest(prompt="hi"))
+        assert estimate.provider_name == "agy"
+        assert estimate.estimated_cost_usd == 0.0
+
+    def test_get_usage_stats_reports_agy(self):
+        assert AgyProvider().get_usage_stats()["provider_name"] == "agy"
+
     def test_debug_log_omits_prompt_text(self):
         secret = "super-secret-prompt-text"
         with patch("mcp_server_llm_cli_runner.providers.agy.logger") as mock_logger:

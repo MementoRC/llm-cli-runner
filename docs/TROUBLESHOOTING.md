@@ -59,33 +59,24 @@
 
 ### Provider Issues
 
-#### Gemini API Errors
+#### Gemini (deprecated alias for agy) Errors
 
-> **Deprecated:** the `gemini` provider is a deprecated alias for `agy`. If `agy` is not installed, `gemini` calls fail (there is no fallback to the old Gemini CLI).
+> **Deprecated:** the `gemini` provider is a deprecated alias for `agy`. The GeminiProvider (Gemini CLI) implementation has been removed, so `GEMINI_API_KEY` and direct Google API calls no longer apply. If `agy` is not installed, `gemini` calls fail (there is no fallback to the old Gemini CLI).
 
 **Symptoms:**
-- `API key invalid` errors
+- `gemini` requests fail while `agy` requests work
 - Rate limit exceeded
 
 **Solutions:**
 
-1. Verify API key:
+1. Verify the `agy` binary is available:
    ```bash
-   echo $GEMINI_API_KEY  # Should not be empty
+   command -v agy || echo "$AGY_CLI_PATH"   # agy must be on PATH or AGY_CLI_PATH must point to it
    ```
 
-2. Test API key directly:
-   ```bash
-   curl -X POST \
-     "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$GEMINI_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"contents":[{"parts":[{"text":"Hello"}]}]}'
-   ```
+2. Switch the request or config to `provider: "agy"` to remove the alias from the path.
 
-3. Check quota:
-   - Visit Google Cloud Console
-   - Navigate to APIs & Services > Credentials
-   - Review usage and limits
+3. Check quota for the Antigravity account used by `agy`.
 
 #### LLaMA Model Errors
 
@@ -243,7 +234,7 @@ Solution:
 
 3. Use faster models:
    ```json
-   {"arguments": {"model": "gemini-2.5-flash-lite"}}  // Instead of gemini-1.5-pro
+   {"arguments": {"model": "gemini-3.8-flash-low"}}  // Instead of gemini-3.8-flash-high (agy models)
    ```
 
 #### High Memory Usage
@@ -345,7 +336,7 @@ pixi run python -m pdb -m mcp_server_llm_cli_runner
 
 **Q: Which provider is most cost-effective?**
 
-A: LLaMA (local) is free after initial model download. For cloud providers, Gemini Flash is typically most cost-effective.
+A: LLaMA (local) is free after initial model download. Cloud provider costs depend on the provider you use.
 
 **Q: Can I use multiple providers simultaneously?**
 

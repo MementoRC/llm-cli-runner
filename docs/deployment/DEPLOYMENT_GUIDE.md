@@ -43,8 +43,8 @@ pixi run serve
 ### Environment Variables
 
 ```bash
-# Required for Gemini (deprecated alias for agy; prefer agy)
-export GEMINI_API_KEY="your-gemini-api-key"
+# The gemini provider is a deprecated alias for agy: install the agy binary
+# (AGY_CLI_PATH or PATH) instead of setting GEMINI_API_KEY, which is no longer used.
 
 # Required for OpenAI/Codex
 export OPENAI_API_KEY="your-openai-api-key"
@@ -67,7 +67,6 @@ Add to your Claude Desktop configuration (`~/.config/claude/claude_desktop_confi
       "args": ["run", "-e", "default", "python", "-m", "mcp_server_llm_cli_runner"],
       "cwd": "/path/to/llm-cli-runner",
       "env": {
-        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
         "OPENAI_API_KEY": "${OPENAI_API_KEY}"
       }
     }
@@ -117,7 +116,6 @@ docker build -t mcp-llm-cli-runner:latest .
 # Run with environment variables
 docker run -d \
   --name llm-cli-runner \
-  -e GEMINI_API_KEY="${GEMINI_API_KEY}" \
   -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
   -p 8080:8080 \
   mcp-llm-cli-runner:latest
@@ -135,7 +133,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LOG_LEVEL=INFO
     volumes:
@@ -177,11 +174,6 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: GEMINI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-secrets
-                  key: gemini-api-key
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -231,7 +223,6 @@ metadata:
   name: llm-secrets
 type: Opaque
 stringData:
-  gemini-api-key: "your-gemini-api-key"
   openai-api-key: "your-openai-api-key"
 ```
 
@@ -301,20 +292,12 @@ Resources:
       Runtime: python3.12
       Timeout: 30
       MemorySize: 1024
-      Environment:
-        Variables:
-          GEMINI_API_KEY: !Ref GeminiApiKey
       Events:
         Api:
           Type: Api
           Properties:
             Path: /rpc
             Method: POST
-
-Parameters:
-  GeminiApiKey:
-    Type: String
-    NoEcho: true
 ```
 
 ## Production Considerations

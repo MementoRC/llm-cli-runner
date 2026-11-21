@@ -633,7 +633,7 @@ class ProviderManager:
     async def _load_and_register_providers(self) -> None:
         """Load provider configurations and register providers."""
         # Register known provider classes
-        # GeminiProvider is deprecated and intentionally not registered; "gemini"
+        # There is no Gemini provider class; "gemini" is a deprecated alias that
         # requests are redirected to agy.
         try:
             from mcp_server_llm_cli_runner.providers.agy import AgyProvider
