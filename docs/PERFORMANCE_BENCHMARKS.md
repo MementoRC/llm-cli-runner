@@ -231,12 +231,12 @@ max_tokens_summary = 128
 # Route based on estimated complexity
 [[routing.rules]]
 pattern = "simple|short|quick"
-provider = "agy"  # was gemini-flash (deprecated alias)
+provider = "agy"  # was provider=gemini, model=gemini-flash
 max_tokens = 128
 
 [[routing.rules]]
 pattern = "detailed|comprehensive|explain"
-provider = "agy"  # was gemini-pro (deprecated alias)
+provider = "agy"  # was provider=gemini, model=gemini-pro
 max_tokens = 1024
 ```
 

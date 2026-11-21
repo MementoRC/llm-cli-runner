@@ -18,7 +18,13 @@ def _make_interface(enabled: list[str], models: dict[str, str | None]):
     return interface
 
 
-def test_init_providers_gemini_not_registered_and_model_not_applied_to_agy():
+def _assert_only_agy_registered(interface, agy, gem):
+    gem.assert_not_called()
+    interface.manager.register_provider.assert_called_once_with("agy", agy.return_value)
+    interface.manager.registry.register_provider.assert_called_once_with(agy)
+
+
+def test_init_providers_explicit_agy_model_wins_over_gemini_model():
     interface = _make_interface(
         ["gemini", "agy"], {"gemini": "gemini-2.5-pro", "agy": "agy-model-x"}
     )
@@ -28,18 +34,46 @@ def test_init_providers_gemini_not_registered_and_model_not_applied_to_agy():
     ):
         interface._init_providers()
 
-    gem.assert_not_called()
     agy.assert_called_once_with(model="agy-model-x")
-    names = [c.args[0] for c in interface.manager.register_provider.call_args_list]
-    assert names == ["agy"]
+    _assert_only_agy_registered(interface, agy, gem)
 
 
-def test_init_providers_gemini_only_still_registers_agy_without_gemini_model():
-    interface = _make_interface(["gemini"], {"gemini": "gemini-2.5-pro"})
-    with patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy:
+def test_init_providers_gemini_model_mapped_when_agy_model_unset():
+    interface = _make_interface(
+        ["gemini", "agy"], {"gemini": "gemini-2.5-pro", "agy": "default"}
+    )
+    with (
+        patch("mcp_server_llm_cli_runner.providers.gemini.GeminiProvider") as gem,
+        patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy,
+    ):
+        interface._init_providers()
+
+    agy.assert_called_once_with(model="gemini-3.8-flash-high")
+    _assert_only_agy_registered(interface, agy, gem)
+
+
+def test_init_providers_gemini_only_registers_agy_with_mapped_model():
+    interface = _make_interface(["gemini"], {"gemini": "gemini-2.5-flash"})
+    with (
+        patch("mcp_server_llm_cli_runner.providers.gemini.GeminiProvider") as gem,
+        patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy,
+    ):
+        interface._init_providers()
+
+    agy.assert_called_once_with(model="gemini-3.8-flash-medium")
+    _assert_only_agy_registered(interface, agy, gem)
+
+
+def test_init_providers_gemini_unmappable_model_falls_back_to_default():
+    interface = _make_interface(["gemini"], {"gemini": "gemini-ultra-9"})
+    with (
+        patch("mcp_server_llm_cli_runner.providers.gemini.GeminiProvider") as gem,
+        patch("mcp_server_llm_cli_runner.providers.agy.AgyProvider") as agy,
+    ):
         interface._init_providers()
 
     agy.assert_called_once_with(model="")
+    _assert_only_agy_registered(interface, agy, gem)
 
 
 @pytest.mark.parametrize("configured", ["default", "", None])

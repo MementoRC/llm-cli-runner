@@ -119,6 +119,9 @@ Create a configuration file or use environment variables:
 
 ```toml
 # config.toml
+# The default provider is llama (configurable via default_provider or
+# MCP_DEFAULT_PROVIDER); agy is the recommended CLI provider and must be enabled
+# below to be used as the default.
 default_provider = "agy"
 max_concurrent_requests = 10
 

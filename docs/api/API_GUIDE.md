@@ -295,6 +295,8 @@ When a tool fails, the response includes `isError: true`:
 
 ```toml
 # config.toml
+# The default provider is llama (configurable via default_provider or
+# MCP_DEFAULT_PROVIDER); agy is the recommended CLI provider.
 default_provider = "agy"
 max_concurrent_requests = 10
 

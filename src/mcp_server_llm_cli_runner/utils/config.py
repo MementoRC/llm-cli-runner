@@ -287,7 +287,7 @@ class ServerConfig(BaseModel):
         ... )
     """
 
-    default_provider: str = "agy"
+    default_provider: str = "llama"
     max_concurrent_requests: int = Field(default=10, ge=1, le=100)
     request_timeout_seconds: int = Field(
         default=120, ge=1, le=300
@@ -701,7 +701,7 @@ class EnvironmentLoader:
             >>> print(config['log_level'])
         """
         config = {
-            "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "agy"),
+            "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "llama"),
             "max_concurrent_requests": self._convert_type(
                 os.getenv("MCP_MAX_CONCURRENT", "10"), int
             ),
@@ -879,7 +879,7 @@ def _static_get_server_config() -> dict[str, Any]:
         return value.lower() in true_values
 
     config = {
-        "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "agy"),
+        "default_provider": os.getenv("MCP_DEFAULT_PROVIDER", "llama"),
         "max_concurrent_requests": int(os.getenv("MCP_MAX_CONCURRENT", "10")),
         "request_timeout_seconds": int(os.getenv("MCP_REQUEST_TIMEOUT", "30")),
         "enable_metrics": convert_bool(os.getenv("MCP_ENABLE_METRICS", "true")),

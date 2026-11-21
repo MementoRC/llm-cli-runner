@@ -460,7 +460,9 @@ class ProviderRouter:
 
         # Override provider if explicitly specified and available
         if request.provider:
-            provider_type = ProviderType(resolve_provider_name(request.provider)[0])
+            resolved, aliased = resolve_provider_name(request.provider)
+            aliased = aliased or bool(request.metadata.get("deprecated_alias"))
+            provider_type = ProviderType(resolved)
             if self._is_provider_available(provider_type):
                 routing_time = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -482,6 +484,19 @@ class ProviderRouter:
 
                 self._log_routing_decision(decision, request)
                 return decision
+            if aliased:
+                msg = (
+                    f"Provider '{request.metadata.get('deprecated_alias', request.provider)}' "
+                    f"is deprecated and served by '{resolved}', but {resolved} is not "
+                    "installed or not available; install the Antigravity CLI or set "
+                    "AGY_CLI_PATH"
+                )
+                raise ProviderError(
+                    msg,
+                    provider=resolved,
+                    error_code="PROVIDER_UNAVAILABLE",
+                    context={"requested_provider": request.provider},
+                )
             self.logger.warning(
                 "Requested provider unavailable, falling back to automatic routing",
                 extra={"requested_provider": request.provider},

@@ -293,7 +293,7 @@ top -p $(pgrep -f mcp_server_llm_cli_runner)
 
 3. Use environment variables instead:
    ```bash
-   export LLM_CLI_RUNNER_DEFAULT_PROVIDER=agy
+   export MCP_DEFAULT_PROVIDER=llama  # default; set to agy to prefer the CLI provider
    export LLM_CLI_RUNNER_MAX_CONCURRENT=10
    ```
 

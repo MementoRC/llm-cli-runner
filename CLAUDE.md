@@ -1,13 +1,13 @@
 # MCP Server LLM CLI Runner
 
-MCP server providing unified access to multiple LLM providers (agy/Antigravity CLI, OpenAI, Llama, etc.) through a consistent interface. The default provider is `agy`; `gemini` is a deprecated alias served by `agy`.
+MCP server providing unified access to multiple LLM providers (agy, openai, llama, codex; see providers/) through a consistent interface.
 
 ## Project Structure
 
 ```
 src/mcp_server_llm_cli_runner/
 ├── core/           # Core models and base classes
-├── providers/      # LLM provider implementations (agy, openai, llama; gemini = deprecated alias for agy)
+├── providers/      # LLM provider implementations (agy, openai, llama, codex)
 ├── lean_mcp_interface.py  # Lean FastMCP interface (entrypoint via __main__.py)
 ├── cache/          # Response caching backends
 └── utils/          # Configuration, logging, helpers

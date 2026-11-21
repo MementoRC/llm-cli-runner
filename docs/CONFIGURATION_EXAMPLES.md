@@ -15,6 +15,8 @@ MCP Server LLM CLI Runner supports configuration via:
 
 ```toml
 # config.toml
+# The default provider is llama (configurable via default_provider or
+# MCP_DEFAULT_PROVIDER); this example selects agy, the recommended CLI provider.
 default_provider = "agy"
 
 [[providers]]
@@ -32,7 +34,7 @@ OPENAI_API_KEY=your-openai-api-key
 LLAMA_MODEL_PATH=/path/to/model.gguf
 
 # Server configuration
-LLM_CLI_RUNNER_DEFAULT_PROVIDER=agy
+MCP_DEFAULT_PROVIDER=llama
 LLM_CLI_RUNNER_LOG_LEVEL=INFO
 LLM_CLI_RUNNER_MAX_CONCURRENT=10
 ```
@@ -551,7 +553,7 @@ endpoint = "/metrics"
 prometheus = true
 
 #------------------------------------------------------------------------------
-# Default Provider
+# Default Provider (built-in default is llama; agy selected here)
 #------------------------------------------------------------------------------
 default_provider = "agy"
 max_concurrent_requests = 20

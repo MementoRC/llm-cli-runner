@@ -139,9 +139,125 @@ async def test_llm_complete_gemini_agy_unavailable_clear_error(kwargs):
     with pytest.warns(DeprecationWarning):
         result = await interface._llm_complete("hello", provider="gemini")
 
-    assert "AGY_CLI_PATH" in result["error"]
-    assert "not installed" in result["error"]
+    if kwargs.get("registered") is False:
+        assert "AGY_CLI_PATH" in result["error"]
+        assert "not installed" in result["error"]
+    else:
+        assert result["error"] == (
+            "agy provider unavailable (CLI error or daily quota exhausted)"
+        )
     interface.manager.route_request.assert_not_called()
+
+
+async def test_llm_complete_omitted_provider_uses_config_default_llama():
+    interface = _interface()
+    interface.config_manager.get_default_provider.return_value = "llama"
+
+    await interface._llm_complete("hello")
+
+    assert interface.manager.route_request.call_args.args[0].provider == "llama"
+
+
+async def test_llm_complete_config_default_gemini_resolves_to_agy():
+    interface = _interface()
+    interface.config_manager.get_default_provider.return_value = "gemini"
+
+    with pytest.warns(DeprecationWarning):
+        result = await interface._llm_complete("hello")
+
+    assert interface.manager.route_request.call_args.args[0].provider == "agy"
+    assert result["deprecated_alias"] == "gemini->agy"
+
+
+def _manager(agy_available: bool, llama_available: bool = True):
+    """Real ProviderManager routing over a fake registry."""
+    from mcp_server_llm_cli_runner.core.models import ProviderType
+    from mcp_server_llm_cli_runner.providers.manager import ProviderManager
+    from mcp_server_llm_cli_runner.providers.routing import ProviderRouter
+
+    def _instance(ptype, available):
+        inst = MagicMock()
+        inst.provider_type = ptype
+        inst.is_healthy = available
+        inst.generate = AsyncMock(
+            return_value=SimpleNamespace(
+                provider=ptype.value, model="m", tokens_used=0, cost=0.0
+            )
+        )
+        return inst
+
+    instances = {
+        "agy": _instance(ProviderType.AGY, agy_available),
+        "llama": _instance(ProviderType.LLAMA, llama_available),
+    }
+    registry = MagicMock()
+    registry.list_available_types.return_value = [
+        ProviderType.AGY,
+        ProviderType.LLAMA,
+    ]
+    registry.list_providers.return_value = list(instances)
+    registry.get_provider.side_effect = instances.get
+
+    manager = object.__new__(ProviderManager)
+    manager.initialized = True
+    manager.registry = registry
+    manager.router = ProviderRouter(registry)
+    manager.logger = MagicMock()
+    manager.usage_metrics = {}
+    manager.quota_trackers = {}
+    return manager, instances
+
+
+async def test_manager_route_request_gemini_reaches_agy_with_mapped_model():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=True)
+    request = LLMRequest(prompt="hi", provider="gemini", model="gemini-2.5-pro")
+
+    await manager.route_request(request)
+
+    sent = instances["agy"].generate.call_args.args[0]
+    assert sent.provider == "agy"
+    assert sent.model == "gemini-3.8-flash-high"
+    instances["llama"].generate.assert_not_called()
+    assert request.provider == "gemini"
+
+
+async def test_manager_route_request_gemini_agy_unavailable_raises_no_fallback():
+    from mcp_server_llm_cli_runner.core.errors import ProviderError
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=False)
+    request = LLMRequest(prompt="hi", provider="gemini", model="gemini-2.5-pro")
+
+    with pytest.raises(ProviderError, match="AGY_CLI_PATH"):
+        await manager.route_request(request)
+
+    instances["llama"].generate.assert_not_called()
+
+
+async def test_manager_route_request_non_aliased_unavailable_still_falls_back():
+    from mcp_server_llm_cli_runner.core.models import LLMRequest
+
+    manager, instances = _manager(agy_available=False)
+    request = LLMRequest(prompt="hi", provider="agy")
+
+    await manager.route_request(request)
+
+    instances["llama"].generate.assert_called_once()
+
+
+async def test_get_healthy_provider_gemini_returns_agy():
+    from mcp_server_llm_cli_runner.providers.manager import ProviderManager
+
+    manager = object.__new__(ProviderManager)
+    manager.initialized = True
+    manager.health_monitor = MagicMock()
+    manager.health_monitor.get_healthy_providers.return_value = ["llama", "agy"]
+    manager.registry = MagicMock()
+    manager.registry.get_provider.side_effect = lambda name: f"inst-{name}"
+
+    assert await manager.get_healthy_provider("gemini") == "inst-agy"
 
 
 def test_list_providers_hides_gemini_and_lists_deprecation():

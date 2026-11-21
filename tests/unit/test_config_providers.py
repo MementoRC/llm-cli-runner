@@ -83,11 +83,11 @@ class TestGeminiDeprecatedDefaults:
         gemini = next(p for p in defaults if p["name"] == "gemini")
         assert gemini["enabled"] is False
 
-    def test_default_provider_is_agy(self, monkeypatch):
+    def test_default_provider_is_llama(self, monkeypatch):
         from mcp_server_llm_cli_runner.utils.config import ServerConfig
 
         monkeypatch.delenv("MCP_DEFAULT_PROVIDER", raising=False)
-        assert ServerConfig().default_provider == "agy"
+        assert ServerConfig().default_provider == "llama"
 
 
 class TestAgyDefaultEnabled:

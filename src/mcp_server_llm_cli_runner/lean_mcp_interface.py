@@ -89,10 +89,21 @@ class LeanMCPInterface:
             try:
                 from mcp_server_llm_cli_runner.providers.agy import AgyProvider
 
+                agy_model = self._configured_model("agy")
+                if not agy_model and "gemini" in enabled:
+                    gemini_model = self._configured_model("gemini")
+                    if gemini_model:
+                        agy_model, model_warning = map_legacy_model(gemini_model)
+                        agy_model = agy_model or ""
+                        logger.info(
+                            f"Mapped gemini model '{gemini_model}' to agy model "
+                            f"'{agy_model or 'default'}'"
+                        )
+                        if model_warning:
+                            logger.warning(model_warning)
+
                 self.manager.registry.register_provider(AgyProvider)
-                self.manager.register_provider(
-                    "agy", AgyProvider(model=self._configured_model("agy"))
-                )
+                self.manager.register_provider("agy", AgyProvider(model=agy_model))
                 logger.info("Initialized and registered agy provider")
             except Exception as e:
                 logger.warning(f"Failed to initialize agy provider: {e}")
@@ -130,8 +141,7 @@ class LeanMCPInterface:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider to use (agy, openai, llama). 'gemini' is a deprecated alias for agy",
-                        "default": "llama",
+                        "description": "Provider to use (agy, openai, llama); defaults to the configured default_provider (llama). 'gemini' is a deprecated alias for agy",
                     },
                     "model": {
                         "type": "string",
@@ -213,22 +223,32 @@ class LeanMCPInterface:
 
     async def _ensure_agy_available(self) -> None:
         """Raise a clear error when a redirected gemini call cannot be served by agy."""
-        hint = (
-            "Provider 'gemini' is deprecated and served by 'agy', but agy is not "
-            "installed or not available; install the Antigravity CLI or set AGY_CLI_PATH"
-        )
         instance = self.manager.get_provider("agy")
         if instance is None:
-            raise RuntimeError(hint)
+            msg = (
+                "Provider 'gemini' is deprecated and served by 'agy', but agy is not "
+                "installed or not available; install the Antigravity CLI or set "
+                "AGY_CLI_PATH"
+            )
+            raise RuntimeError(msg)
         check = getattr(instance, "is_available", None)
         if check is not None and not await check():
-            raise RuntimeError(hint)
+            msg = "agy provider unavailable (CLI error or daily quota exhausted)"
+            raise RuntimeError(msg)
+
+    def _default_provider(self) -> str:
+        """Return the configured default provider (falls back to llama)."""
+        try:
+            name = self.config_manager.get_default_provider()
+        except Exception:
+            return "llama"
+        return name if isinstance(name, str) and name else "llama"
 
     # Tool implementations
     async def _llm_complete(
         self,
         prompt: str,
-        provider: str = "llama",
+        provider: str | None = None,
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -239,6 +259,7 @@ class LeanMCPInterface:
 
         operation_start_time = time.time()
         extras: dict[str, str] = {}
+        provider = provider or self._default_provider()
         provider, aliased = resolve_provider_name(provider)
         if aliased:
             _warn_gemini_deprecated()
