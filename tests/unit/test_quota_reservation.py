@@ -37,11 +37,14 @@ def _hanging_process(started: asyncio.Event) -> Mock:
 
 class TestQuotaManagerBasics:
     def test_initialization_defaults(self):
-        manager = QuotaManager()
+        frozen_day = datetime(2026, 1, 15, 23, 59, 59).date()
+        with patch(DATETIME_TARGET) as mock_dt:
+            mock_dt.now.return_value.date.return_value = frozen_day
+            manager = QuotaManager()
 
         assert manager.daily_limit == 1000
         assert manager.requests_today == 0
-        assert manager.last_reset == datetime.now().date()
+        assert manager.last_reset == frozen_day
 
     def test_custom_limit(self):
         manager = QuotaManager(daily_limit=500)
@@ -170,16 +173,19 @@ class TestQuotaManagerReservation:
     @pytest.mark.parametrize("getter", ["get_remaining_quota", "get_current_usage"])
     def test_getters_hold_lock(self, getter):
         manager = QuotaManager(daily_limit=3)
+        started = threading.Event()
         done = threading.Event()
 
         def call() -> None:
+            started.set()
             getattr(manager, getter)()
             done.set()
 
         with manager._lock:
             thread = threading.Thread(target=call)
             thread.start()
-            assert not done.wait(0.1)
+            assert started.wait(2), "worker never started"
+            assert not done.wait(0.1), "getter completed while the lock was held"
         thread.join(timeout=2)
         assert done.is_set()
 

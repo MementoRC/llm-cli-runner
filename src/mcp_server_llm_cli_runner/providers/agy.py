@@ -58,17 +58,32 @@ class AgyProvider(LLMProvider):
     """Provider for Google's Antigravity CLI (``agy``)."""
 
     PROVIDER_TYPE = ProviderType.AGY
+    PROBE_TIMEOUT = 10.0  # seconds for ``agy --version`` probes
 
     def __init__(
         self,
         config: ProviderConfig | None = None,
-        model: str = "",
-        temperature: float = 0.7,
+        model: str | None = None,
+        temperature: float | None = None,
         max_retries: int = 3,
         retry_delay: float = 1.0,
         daily_quota: int | None = None,
     ) -> None:
-        """Initialize Agy provider; an empty model lets agy pick its default."""
+        """Initialize Agy provider; an empty model lets agy pick its default.
+
+        Explicit ``model``/``temperature`` win, else the values from ``config``
+        (``model_name`` and ``provider_specific["default_temperature"]``), else
+        the defaults (empty model, temperature 0.7).
+        """
+        if model is None:
+            model = (config.model_name if config is not None else None) or ""
+        if temperature is None:
+            configured = (
+                config.provider_specific.get("default_temperature")
+                if config is not None
+                else None
+            )
+            temperature = float(configured) if configured is not None else 0.7
         if config is None:
             config = ProviderConfig(
                 name="agy",
@@ -425,17 +440,26 @@ class AgyProvider(LLMProvider):
                 break
 
     async def _communicate(
-        self, process: "asyncio.subprocess.Process"
+        self,
+        process: "asyncio.subprocess.Process",
+        timeout: float | None = None,
+        kill_on_timeout: bool = False,
     ) -> tuple[bytes, bytes]:
-        """Run process.communicate() with the timeout, reaping the child on abort.
+        """Run process.communicate() with a timeout, reaping the child on abort.
 
-        On timeout the caller's handler kills the process; on any other
-        interruption (including cancellation) the child is killed and reaped
-        here before the exception propagates.
+        On timeout the caller's handler kills the process (unless
+        ``kill_on_timeout``); on any other interruption (including
+        cancellation) the child is killed and reaped here before the
+        exception propagates.
         """
         try:
-            return await asyncio.wait_for(process.communicate(), timeout=self.timeout)
+            return await asyncio.wait_for(
+                process.communicate(),
+                timeout=self.timeout if timeout is None else timeout,
+            )
         except TimeoutError:
+            if kill_on_timeout:
+                await self._kill_process(process)
             raise
         except BaseException:
             await self._kill_process(process)
@@ -601,7 +625,9 @@ class AgyProvider(LLMProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+            stdout, stderr = await self._communicate(
+                process, timeout=self.PROBE_TIMEOUT, kill_on_timeout=True
+            )
             if process.returncode == 0:
                 return {
                     "status": "healthy",
@@ -676,7 +702,11 @@ class AgyProvider(LLMProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await process.wait()
+            try:
+                await asyncio.wait_for(process.wait(), timeout=self.PROBE_TIMEOUT)
+            except BaseException:
+                await self._kill_process(process)
+                raise
             if process.returncode != 0:
                 return False
             quota_status = await self.check_quota()

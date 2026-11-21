@@ -130,30 +130,33 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
 
 ## Available Tools
 
-### gemini_generate (deprecated alias for agy)
+### llm_complete with provider="gemini" (deprecated alias for agy)
 
-Served by the agy (Antigravity CLI) provider. The GeminiProvider implementation (Gemini CLI) has been removed; legacy `gemini-*` model names are tier-mapped to agy models.
+There is no `gemini_generate` tool. The server registers a single `llm_complete` tool; `provider="gemini"` is a deprecated alias of `provider="agy"` (Antigravity CLI). The GeminiProvider implementation (Gemini CLI) has been removed, so the alias needs an installed, authenticated `agy` CLI, and legacy `gemini-*` model names are tier-mapped to agy models. Prefer `provider="agy"` in new code.
 
 **Parameters:**
 
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `prompt` | string | Yes | - | The prompt to generate from |
-| `model` | string | No | `gemini-2.5-flash-lite` | Model to use |
-| `max_tokens` | integer | No | 1024 | Maximum tokens to generate |
+| `provider` | string | No | server default | `agy` (or the deprecated alias `gemini`) |
+| `model` | string | No | agy default | Model to use |
 | `temperature` | number | No | 0.7 | Sampling temperature (0.0-2.0) |
+| `max_tokens` | integer | No | 1000 | Maximum tokens to generate |
 
 **Example:**
 ```json
 {
-  "name": "gemini_generate",
+  "name": "llm_complete",
   "arguments": {
     "prompt": "Explain REST APIs in simple terms",
-    "model": "gemini-1.5-pro",
+    "provider": "gemini",
     "max_tokens": 500
   }
 }
 ```
+
+> Note: the other `*_generate` sections of this guide are outdated; a broader documentation cleanup is pending.
 
 ### llama_generate
 
