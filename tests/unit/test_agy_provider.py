@@ -1,5 +1,6 @@
 """Unit tests for the agy (Antigravity CLI) provider."""
 
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -9,7 +10,7 @@ from mcp_server_llm_cli_runner.core.errors import (
     ProviderError,
     RateLimitError,
 )
-from mcp_server_llm_cli_runner.core.models import LLMRequest
+from mcp_server_llm_cli_runner.core.models import LLMRequest, LLMResponse
 from mcp_server_llm_cli_runner.providers.agy import AgyProvider
 
 ERROR_JSON = (
@@ -154,6 +155,32 @@ class TestAgyMessageWording:
 
     def test_display_name(self):
         assert AgyProvider()._display_name() == "agy (Antigravity)"
+
+
+class TestAgyQuotaConcurrency:
+    @pytest.mark.asyncio
+    async def test_concurrent_generate_respects_quota(self):
+        quota, extra = 2, 3
+        provider = AgyProvider(daily_quota=quota)
+        gate = asyncio.Event()
+
+        async def stub(cmd, request):
+            await gate.wait()
+            return {"response": "ok"}
+
+        with patch.object(provider, "_execute_with_retries", side_effect=stub):
+            tasks = [
+                asyncio.ensure_future(provider.generate(LLMRequest(prompt="hi")))
+                for _ in range(quota + extra)
+            ]
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            gate.set()
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert sum(isinstance(r, LLMResponse) for r in results) == quota
+        assert sum(isinstance(r, RateLimitError) for r in results) == extra
+        assert provider.quota_manager.requests_today == quota
 
 
 class TestAgyReviewFixes:
