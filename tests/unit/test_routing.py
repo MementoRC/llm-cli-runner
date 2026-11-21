@@ -366,11 +366,61 @@ class TestProviderRouter:
             provider=ProviderType.LLAMA,  # Not available
         )
 
+        with pytest.raises(ProviderError) as exc_info:
+            self.router.route_request(request)
+
+        assert exc_info.value.error_code == "PROVIDER_UNAVAILABLE"
+
+    def test_preferred_provider_hint_used_when_available(self):
+        request = LLMRequest(
+            prompt="Simple question", metadata={"preferred_provider": "llama"}
+        )
+
         decision = self.router.route_request(request)
 
-        # Should fall back to automatic routing
+        assert decision.selected_provider == ProviderType.LLAMA
+
+    def test_preferred_provider_hint_unavailable_auto_routes(self):
+        self.mock_registry.list_available_types.return_value = [
+            ProviderType.AGY,
+            ProviderType.CODEX,
+        ]
+        request = LLMRequest(
+            prompt="Simple question", metadata={"preferred_provider": "llama"}
+        )
+
+        decision = self.router.route_request(request)
+
         assert decision.selected_provider in [ProviderType.AGY, ProviderType.CODEX]
-        assert decision.confidence < 1.0  # Not explicit choice
+
+    def test_preferred_provider_hint_invalid_auto_routes(self):
+        request = LLMRequest(
+            prompt="Simple question", metadata={"preferred_provider": "nope"}
+        )
+
+        decision = self.router.route_request(request)
+
+        assert decision.selected_provider in list(ProviderType)
+
+    def test_route_with_unknown_explicit_provider_raises_invalid_provider(self):
+        request = LLMRequest(prompt="Simple question", provider="nope")
+
+        with pytest.raises(ProviderError) as exc_info:
+            self.router.route_request(request)
+
+        assert exc_info.value.error_code == "INVALID_PROVIDER"
+
+    def test_route_without_provider_auto_routes_when_some_unavailable(self):
+        """No provider given: automatic routing still picks an available one."""
+        self.mock_registry.list_available_types.return_value = [
+            ProviderType.AGY,
+            ProviderType.CODEX,
+        ]
+
+        decision = self.router.route_request(LLMRequest(prompt="Simple question"))
+
+        assert decision.selected_provider in [ProviderType.AGY, ProviderType.CODEX]
+        assert decision.confidence < 1.0
 
     def test_route_no_providers_available(self):
         """Test routing when no providers are available."""

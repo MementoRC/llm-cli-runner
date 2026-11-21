@@ -809,6 +809,8 @@ class ProviderManager:
 
             return response
 
+        except ProviderError:
+            raise
         except Exception as e:
             self.logger.exception(f"Request routing failed: {e}")
             msg = f"Request routing failed: {e}"
