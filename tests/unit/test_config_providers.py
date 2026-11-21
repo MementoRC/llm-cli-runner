@@ -75,6 +75,21 @@ class TestProviderConfig:
         assert len(config.provider_specific) == 2
 
 
+class TestGeminiDeprecatedDefaults:
+    def test_gemini_default_disabled(self):
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
+
+        defaults = ConfigManager()._create_default_providers()
+        gemini = next(p for p in defaults if p["name"] == "gemini")
+        assert gemini["enabled"] is False
+
+    def test_default_provider_is_llama(self, monkeypatch):
+        from mcp_server_llm_cli_runner.utils.config import ServerConfig
+
+        monkeypatch.delenv("MCP_DEFAULT_PROVIDER", raising=False)
+        assert ServerConfig().default_provider == "llama"
+
+
 class TestAgyDefaultEnabled:
     """agy default enablement depends on the binary being discoverable."""
 

@@ -38,6 +38,8 @@ from mcp_server_llm_cli_runner.core.models import (
     ProviderStatus,
     ProviderType,
     QuotaStatus,
+    map_legacy_model,
+    resolve_provider_name,
 )
 from mcp_server_llm_cli_runner.utils.config import ConfigManager
 from mcp_server_llm_cli_runner.utils.logging import StructuredLogger
@@ -631,13 +633,8 @@ class ProviderManager:
     async def _load_and_register_providers(self) -> None:
         """Load provider configurations and register providers."""
         # Register known provider classes
-        try:
-            from mcp_server_llm_cli_runner.providers.gemini import GeminiProvider
-
-            self.registry.register_provider(GeminiProvider)
-        except Exception as e:
-            self.logger.warning(f"Failed to register GeminiProvider class: {e}")
-
+        # GeminiProvider is deprecated and intentionally not registered; "gemini"
+        # requests are redirected to agy.
         try:
             from mcp_server_llm_cli_runner.providers.agy import AgyProvider
 
@@ -678,9 +675,9 @@ class ProviderManager:
         # In real implementation, this would load from config_manager
         return [
             ProviderConfig(
-                name="gemini",
+                name="gemini",  # deprecated: served by agy
                 provider_type=ProviderType.GEMINI,
-                enabled=True,
+                enabled=False,
                 api_key="placeholder",
                 base_url="https://api.gemini.com",
                 models=["gemini-2.5-flash-lite", "gemini-2.5-flash"],
@@ -718,11 +715,10 @@ class ProviderManager:
         healthy_providers = self.health_monitor.get_healthy_providers()
 
         if provider_type:
-            # Filter by provider type
+            # Filter by provider type (aliases such as gemini resolve to agy)
+            target = resolve_provider_name(provider_type)[0].lower()
             filtered_providers = [
-                name
-                for name in healthy_providers
-                if name.lower() == provider_type.lower()
+                name for name in healthy_providers if name.lower() == target
             ]
             if filtered_providers:
                 return self.registry.get_provider(filtered_providers[0])
@@ -755,6 +751,23 @@ class ProviderManager:
                 provider="manager",
                 error_code="ROUTER_NOT_INITIALIZED",
             )
+
+        if request.provider:
+            resolved, aliased = resolve_provider_name(request.provider)
+            if aliased:
+                new_model, model_warning = map_legacy_model(request.model)
+                if model_warning:
+                    self.logger.warning(model_warning)
+                request = request.model_copy(
+                    update={
+                        "provider": resolved,
+                        "model": new_model,
+                        "metadata": {
+                            **request.metadata,
+                            "deprecated_alias": request.provider,
+                        },
+                    }
+                )
 
         try:
             # Record request start time for metrics
@@ -912,7 +925,7 @@ class ProviderManager:
             Provider instance or None if not found
 
         """
-        return self.registry.get_provider(name)
+        return self.registry.get_provider(resolve_provider_name(name)[0])
 
     def list_providers(self) -> list[LLMProvider]:
         """Get list of all registered provider instances.

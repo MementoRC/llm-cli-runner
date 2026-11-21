@@ -35,6 +35,55 @@ class ProviderType(StrEnum):
     ANTHROPIC = "anthropic"
 
 
+PROVIDER_ALIASES: dict[str, str] = {"gemini": "agy"}
+
+AGY_MODELS: tuple[str, ...] = (
+    "gemini-3.8-flash-high",
+    "gemini-3.8-flash-medium",
+    "gemini-3.8-flash-low",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6-thinking",
+    "gpt-oss-120b-medium",
+)
+
+
+def resolve_provider_name(name: str) -> tuple[str, bool]:
+    """Resolve a deprecated provider alias.
+
+    Returns:
+        (resolved_name, was_aliased)
+    """
+    key = name.strip().lower() if isinstance(name, str) else name
+    target = PROVIDER_ALIASES.get(key)
+    if target is None:
+        return name, False
+    return target, True
+
+
+def map_legacy_model(model: str | None) -> tuple[str | None, str | None]:
+    """Map a legacy gemini model name to an agy model by tier.
+
+    Returns:
+        (new_model, warning_message_or_None). new_model None means agy default.
+    """
+    if model is None or not model.strip() or model.strip().lower() == "default":
+        return None, None
+    name = model.strip()
+    if name in AGY_MODELS:
+        return name, None
+    lowered = name.lower()
+    if lowered.startswith("gemini-"):
+        if "flash-lite" in lowered:
+            return "gemini-3.8-flash-low", None
+        if "flash" in lowered:
+            return "gemini-3.8-flash-medium", None
+        if "pro" in lowered:
+            return "gemini-3.8-flash-high", None
+    return None, (
+        f"Legacy model '{name}' has no agy equivalent; using agy default model"
+    )
+
+
 class ProviderStatus(StrEnum):
     """Provider operational status."""
 

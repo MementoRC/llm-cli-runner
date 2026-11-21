@@ -4,6 +4,8 @@
 
 This guide explains how to extend MCP Server LLM CLI Runner with custom LLM providers.
 
+> **Deprecation:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI). The `gemini.py` reference below describes the legacy implementation.
+
 ## Provider Architecture
 
 ```

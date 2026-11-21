@@ -1,5 +1,7 @@
 # Configuration Examples
 
+> **Deprecation:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI). The examples below use `agy`; existing `gemini` configs keep working via the alias.
+
 ## Overview
 
 MCP Server LLM CLI Runner supports configuration via:
@@ -13,11 +15,13 @@ MCP Server LLM CLI Runner supports configuration via:
 
 ```toml
 # config.toml
-default_provider = "gemini"
+# The default provider is llama (configurable via default_provider or
+# MCP_DEFAULT_PROVIDER); this example selects agy, the recommended CLI provider.
+default_provider = "agy"
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 ```
 
@@ -30,21 +34,21 @@ OPENAI_API_KEY=your-openai-api-key
 LLAMA_MODEL_PATH=/path/to/model.gguf
 
 # Server configuration
-LLM_CLI_RUNNER_DEFAULT_PROVIDER=gemini
+MCP_DEFAULT_PROVIDER=llama
 LLM_CLI_RUNNER_LOG_LEVEL=INFO
 LLM_CLI_RUNNER_MAX_CONCURRENT=10
 ```
 
 ## Provider Configurations
 
-### Gemini Provider
+### agy Provider (formerly Gemini)
 
 ```toml
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
-model_name = "gemini-2.5-flash-lite"
+model_name = "gemini-3.8-flash-low"
 api_key = "${GEMINI_API_KEY}"
 
 # Optional settings
@@ -128,11 +132,11 @@ log_responses = true
 [cache]
 enabled = false
 
-default_provider = "gemini"
+default_provider = "agy"
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 api_key = "${GEMINI_API_KEY}"
 ```
@@ -166,14 +170,14 @@ redis_url = "redis://localhost:6379/0"
 ttl = 3600
 max_size = 10000
 
-default_provider = "gemini"
+default_provider = "agy"
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-2.5-flash-lite"
+model_name = "gemini-3.8-flash-low"
 rate_limit = 100
 ```
 
@@ -198,13 +202,13 @@ prometheus = true
 
 [failover]
 enabled = true
-providers = ["gemini", "codex", "llama"]
+providers = ["agy", "codex", "llama"]
 retry_on_failure = true
 max_retries = 3
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 priority = 1  # Primary
 api_key = "${GEMINI_API_KEY}"
@@ -246,12 +250,12 @@ model_path = "/models/llama-2-7b-q4.gguf"
 context_size = 2048
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 priority = 2
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-2.5-flash-lite"  # Cheaper than pro
+model_name = "gemini-3.8-flash-low"  # Cheaper than pro
 max_tokens = 256  # Reduce token usage
 ```
 
@@ -259,7 +263,7 @@ max_tokens = 256  # Reduce token usage
 
 ```toml
 # Maximum speed
-default_provider = "gemini"
+default_provider = "agy"
 
 [server]
 workers = 8
@@ -271,10 +275,10 @@ ttl = 300
 max_size = 10000
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
-model_name = "gemini-2.5-flash-lite"  # Fast model
+model_name = "gemini-3.8-flash-low"  # Fast model
 api_key = "${GEMINI_API_KEY}"
 timeout = 10
 max_concurrent = 20
@@ -296,10 +300,10 @@ temperature = 0.2  # More deterministic for code
 max_tokens = 2048
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
-model_name = "gemini-1.5-pro"
+model_name = "gemini-3.8-flash-high"
 api_key = "${GEMINI_API_KEY}"
 temperature = 0.2
 ```
@@ -308,7 +312,7 @@ temperature = 0.2
 
 ```toml
 # Route different tasks to different providers
-default_provider = "gemini"
+default_provider = "agy"
 
 [routing]
 enabled = true
@@ -319,17 +323,17 @@ provider = "codex"
 
 [[routing.rules]]
 pattern = "translate|language"
-provider = "gemini"
-model = "gemini-1.5-pro"
+provider = "agy"
+model = "gemini-3.8-flash-high"
 
 [[routing.rules]]
 pattern = "creative|story|poem"
-provider = "gemini"
+provider = "agy"
 temperature = 0.9
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 api_key = "${GEMINI_API_KEY}"
 
@@ -549,21 +553,21 @@ endpoint = "/metrics"
 prometheus = true
 
 #------------------------------------------------------------------------------
-# Default Provider
+# Default Provider (built-in default is llama; agy selected here)
 #------------------------------------------------------------------------------
-default_provider = "gemini"
+default_provider = "agy"
 max_concurrent_requests = 20
 
 #------------------------------------------------------------------------------
 # Providers
 #------------------------------------------------------------------------------
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
 priority = 1
 api_key = "${GEMINI_API_KEY}"
-model_name = "gemini-2.5-flash-lite"
+model_name = "gemini-3.8-flash-low"
 max_tokens = 1024
 temperature = 0.7
 timeout = 30

@@ -255,7 +255,7 @@ class TestProviderRouter:
         """Set up test fixtures."""
         self.mock_registry = Mock(spec=ProviderRegistry)
         self.mock_registry.list_available_types.return_value = [
-            ProviderType.GEMINI,
+            ProviderType.AGY,
             ProviderType.CODEX,
             ProviderType.LLAMA,
         ]
@@ -267,7 +267,7 @@ class TestProviderRouter:
 
         # Create mock provider instances for each type
         self.mock_gemini = Mock()
-        self.mock_gemini.provider_type = ProviderType.GEMINI
+        self.mock_gemini.provider_type = ProviderType.AGY
         self.mock_gemini.is_healthy = True
 
         self.mock_codex = Mock()
@@ -298,13 +298,13 @@ class TestProviderRouter:
         assert len(self.router.routing_history) == 0
 
     def test_route_simple_request(self):
-        """Test routing simple request to Gemini."""
+        """Test routing simple request to agy."""
         request = LLMRequest(prompt="Hello, how are you?")
 
         decision = self.router.route_request(request)
 
         assert isinstance(decision, RoutingDecision)
-        assert decision.selected_provider == ProviderType.GEMINI
+        assert decision.selected_provider == ProviderType.AGY
         assert decision.complexity_level == ComplexityLevel.SIMPLE
         assert decision.complexity_score <= 3.0
         assert decision.confidence > 0.8
@@ -344,11 +344,20 @@ class TestProviderRouter:
         assert decision.confidence == 1.0  # Explicit choice
         assert "explicitly requested" in decision.reasoning.lower()
 
+    def test_route_with_explicit_gemini_alias_lands_on_agy(self):
+        """A direct 'gemini' request resolves to agy."""
+        request = LLMRequest(prompt="Simple question", provider="gemini")
+
+        decision = self.router.route_request(request)
+
+        assert decision.selected_provider == ProviderType.AGY
+        assert decision.confidence == 1.0
+
     def test_route_with_unavailable_explicit_provider(self):
         """Test routing when explicitly requested provider is unavailable."""
         # Mock provider as unavailable
         self.mock_registry.list_available_types.return_value = [
-            ProviderType.GEMINI,
+            ProviderType.AGY,
             ProviderType.CODEX,
         ]
 
@@ -360,7 +369,7 @@ class TestProviderRouter:
         decision = self.router.route_request(request)
 
         # Should fall back to automatic routing
-        assert decision.selected_provider in [ProviderType.GEMINI, ProviderType.CODEX]
+        assert decision.selected_provider in [ProviderType.AGY, ProviderType.CODEX]
         assert decision.confidence < 1.0  # Not explicit choice
 
     def test_route_no_providers_available(self):
@@ -589,7 +598,7 @@ class TestEdgeCases:
 
         self.mock_registry = Mock(spec=ProviderRegistry)
         self.mock_registry.list_available_types.return_value = [
-            ProviderType.GEMINI,
+            ProviderType.AGY,
             ProviderType.CODEX,
             ProviderType.LLAMA,
         ]
@@ -597,7 +606,7 @@ class TestEdgeCases:
 
         # Create a mock provider instance
         self.mock_provider = Mock()
-        self.mock_provider.provider_type = ProviderType.GEMINI
+        self.mock_provider.provider_type = ProviderType.AGY
         self.mock_provider.is_healthy = True
         self.mock_registry.get_provider.return_value = self.mock_provider
 

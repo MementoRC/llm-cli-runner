@@ -281,6 +281,8 @@ When a tool fails, the response includes `isError: true`:
 
 ## Configuration
 
+> **Deprecation:** the `gemini` provider is a deprecated alias for `agy` (Antigravity CLI). The provider example below uses `agy`.
+
 ### Environment Variables
 
 | Variable | Description | Required |
@@ -293,15 +295,16 @@ When a tool fails, the response includes `isError: true`:
 
 ```toml
 # config.toml
-default_provider = "gemini"
+# The default provider is llama (configurable via default_provider or
+# MCP_DEFAULT_PROVIDER); agy is the recommended CLI provider.
+default_provider = "agy"
 max_concurrent_requests = 10
 
 [[providers]]
-name = "gemini"
-provider_type = "gemini"
+name = "agy"
+provider_type = "agy"
 enabled = true
-model_name = "gemini-2.5-flash-lite"
-api_key = "${GEMINI_API_KEY}"
+model_name = "gemini-3.8-flash-low"
 
 [[providers]]
 name = "llama"
