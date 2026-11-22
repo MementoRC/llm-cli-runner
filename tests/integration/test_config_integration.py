@@ -355,6 +355,98 @@ class TestConfigurationIntegration:
         finally:
             os.unlink(config_file)
 
+    @patch.dict(os.environ, {}, clear=True)
+    @pytest.mark.parametrize("ptype", ["agy", "gemini", "llama"])
+    def test_list_form_supported_provider_type_loads(self, tmp_path, ptype):
+        """List-form provider entries with a supported provider_type load."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {"name": ptype, "provider_type": ptype, "model_name": "m"}
+                    ]
+                }
+            )
+        )
+
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+
+        assert manager.config is not None
+        assert [p.name for p in manager.config.providers] == [ptype]
+
+    @patch.dict(os.environ, {}, clear=True)
+    @pytest.mark.parametrize("ptype", ["openai", "codex", "anthropic"])
+    def test_list_form_retired_provider_type_raises(self, tmp_path, ptype):
+        """List-form provider entries with a retired provider_type are rejected."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {"name": "x", "provider_type": ptype, "model_name": "m"}
+                    ]
+                }
+            )
+        )
+
+        manager = ConfigManager(str(config_file))
+        with pytest.raises(ConfigurationError, match="Unknown provider type"):
+            manager.load_configuration()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_failed_reload_preserves_state(self, tmp_path):
+        """A failed reload leaves file server data and encrypted keys untouched."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_bytes(
+            tomli_w.dumps(
+                {
+                    "server": {"host": "localhost", "port": 8000},
+                    "providers": {
+                        "google": {
+                            "enabled": True,
+                            "api_key": "AIzaSyOriginalKey12345678",
+                            "encrypt_keys": True,
+                        }
+                    },
+                }
+            ).encode()
+        )
+
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+        old_config = manager.config
+        old_server_data = dict(manager._file_server_data)
+        old_keys = dict(manager.key_manager._encrypted_keys)
+        assert old_server_data["port"] == 8000
+        assert old_keys
+
+        # New file changes server settings and the stored key, then names a retired provider
+        config_file.write_bytes(
+            tomli_w.dumps(
+                {
+                    "server": {"host": "localhost", "port": 9999},
+                    "providers": {
+                        "google": {
+                            "enabled": True,
+                            "api_key": "AIzaSyReplacementKey87654321",
+                            "encrypt_keys": True,
+                        },
+                        "openai": {"enabled": True},
+                    },
+                }
+            ).encode()
+        )
+
+        with pytest.raises(ConfigurationError, match="Unknown provider 'openai'"):
+            manager.reload_configuration()
+
+        assert manager.config is old_config
+        assert manager._file_server_data == old_server_data
+        assert manager.key_manager._encrypted_keys == old_keys
+        assert manager.get_server_config()["port"] == 8000
+
     def test_configuration_load_performance(self):
         """Test configuration loading performance (4 valid providers, repeated loads)."""
         import time
