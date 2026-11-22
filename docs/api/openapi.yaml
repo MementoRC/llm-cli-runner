@@ -7,18 +7,17 @@ info:
     ## Overview
     This API provides MCP-compliant access to multiple LLM providers:
     - **agy** (Antigravity CLI, default). **Gemini** is a deprecated alias served by agy
-    - **OpenAI Codex**: Code generation models
     - **LLaMA**: Local inference with llama-cpp-python
+
+    Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
 
     ## MCP Protocol
     This server implements the Model Context Protocol (MCP) JSON-RPC 2.0 interface.
     All requests use JSON-RPC 2.0 format with method routing.
 
     ## Authentication
-    Provider-specific API keys are required:
-    - `GEMINI_API_KEY` for legacy Gemini provider (deprecated alias for agy)
-    - `OPENAI_API_KEY` for OpenAI/Codex provider
-    - LLaMA runs locally without authentication
+    No API keys are required. agy needs an installed, authenticated `agy` CLI
+    (`GEMINI_API_KEY` has no effect); LLaMA runs locally without authentication.
 
   version: 0.1.0
   contact:
@@ -84,10 +83,10 @@ paths:
                   id: 3
                   method: tools/call
                   params:
-                    name: gemini_generate
+                    name: llm_complete
                     arguments:
                       prompt: "Write a haiku about coding"
-                      model: "gemini-2.5-flash-lite"
+                      provider: agy
       responses:
         '200':
           description: JSON-RPC 2.0 response
@@ -274,120 +273,74 @@ components:
           type: string
           description: MIME type (for type=image)
 
-    # Provider-specific schemas
-    GeminiGenerateParams:
+    # Tool schemas (see lean_mcp_interface.py)
+    LlmCompleteParams:
       type: object
-      description: "DEPRECATED: the gemini provider is a permanent alias served by agy (Antigravity CLI). The GeminiProvider (Gemini CLI) implementation has been removed. The model enum lists legacy names that are still accepted and tier-mapped to agy models."
       required:
         - prompt
       properties:
         prompt:
           type: string
-          description: The prompt to generate from
+          description: The prompt to send to the LLM
+        provider:
+          type: string
+          description: "Provider to use. 'gemini' is a deprecated alias for agy. If omitted, the configured default is used and auto-routing applies if it is unavailable."
+          enum: [agy, gemini, llama]
         model:
           type: string
-          description: Model to use
-          default: "gemini-2.5-flash-lite"
-          enum:
-            - gemini-2.5-flash-lite
-            - gemini-1.5-pro
-            - gemini-pro
-        max_tokens:
-          type: integer
-          description: Maximum tokens to generate
-          default: 1024
+          description: Optional model name (provider-specific)
         temperature:
           type: number
           description: Sampling temperature (0.0-2.0)
           default: 0.7
           minimum: 0.0
           maximum: 2.0
-
-    LlamaGenerateParams:
-      type: object
-      required:
-        - prompt
-      properties:
-        prompt:
-          type: string
-          description: The prompt to generate from
         max_tokens:
           type: integer
           description: Maximum tokens to generate
-          default: 256
-        temperature:
-          type: number
-          description: Sampling temperature
-          default: 0.7
-        top_p:
-          type: number
-          description: Top-p sampling
-          default: 0.9
-        top_k:
-          type: integer
-          description: Top-k sampling
-          default: 40
+        stream:
+          type: boolean
+          description: Enable streaming response
+          default: false
 
-    CodexGenerateParams:
+    ProviderInfoParams:
       type: object
       required:
-        - prompt
+        - provider
       properties:
-        prompt:
+        provider:
           type: string
-          description: The prompt to generate code from
-        language:
-          type: string
-          description: Target programming language
-          default: python
-        max_tokens:
-          type: integer
-          description: Maximum tokens to generate
-          default: 512
-
-  securitySchemes:
-    GeminiApiKey:
-      type: apiKey
-      in: header
-      name: X-Gemini-API-Key
-      description: "DEPRECATED: legacy Gemini API key; it is unused and GEMINI_API_KEY has no effect. The gemini alias is served by agy and needs an installed, authenticated agy CLI."
-    OpenAIApiKey:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: OpenAI API key (Bearer token)
+          description: Provider name
+          enum: [agy, gemini, llama]
 
 x-mcp-tools:
-  gemini_generate:
-    description: Generate text via agy (DEPRECATED - gemini_generate is a deprecated alias served by agy)
+  llm_complete:
+    description: Execute LLM completion with provider selection and streaming support
     inputSchema:
-      $ref: '#/components/schemas/GeminiGenerateParams'
+      $ref: '#/components/schemas/LlmCompleteParams'
     examples:
-      - name: Simple prompt
+      - name: Simple prompt via agy
         arguments:
-          prompt: "Explain quantum computing in simple terms"
-      - name: With model selection
+          prompt: "What is the capital of France?"
+          provider: agy
+      - name: Local LLaMA
         arguments:
-          prompt: "Write a Python function to sort a list"
-          model: "gemini-1.5-pro"
+          prompt: "Explain quantum computing"
+          provider: llama
+          temperature: 0.3
           max_tokens: 500
 
-  llama_generate:
-    description: Generate text using local LLaMA model
+  list_providers:
+    description: List available LLM providers and their status
     inputSchema:
-      $ref: '#/components/schemas/LlamaGenerateParams'
-    examples:
-      - name: Basic generation
-        arguments:
-          prompt: "Once upon a time"
-          max_tokens: 100
+      type: object
+      properties: {}
 
-  codex_generate:
-    description: Generate code using OpenAI Codex
+  provider_info:
+    description: Get detailed information about a specific provider
     inputSchema:
-      $ref: '#/components/schemas/CodexGenerateParams'
+      $ref: '#/components/schemas/ProviderInfoParams'
     examples:
-      - name: Python function
+      - name: agy info
         arguments:
-          prompt: "Write a function to calculate fibonacci numbers"
-          language: "python"
+          provider: agy

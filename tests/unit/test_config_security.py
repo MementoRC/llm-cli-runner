@@ -47,32 +47,14 @@ class TestSecurityConfig:
 
         assert decrypted_key == original_key
 
-    def test_validate_openai_api_key_valid(self):
-        """Test OpenAI API key validation with valid keys."""
+    def test_validate_openai_is_unsupported(self):
+        """OpenAI is no longer a supported key provider."""
         manager = SecurityConfig()
 
-        valid_keys = [
-            "sk-FAKE_TEST_KEY_1234567890abcdef12345678",
-            "sk-proj-FAKE_TEST_KEY_1234567890abcdef890",
-        ]
-
-        for key in valid_keys:
-            assert manager.validate_api_key(key, "openai") is True
-
-    def test_validate_openai_api_key_invalid(self):
-        """Test OpenAI API key validation with invalid keys."""
-        manager = SecurityConfig()
-
-        invalid_keys = [
-            "invalid-key",
-            "sk-",
-            "sk-short",
-            "not-sk-prefix",
-            "",
-        ]
-
-        for key in invalid_keys:
-            assert manager.validate_api_key(key, "openai") is False
+        with pytest.raises(ValueError, match="Unsupported provider"):
+            manager.validate_api_key(
+                "sk-FAKE_TEST_KEY_1234567890abcdef12345678", "openai"
+            )
 
     def test_validate_google_api_key_valid(self):
         """Test Google API key validation with valid keys."""
@@ -139,8 +121,8 @@ class TestSecurityConfig:
         """Test storing and retrieving encrypted API keys."""
         manager = SecurityConfig()
 
-        original_key = "sk-FAKE_TEST_KEY_1234567890abcdef12345678"
-        provider = "openai"
+        original_key = "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567"
+        provider = "google"
 
         # Store encrypted key
         manager.store_encrypted_key(provider, original_key)
@@ -154,7 +136,7 @@ class TestSecurityConfig:
         manager = SecurityConfig()
 
         with pytest.raises(ConfigurationError, match="Invalid API key"):
-            manager.store_encrypted_key("openai", "invalid-key")
+            manager.store_encrypted_key("google", "invalid-key")
 
     def test_get_nonexistent_key_returns_none(self):
         """Test retrieving a non-existent key returns None."""
@@ -168,19 +150,19 @@ class TestSecurityConfig:
         manager = SecurityConfig()
 
         # Store a key with original encryption
-        original_api_key = "sk-FAKE_TEST_KEY_123456789abcdef"
-        manager.store_encrypted_key("openai", original_api_key)
+        original_api_key = "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567"
+        manager.store_encrypted_key("google", original_api_key)
 
         # Rotate the encryption key
-        old_encrypted = manager._encrypted_keys["openai"]
+        old_encrypted = manager._encrypted_keys["google"]
         manager.rotate_encryption_key()
 
         # Verify key can still be retrieved
-        retrieved_key = manager.get_decrypted_key("openai")
+        retrieved_key = manager.get_decrypted_key("google")
         assert retrieved_key == original_api_key
 
         # Verify the encrypted value changed
-        new_encrypted = manager._encrypted_keys["openai"]
+        new_encrypted = manager._encrypted_keys["google"]
         assert old_encrypted != new_encrypted
 
     def test_list_stored_providers(self):
@@ -191,24 +173,26 @@ class TestSecurityConfig:
         assert manager.list_stored_providers() == []
 
         # Store some keys
-        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
+        manager.store_encrypted_key(
+            "anthropic", "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef"
+        )
         manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
 
         providers = manager.list_stored_providers()
-        assert set(providers) == {"openai", "google"}
+        assert set(providers) == {"anthropic", "google"}
 
     def test_remove_stored_key(self):
         """Test removing a stored encrypted key."""
         manager = SecurityConfig()
 
         # Store a key
-        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
-        assert "openai" in manager.list_stored_providers()
+        manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
+        assert "google" in manager.list_stored_providers()
 
         # Remove the key
-        removed = manager.remove_stored_key("openai")
+        removed = manager.remove_stored_key("google")
         assert removed is True
-        assert "openai" not in manager.list_stored_providers()
+        assert "google" not in manager.list_stored_providers()
 
         # Try to remove non-existent key
         removed = manager.remove_stored_key("nonexistent")
@@ -219,7 +203,9 @@ class TestSecurityConfig:
         manager = SecurityConfig()
 
         # Store multiple keys
-        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
+        manager.store_encrypted_key(
+            "anthropic", "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef"
+        )
         manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
 
         assert len(manager.list_stored_providers()) == 2
@@ -232,10 +218,10 @@ class TestSecurityConfig:
         """Test checking if a key exists for a provider."""
         manager = SecurityConfig()
 
-        assert manager.key_exists("openai") is False
+        assert manager.key_exists("google") is False
 
-        manager.store_encrypted_key("openai", "sk-FAKE_TEST_KEY_123456789abcdef")
-        assert manager.key_exists("openai") is True
+        manager.store_encrypted_key("google", "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567")
+        assert manager.key_exists("google") is True
 
     def test_encryption_key_persistence(self):
         """Test that encryption key can be persisted and loaded."""
@@ -287,24 +273,25 @@ class TestSecurityConfig:
         manager = SecurityConfig()
 
         # Mock environment with encrypted keys
-        encrypted_openai = manager.encrypt_key("sk-FAKE_TEST_KEY_123456789abcdef")
+        encrypted_google = manager.encrypt_key(
+            "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567"
+        )
 
         env_vars = {
-            "OPENAI_API_KEY_ENCRYPTED": encrypted_openai,
+            "GOOGLE_API_KEY_ENCRYPTED": encrypted_google,
             "MCP_ENCRYPTION_KEY": manager._encryption_key.decode(),
         }
 
         with patch.dict(os.environ, env_vars):
             # Test loading encrypted key from environment
-            loaded_key = manager.load_from_environment("openai")
-            assert loaded_key == "sk-FAKE_TEST_KEY_123456789abcdef"
+            loaded_key = manager.load_from_environment("google")
+            assert loaded_key == "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567"
 
     def test_multiple_provider_key_management(self):
         """Test managing keys for multiple providers simultaneously."""
         manager = SecurityConfig()
 
         providers_and_keys = {
-            "openai": "sk-FAKE_TEST_KEY_123456789abcdef",
             "google": "AIzaSyTEST_FAKE_KEY_FOR_TESTING_1234567",
             "anthropic": "sk-ant-api03-FAKE_TEST_KEY_1234567890abcdef",
         }

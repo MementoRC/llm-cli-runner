@@ -46,9 +46,6 @@ pixi run serve
 # The gemini provider is a deprecated alias for agy: install the agy binary
 # (AGY_CLI_PATH or PATH) instead of setting GEMINI_API_KEY, which is no longer used.
 
-# Required for OpenAI/Codex
-export OPENAI_API_KEY="your-openai-api-key"
-
 # Optional for LLaMA
 export LLAMA_MODEL_PATH="/path/to/model.gguf"
 ```
@@ -65,10 +62,7 @@ Add to your Claude Desktop configuration (`~/.config/claude/claude_desktop_confi
     "llm-cli-runner": {
       "command": "pixi",
       "args": ["run", "-e", "default", "python", "-m", "mcp_server_llm_cli_runner"],
-      "cwd": "/path/to/llm-cli-runner",
-      "env": {
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}"
-      }
+      "cwd": "/path/to/llm-cli-runner"
     }
   }
 }
@@ -116,7 +110,7 @@ docker build -t mcp-llm-cli-runner:latest .
 # Run with environment variables
 docker run -d \
   --name llm-cli-runner \
-  -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+  -e LOG_LEVEL=INFO \
   -p 8080:8080 \
   mcp-llm-cli-runner:latest
 ```
@@ -133,7 +127,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LOG_LEVEL=INFO
     volumes:
       - ./config:/app/config:ro
@@ -173,12 +166,6 @@ spec:
           image: mcp-llm-cli-runner:latest
           ports:
             - containerPort: 8080
-          env:
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-secrets
-                  key: openai-api-key
           resources:
             requests:
               memory: "512Mi"
@@ -211,19 +198,6 @@ spec:
       port: 80
       targetPort: 8080
   type: ClusterIP
-```
-
-### Secrets
-
-```yaml
-# k8s/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: llm-secrets
-type: Opaque
-stringData:
-  openai-api-key: "your-openai-api-key"
 ```
 
 ### Horizontal Pod Autoscaler
@@ -369,8 +343,7 @@ spec:
   "version": "0.1.0",
   "providers": {
     "agy": "available",
-    "llama": "available",
-    "codex": "unavailable"
+    "llama": "available"
   }
 }
 ```

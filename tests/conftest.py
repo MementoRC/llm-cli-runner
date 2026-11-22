@@ -88,12 +88,6 @@ def mock_config_dict() -> dict[str, Any]:
                 "model": "gemini-2.5-flash-lite",
                 "timeout": 30,
             },
-            "codex": {
-                "enabled": False,
-                "api_key": "sk-test-key",
-                "model": "code-davinci-002",
-                "timeout": 30,
-            },
             "llama": {
                 "enabled": False,
                 "model_path": "/path/to/llama/model",

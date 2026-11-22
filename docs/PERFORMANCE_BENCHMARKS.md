@@ -37,7 +37,6 @@ This document provides performance benchmarks and optimization guidelines for MC
 | Gemini Pro (historical, gemini provider removed) | 890ms | 1.5s | 2.1s | More complex |
 | LLaMA 7B (GPU) | 180ms | 350ms | 520ms | Local inference |
 | LLaMA 7B (CPU) | 2.1s | 3.8s | 5.2s | CPU-only |
-| OpenAI GPT-3.5 | 520ms | 950ms | 1.4s | Network-bound |
 
 ### Throughput (Requests/Second)
 
@@ -46,7 +45,6 @@ This document provides performance benchmarks and optimization guidelines for MC
 | Gemini Flash (historical, gemini provider removed) | 2.1 | 8.2 | 15.8 |
 | LLaMA 7B (GPU) | 5.2 | 18.5 | 32.1 |
 | LLaMA 7B (CPU) | 0.4 | 1.5 | 2.8 |
-| OpenAI GPT-3.5 | 1.8 | 7.1 | 13.2 |
 
 ### Concurrent User Scaling
 
@@ -107,23 +105,6 @@ Results (n=100):
   p99: 342ms
   Errors: 0%
   Tokens/Second: 142.8
-```
-
-### OpenAI
-
-```
-Model: gpt-3.5-turbo
-Prompt: "Write a Python function to sort a list"
-Max Tokens: 256
-
-Results (n=100):
-  Mean Latency: 534ms
-  Std Dev: 187ms
-  p50: 489ms
-  p95: 892ms
-  p99: 1.1s
-  Errors: 0.5%
-  Tokens/Second: 48.5
 ```
 
 ## Optimization Guidelines
@@ -334,18 +315,16 @@ pixi run benchmark --provider llama \
 |----------|-------------------|---------------------|
 | Gemini Flash (historical, gemini provider removed) | $0.00015 | $0.0006 |
 | Gemini Pro (historical, gemini provider removed) | $0.00125 | $0.005 |
-| GPT-3.5 | $0.0005 | $0.0015 |
-| GPT-4 | $0.03 | $0.06 |
 | LLaMA (local) | ~$0.0001* | ~$0.0001* |
 
 *LLaMA cost = electricity only (GPU power consumption)
 
 ### Monthly Cost Projections
 
-| Usage Level | Gemini Flash (historical) | GPT-3.5 | LLaMA |
-|-------------|--------------|---------|-------|
-| 10K requests | $15 | $25 | $5* |
-| 100K requests | $150 | $250 | $15* |
-| 1M requests | $1,500 | $2,500 | $50* |
+| Usage Level | Gemini Flash (historical) | LLaMA |
+|-------------|--------------|-------|
+| 10K requests | $15 | $5* |
+| 100K requests | $150 | $15* |
+| 1M requests | $1,500 | $50* |
 
 *Hardware amortization not included

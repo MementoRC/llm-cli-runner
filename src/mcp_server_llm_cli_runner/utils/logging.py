@@ -528,7 +528,7 @@ def log_configuration_loaded(
 
     Example:
         >>> log_configuration_loaded(
-        ...     logger, "config.toml", 3, ["gemini", "codex"], "gemini"
+        ...     logger, "config.toml", 3, ["agy", "llama"], "gemini"
         ... )
     """
     logger.info(

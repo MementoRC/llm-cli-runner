@@ -8,12 +8,13 @@ This guide explains how to extend MCP Server LLM CLI Runner with custom LLM prov
 
 ## Provider Architecture
 
+Live providers are `agy` (the `gemini` name is a deprecated alias) and `llama`. Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
+
 ```
 providers/
 ├── base.py          # Abstract base class
 ├── agy.py           # Antigravity CLI (also serves the deprecated gemini alias)
 ├── quota.py         # QuotaManager
-├── openai.py        # OpenAI/Codex implementation
 ├── llama.py         # LLaMA implementation
 └── your_provider.py # Your custom provider
 ```
@@ -247,14 +248,12 @@ The base class requires these methods:
 
 from .base import BaseProvider
 from .agy import AgyProvider
-from .openai import OpenAIProvider
 from .llama import LlamaProvider
 from .your_provider import YourProvider  # Add this
 
 PROVIDER_REGISTRY = {
     "agy": AgyProvider,
     "gemini": AgyProvider,  # deprecated alias for agy
-    "openai": OpenAIProvider,
     "llama": LlamaProvider,
     "your-provider": YourProvider,  # Add this
 }

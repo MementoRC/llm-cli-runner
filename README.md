@@ -1,10 +1,10 @@
 # MCP Server LLM CLI Runner
 
-A Model Context Protocol server providing access to multi-provider Large Language Model providers including Antigravity CLI (`agy`), Codex, and LLaMA.
+A Model Context Protocol server providing access to multi-provider Large Language Model providers including Antigravity CLI (`agy`) and LLaMA. Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
 
 ## 🚀 Features
 
-- **Multiple Provider Support**: Antigravity CLI (`agy`, default), OpenAI Codex, and local LLaMA models. The `gemini` provider is a deprecated alias for `agy` (see [Gemini deprecation](#gemini-deprecation))
+- **Multiple Provider Support**: Antigravity CLI (`agy`, default) and local LLaMA models. The `gemini` provider is a deprecated alias for `agy` (see [Gemini deprecation](#gemini-deprecation))
 - **Cost-Effective**: Optimized for efficient LLM access
 - **MCP Protocol**: Full Model Context Protocol compliance
 - **Enterprise Security**: Comprehensive security scanning and validation
@@ -14,7 +14,7 @@ A Model Context Protocol server providing access to multi-provider Large Languag
 
 - Python ≥ 3.12
 - [Pixi](https://pixi.sh/) for environment management
-- Optional: `agy` CLI (Antigravity) on `PATH` or `AGY_CLI_PATH`; API key for Codex
+- Optional: `agy` CLI (Antigravity) on `PATH` or `AGY_CLI_PATH`
 
 ## 🛠️ Installation
 
@@ -40,9 +40,6 @@ Set up environment variables for your chosen providers:
 ```bash
 # For agy (Antigravity CLI): install the `agy` binary, or point to it
 export AGY_CLI_PATH="/path/to/agy"   # optional if `agy` is on PATH
-
-# For OpenAI Codex
-export OPENAI_API_KEY="your-openai-api-key"
 
 # LLaMA runs locally (no API key needed)
 ```

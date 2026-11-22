@@ -1,7 +1,7 @@
 """Lean MCP Interface for LLM CLI Runner - Dynamic Tool Discovery.
 
 This module implements the meta-tool pattern to reduce context consumption
-while exposing LLM CLI operations through multiple providers (Gemini, OpenAI, LLaMA).
+while exposing LLM CLI operations through multiple providers (agy, LLaMA).
 
 Meta-Tool Pattern:
 - Expose only 3 standard meta-tools with minimal definitions
@@ -142,7 +142,7 @@ class LeanMCPInterface:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider to use (agy, openai, llama). If omitted, prefers the configured default_provider and auto-routes if it is unavailable; a named provider fails with PROVIDER_UNAVAILABLE if it is unavailable (no fallback). 'gemini' is a deprecated alias for agy",
+                        "description": "Provider to use (agy (alias gemini), llama). If omitted, prefers the configured default_provider and auto-routes if it is unavailable; a named provider fails with PROVIDER_UNAVAILABLE if it is unavailable (no fallback). 'gemini' is a deprecated alias for agy",
                     },
                     "model": {
                         "type": "string",
@@ -169,7 +169,7 @@ class LeanMCPInterface:
                 {"prompt": "What is the capital of France?", "provider": "agy"},
                 {
                     "prompt": "Explain quantum computing",
-                    "provider": "openai",
+                    "provider": "llama",
                     "temperature": 0.3,
                     "max_tokens": 500,
                 },
@@ -197,7 +197,7 @@ class LeanMCPInterface:
                 "properties": {
                     "provider": {
                         "type": "string",
-                        "description": "Provider name (agy, openai, llama). 'gemini' is a deprecated alias for agy",
+                        "description": "Provider name (agy (alias gemini), llama). 'gemini' is a deprecated alias for agy",
                     }
                 },
                 "required": ["provider"],

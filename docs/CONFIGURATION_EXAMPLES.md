@@ -30,7 +30,6 @@ enabled = true
 ```bash
 # .env file
 # GEMINI_API_KEY is no longer used: the gemini provider is a deprecated alias for agy
-OPENAI_API_KEY=your-openai-api-key
 LLAMA_MODEL_PATH=/path/to/model.gguf
 
 # Server configuration
@@ -88,28 +87,9 @@ use_mmap = true
 use_mlock = false
 ```
 
-### OpenAI/Codex Provider
+### Codex
 
-```toml
-[[providers]]
-name = "codex"
-provider_type = "openai"
-enabled = true
-api_key = "${OPENAI_API_KEY}"
-model_name = "gpt-3.5-turbo"
-
-# Optional: Organization ID
-organization = "${OPENAI_ORG_ID}"
-
-# API settings
-base_url = "https://api.openai.com/v1"
-timeout = 60
-max_retries = 3
-
-# Generation defaults
-max_tokens = 512
-temperature = 0.7
-```
+Codex is not a provider here. Use the `codex` MCP server (`codex mcp-server`) directly.
 
 ## Server Configurations
 
@@ -202,7 +182,7 @@ prometheus = true
 
 [failover]
 enabled = true
-providers = ["agy", "codex", "llama"]
+providers = ["agy", "llama"]
 retry_on_failure = true
 max_retries = 3
 
@@ -214,17 +194,10 @@ priority = 1  # Primary
 # agy needs no api_key (uses AGY_CLI_PATH or PATH)
 
 [[providers]]
-name = "codex"
-provider_type = "openai"
-enabled = true
-priority = 2  # Secondary fallback
-api_key = "${OPENAI_API_KEY}"
-
-[[providers]]
 name = "llama"
 provider_type = "llama"
 enabled = true
-priority = 3  # Last resort (local)
+priority = 2  # Fallback (local)
 model_path = "${LLAMA_MODEL_PATH}"
 ```
 
@@ -288,16 +261,7 @@ max_concurrent = 20
 
 ```toml
 # Optimized for code generation
-default_provider = "codex"
-
-[[providers]]
-name = "codex"
-provider_type = "openai"
-enabled = true
-model_name = "gpt-4-turbo"
-api_key = "${OPENAI_API_KEY}"
-temperature = 0.2  # More deterministic for code
-max_tokens = 2048
+default_provider = "agy"
 
 [[providers]]
 name = "agy"
@@ -305,7 +269,8 @@ provider_type = "agy"
 enabled = true
 model_name = "gemini-3.8-flash-high"
 # agy needs no api_key (uses AGY_CLI_PATH or PATH)
-temperature = 0.2
+temperature = 0.2  # More deterministic for code
+max_tokens = 2048
 ```
 
 ### Multi-Model Routing
@@ -319,7 +284,7 @@ enabled = true
 
 [[routing.rules]]
 pattern = "code|function|class|implement"
-provider = "codex"
+provider = "llama"
 
 [[routing.rules]]
 pattern = "translate|language"
@@ -338,10 +303,10 @@ enabled = true
 # agy needs no api_key (uses AGY_CLI_PATH or PATH)
 
 [[providers]]
-name = "codex"
-provider_type = "openai"
+name = "llama"
+provider_type = "llama"
 enabled = true
-api_key = "${OPENAI_API_KEY}"
+model_path = "${LLAMA_MODEL_PATH}"
 ```
 
 ## Caching Configurations
@@ -574,20 +539,10 @@ timeout = 30
 rate_limit = 60
 
 [[providers]]
-name = "codex"
-provider_type = "openai"
-enabled = true
-priority = 2
-api_key = "${OPENAI_API_KEY}"
-model_name = "gpt-3.5-turbo"
-max_tokens = 512
-timeout = 60
-
-[[providers]]
 name = "llama"
 provider_type = "llama"
 enabled = true
-priority = 3
+priority = 2
 model_path = "${LLAMA_MODEL_PATH}"
 context_size = 4096
 n_gpu_layers = 35

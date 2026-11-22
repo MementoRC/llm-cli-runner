@@ -1,13 +1,13 @@
 # MCP Server LLM CLI Runner
 
-MCP server providing unified access to multiple LLM providers (agy, openai, llama, codex; see providers/) through a consistent interface.
+MCP server providing unified access to multiple LLM providers (agy, llama; see providers/) through a consistent interface.
 
 ## Project Structure
 
 ```
 src/mcp_server_llm_cli_runner/
 ├── core/           # Core models and base classes
-├── providers/      # LLM provider implementations (agy, openai, llama, codex)
+├── providers/      # LLM provider implementations (agy, llama)
 ├── lean_mcp_interface.py  # Lean FastMCP interface (entrypoint via __main__.py)
 ├── cache/          # Response caching backends
 └── utils/          # Configuration, logging, helpers

@@ -33,13 +33,13 @@ class TestConfigurationIntegration:
         config_data = {
             "server": {"host": "localhost", "port": 8000, "log_level": "INFO"},
             "providers": {
-                "openai": {
+                "google": {
                     "enabled": True,
-                    "api_key": "sk-test-key-from-file",
-                    "model": "gpt-3.5-turbo",
+                    "api_key": "AIzaSyTestKeyFromFile",
+                    "model": "gemini-pro",
                     "max_tokens": 1000,
                 },
-                "google": {"enabled": False, "api_key": "AIzaSyTestKey"},
+                "llama": {"enabled": False},
             },
         }
 
@@ -56,14 +56,14 @@ class TestConfigurationIntegration:
             assert manager.get_server_config()["port"] == 8000
 
             # Test provider config
-            openai_config = manager.get_provider_config("openai")
-            assert openai_config["enabled"] is True
-            assert openai_config["model"] == "gpt-3.5-turbo"
+            google_config = manager.get_provider_config("google")
+            assert google_config["enabled"] is True
+            assert google_config["model"] == "gemini-pro"
 
             # Test enabled providers
             enabled = manager.get_enabled_providers()
-            assert "openai" in enabled
-            assert "google" not in enabled
+            assert "google" in enabled
+            assert "llama" not in enabled
 
         finally:
             os.unlink(config_file)
@@ -73,10 +73,9 @@ class TestConfigurationIntegration:
         config_data = {
             "server": {"host": "0.0.0.0", "port": 9000, "log_level": "DEBUG"},
             "providers": {
-                "anthropic": {
+                "agy": {
                     "enabled": True,
-                    "api_key": "sk-ant-test-key",
-                    "model": "claude-3-sonnet",
+                    "model": "default",
                 },
             },
         }
@@ -92,9 +91,9 @@ class TestConfigurationIntegration:
             assert manager.get_server_config()["host"] == "0.0.0.0"
             assert manager.get_server_config()["port"] == 9000
 
-            anthropic_config = manager.get_provider_config("anthropic")
-            assert anthropic_config["enabled"] is True
-            assert anthropic_config["model"] == "claude-3-sonnet"
+            agy_config = manager.get_provider_config("agy")
+            assert agy_config["enabled"] is True
+            assert agy_config["model"] == "default"
 
         finally:
             os.unlink(config_file)
@@ -103,7 +102,7 @@ class TestConfigurationIntegration:
         """Test environment variables override file configuration."""
         config_data = {
             "server": {"host": "localhost", "port": 8000},
-            "providers": {"openai": {"enabled": True, "api_key": "sk-file-key"}},
+            "providers": {"google": {"enabled": True, "api_key": "AIzaSyFileKey"}},
         }
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
@@ -113,7 +112,7 @@ class TestConfigurationIntegration:
         env_vars = {
             "MCP_SERVER_HOST": "0.0.0.0",
             "MCP_SERVER_PORT": "9000",
-            "OPENAI_API_KEY": "sk-env-override-key",
+            "GOOGLE_API_KEY": "AIzaSyEnvOverrideKey",
         }
 
         try:
@@ -125,8 +124,8 @@ class TestConfigurationIntegration:
                 assert manager.get_server_config()["host"] == "0.0.0.0"
                 assert manager.get_server_config()["port"] == 9000
 
-                openai_config = manager.get_provider_config("openai")
-                assert openai_config["api_key"] == "sk-env-override-key"
+                google_config = manager.get_provider_config("google")
+                assert google_config["api_key"] == "AIzaSyEnvOverrideKey"
 
         finally:
             os.unlink(config_file)
@@ -140,7 +139,7 @@ class TestConfigurationIntegration:
                 "log_level": "INFO",
             },
             "providers": {
-                "openai": {
+                "google": {
                     "enabled": True,
                     "api_key": "invalid-key",  # Should fail validation
                 },
@@ -184,7 +183,7 @@ class TestConfigurationIntegration:
         """Test configuration caching functionality."""
         config_data = {
             "server": {"host": "localhost", "port": 8000},
-            "providers": {"openai": {"enabled": True}},
+            "providers": {"google": {"enabled": True}},
         }
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
@@ -238,9 +237,9 @@ class TestConfigurationIntegration:
         """Test integration with encrypted API key storage."""
         config_data = {
             "providers": {
-                "openai": {
+                "google": {
                     "enabled": True,
-                    "api_key": "sk-testintegrationkey12345678",
+                    "api_key": "AIzaSyTestIntegrationKey12345678",
                     "encrypt_keys": True,
                 },
             },
@@ -255,11 +254,11 @@ class TestConfigurationIntegration:
             manager.load_configuration()
 
             # API key should be stored encrypted
-            assert manager.key_manager.key_exists("openai")
+            assert manager.key_manager.key_exists("google")
 
             # But should be retrievable in plaintext
-            openai_config = manager.get_provider_config("openai")
-            assert openai_config["api_key"] == "sk-testintegrationkey12345678"
+            google_config = manager.get_provider_config("google")
+            assert google_config["api_key"] == "AIzaSyTestIntegrationKey12345678"
 
         finally:
             os.unlink(config_file)
@@ -268,10 +267,9 @@ class TestConfigurationIntegration:
         """Test configuration with multiple providers."""
         config_data = {
             "providers": {
-                "openai": {
+                "agy": {
                     "enabled": True,
-                    "api_key": "sk-openai-key",
-                    "model": "gpt-4",
+                    "model": "default",
                     "max_tokens": 2000,
                 },
                 "google": {
@@ -279,7 +277,7 @@ class TestConfigurationIntegration:
                     "api_key": "AIzaSyGoogleKey",
                     "model": "gemini-pro",
                 },
-                "anthropic": {"enabled": False, "api_key": "sk-ant-key"},
+                "gemini": {"enabled": False},
                 "llama": {"enabled": True, "model_path": "/path/to/llama/model.gguf"},
             },
         }
@@ -293,12 +291,12 @@ class TestConfigurationIntegration:
             manager.load_configuration()
 
             enabled_providers = manager.get_enabled_providers()
-            assert set(enabled_providers) == {"openai", "google", "llama"}
+            assert set(enabled_providers) == {"agy", "google", "llama"}
 
             # Test individual provider configs
-            openai_config = manager.get_provider_config("openai")
-            assert openai_config["model"] == "gpt-4"
-            assert openai_config["max_tokens"] == 2000
+            agy_config = manager.get_provider_config("agy")
+            assert agy_config["model"] == "default"
+            assert agy_config["max_tokens"] == 2000
 
             google_config = manager.get_provider_config("google")
             assert google_config["model"] == "gemini-pro"
@@ -338,13 +336,126 @@ class TestConfigurationIntegration:
         finally:
             os.unlink(yaml_file)
 
-    def test_configuration_performance(self):
-        """Test configuration loading performance."""
+    def test_unknown_provider_name_raises(self):
+        """A misspelled or removed provider name is rejected, not silently mapped."""
+        config_data = {"providers": {"openai": {"enabled": True}}}
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
+            tomli_w.dump(config_data, f)
+            config_file = f.name
+
+        try:
+            manager = ConfigManager(config_file)
+            with pytest.raises(
+                ConfigurationError, match="Unknown provider 'openai'"
+            ) as exc:
+                manager.load_configuration()
+            assert "agy" in str(exc.value)
+            assert "llama" in str(exc.value)
+        finally:
+            os.unlink(config_file)
+
+    @patch.dict(os.environ, {}, clear=True)
+    @pytest.mark.parametrize("ptype", ["agy", "gemini", "llama"])
+    def test_list_form_supported_provider_type_loads(self, tmp_path, ptype):
+        """List-form provider entries with a supported provider_type load."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {"name": ptype, "provider_type": ptype, "model_name": "m"}
+                    ]
+                }
+            )
+        )
+
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+
+        assert manager.config is not None
+        assert [p.name for p in manager.config.providers] == [ptype]
+
+    @patch.dict(os.environ, {}, clear=True)
+    @pytest.mark.parametrize("ptype", ["openai", "codex", "anthropic"])
+    def test_list_form_retired_provider_type_raises(self, tmp_path, ptype):
+        """List-form provider entries with a retired provider_type are rejected."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {"name": "x", "provider_type": ptype, "model_name": "m"}
+                    ]
+                }
+            )
+        )
+
+        manager = ConfigManager(str(config_file))
+        with pytest.raises(ConfigurationError, match="Unknown provider type"):
+            manager.load_configuration()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_failed_reload_preserves_state(self, tmp_path):
+        """A failed reload leaves file server data and encrypted keys untouched."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_bytes(
+            tomli_w.dumps(
+                {
+                    "server": {"host": "localhost", "port": 8000},
+                    "providers": {
+                        "google": {
+                            "enabled": True,
+                            "api_key": "AIzaSyOriginalKey12345678",
+                            "encrypt_keys": True,
+                        }
+                    },
+                }
+            ).encode()
+        )
+
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+        old_config = manager.config
+        old_server_data = dict(manager._file_server_data)
+        old_keys = dict(manager.key_manager._encrypted_keys)
+        assert old_server_data["port"] == 8000
+        assert old_keys
+
+        # New file changes server settings and the stored key, then names a retired provider
+        config_file.write_bytes(
+            tomli_w.dumps(
+                {
+                    "server": {"host": "localhost", "port": 9999},
+                    "providers": {
+                        "google": {
+                            "enabled": True,
+                            "api_key": "AIzaSyReplacementKey87654321",
+                            "encrypt_keys": True,
+                        },
+                        "openai": {"enabled": True},
+                    },
+                }
+            ).encode()
+        )
+
+        with pytest.raises(ConfigurationError, match="Unknown provider 'openai'"):
+            manager.reload_configuration()
+
+        assert manager.config is old_config
+        assert manager._file_server_data == old_server_data
+        assert manager.key_manager._encrypted_keys == old_keys
+        assert manager.get_server_config()["port"] == 8000
+
+    def test_configuration_load_performance(self):
+        """Test configuration loading performance (4 valid providers, repeated loads)."""
         import time
 
         config_data = {
             "server": {"host": "localhost", "port": 8000},
-            "providers": {f"provider_{i}": {"enabled": True} for i in range(100)},
+            "providers": {
+                name: {"enabled": True} for name in ["agy", "gemini", "google", "llama"]
+            },
         }
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
@@ -358,8 +469,16 @@ class TestConfigurationIntegration:
             manager.load_configuration()
             load_time = time.time() - start_time
 
-            # Should load quickly (under 1 second even with 100 providers)
+            # Should load quickly (under 1 second)
             assert load_time < 1.0
+
+            # Repeated loads stay fast (generous bound to avoid flakiness)
+            start_time = time.time()
+            for _ in range(50):
+                manager.load_configuration()
+            repeated_time = time.time() - start_time
+
+            assert repeated_time < 10.0
 
             # Cached access should be very fast
             start_time = time.time()

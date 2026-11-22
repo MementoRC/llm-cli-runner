@@ -30,7 +30,6 @@ class ProviderType(StrEnum):
     GEMINI = "gemini"
     AGY = "agy"
     OPENAI = "openai"
-    CODEX = "codex"
     LLAMA = "llama"
     ANTHROPIC = "anthropic"
 
@@ -274,7 +273,7 @@ class ProviderConfig(BaseModel):
 
     Attributes:
         name: Unique provider identifier
-        provider_type: Type of provider (gemini/openai/etc)
+        provider_type: Type of provider (agy/llama/etc)
         enabled: Whether provider is active
         api_key: Authentication key (optional)
         base_url: Custom endpoint URL (optional)
@@ -343,8 +342,8 @@ class ServerConfig(BaseModel):
 
     Example:
         >>> config = ServerConfig(
-        ...     providers=[gemini_config, openai_config],
-        ...     default_provider="gemini"
+        ...     providers=[agy_config, llama_config],
+        ...     default_provider="agy"
         ... )
 
     """
@@ -515,7 +514,7 @@ class ErrorInfo(BaseModel):
         ...     error_code="RATE_LIMIT_EXCEEDED",
         ...     error_message="API rate limit exceeded",
         ...     error_type="rate_limit",
-        ...     provider="openai"
+        ...     provider="agy"
         ... )
 
     """
@@ -558,7 +557,7 @@ class CostEstimate(BaseModel):
 
     Example:
         >>> estimate = CostEstimate(
-        ...     provider_name="openai",
+        ...     provider_name="agy",
         ...     estimated_tokens=1500,
         ...     cost_per_token=0.000002,
         ...     estimated_cost_usd=0.003,
@@ -631,7 +630,7 @@ class QuotaStatusInfo(BaseModel):
 
     Example:
         >>> quota = QuotaStatusInfo(
-        ...     provider_name="openai",
+        ...     provider_name="agy",
         ...     quota_type="requests",
         ...     current_usage=500,
         ...     quota_limit=1000,

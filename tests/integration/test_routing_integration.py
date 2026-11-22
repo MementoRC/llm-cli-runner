@@ -28,7 +28,7 @@ class TestRoutingIntegration:
         """Test that provider type enumeration exists and has expected values."""
         assert hasattr(ProviderType, "GEMINI")
         assert hasattr(ProviderType, "OPENAI")
-        assert hasattr(ProviderType, "CODEX")
+        assert not hasattr(ProviderType, "CODEX")
         assert hasattr(ProviderType, "LLAMA")
 
     def test_manager_has_expected_components(self):
