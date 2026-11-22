@@ -939,6 +939,9 @@ class ConfigManager:
         Raises:
             ConfigurationError: If configuration is invalid
         """
+        # Snapshot mutable state so a failed load leaves it untouched
+        prev_file_server_data = getattr(self, "_file_server_data", {})
+        prev_encrypted_keys = dict(self.key_manager._encrypted_keys)
         try:
             # Start with file configuration if available
             config_data = {}
@@ -1061,6 +1064,20 @@ class ConfigManager:
                     provider_list.append(provider_config)
                 config_data["providers"] = provider_list
 
+            elif isinstance(config_data.get("providers"), list):
+                supported_types = {"gemini", "agy", "llama"}
+                for entry in config_data["providers"]:
+                    if not isinstance(entry, dict):
+                        continue
+                    ptype = entry.get("provider_type")
+                    ptype_str = str(getattr(ptype, "value", ptype)) if ptype else ""
+                    if ptype_str and ptype_str not in supported_types:
+                        raise ConfigurationError(
+                            f"Unknown provider type '{ptype_str}' for provider "
+                            f"'{entry.get('name', '?')}'. "
+                            f"Valid providers: {', '.join(sorted(supported_types))}"
+                        )
+
             # Create default providers if none specified
             if "providers" not in config_data:
                 config_data["providers"] = self._create_default_providers()
@@ -1069,6 +1086,11 @@ class ConfigManager:
             return ServerConfig(**config_data)
 
         except Exception as e:
+            # Roll back partial state so callers never see a mixed configuration
+            self._file_server_data = prev_file_server_data
+            self.key_manager._encrypted_keys.clear()
+            self.key_manager._encrypted_keys.update(prev_encrypted_keys)
+
             # Check if it's our custom ValidationError
             from mcp_server_llm_cli_runner.utils.errors import (
                 ValidationError as CustomValidationError,
@@ -1330,8 +1352,7 @@ class ConfigManager:
         # Clear cached configuration
         if hasattr(self, "_cached_server_config"):
             delattr(self, "_cached_server_config")
-        if hasattr(self, "_file_server_data"):
-            delattr(self, "_file_server_data")
+        # _file_server_data is replaced by a successful load and preserved on failure
         self.load_configuration()
 
     # API Key Manager integration

@@ -27,6 +27,7 @@ from typing import Any
 
 from mcp_server_llm_cli_runner.core.errors import ProviderError
 from mcp_server_llm_cli_runner.core.models import (
+    PROVIDER_ALIASES,
     LLMRequest,
     ProviderType,
     resolve_provider_name,
@@ -526,7 +527,7 @@ class ProviderRouter:
                     error_code="INVALID_PROVIDER",
                     context={
                         "requested_provider": request.provider,
-                        "valid_providers": [p.value for p in ProviderType],
+                        "valid_providers": sorted({"agy", "llama", *PROVIDER_ALIASES}),
                     },
                 ) from None
             if self._is_provider_available(provider_type):

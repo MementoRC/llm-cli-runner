@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_server_llm_cli_runner.core.models import ProviderType
 from mcp_server_llm_cli_runner.utils.errors import ConfigurationError
 
 
@@ -53,32 +52,6 @@ class TestConfigManagerTDD:
         """Test ConfigBuilder creates valid configuration objects."""
         # Skip test since ConfigBuilder doesn't exist
         pytest.skip("ConfigBuilder class not implemented")
-        agy_config = (
-            ConfigBuilder()
-            .with_name("agy")
-            .with_provider_type(ProviderType.AGY)
-            .disabled()
-            .build()
-        )
-        llama_config = (
-            ConfigBuilder()
-            .with_name("llama")
-            .with_provider_type(ProviderType.LLAMA)
-            .build()
-        )
-
-        # Verify configs are valid objects (not mocks)
-        assert gemini_config.name == "gemini"
-        assert gemini_config.enabled is True
-        assert gemini_config.provider_type == ProviderType.GEMINI
-
-        assert agy_config.name == "agy"
-        assert agy_config.enabled is False
-        assert agy_config.provider_type == ProviderType.AGY
-
-        assert llama_config.name == "llama"
-        assert llama_config.enabled is True
-        assert llama_config.provider_type == ProviderType.LLAMA
 
     def test_default_config_structure(self):
         """Test default config has expected structure."""
@@ -99,29 +72,6 @@ class TestConfigManagerTDD:
         """Test ConfigBuilder reduces need for complex mocking."""
         # Skip test since ConfigBuilder doesn't exist
         pytest.skip("ConfigBuilder class not implemented")
-
-        # Verify all attributes work without mocking
-        assert config.name == "test_provider"
-        assert config.provider_type == ProviderType.GEMINI
-        assert config.enabled is True
-        assert isinstance(config.models, list)
-        assert config.api_key == "test-api-key"  # Default from builder
-
-        # Test builder chaining
-        complex_config = (
-            ConfigBuilder()
-            .with_name("complex")
-            .with_provider_type(ProviderType.OPENAI)
-            .with_models(["gpt-4", "gpt-3.5-turbo"])
-            .with_max_tokens(2000)
-            .disabled()
-            .build()
-        )
-
-        assert complex_config.name == "complex"
-        assert complex_config.enabled is False
-        assert complex_config.max_tokens == 2000
-        assert "gpt-4" in complex_config.models
 
 
 class TestEnvironmentLoaderTDD:

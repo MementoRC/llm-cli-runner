@@ -176,9 +176,9 @@ Solution:
 {
   "method": "tools/call",
   "params": {
-    "name": "gemini_generate",  // Required
+    "name": "llm_complete",  // Required
     "arguments": {
-      "prompt": "..."            // Required for most tools
+      "prompt": "..."         // Required
     }
   }
 }
