@@ -1,13 +1,13 @@
 # MCP Server LLM CLI Runner
 
-MCP server providing unified access to multiple LLM providers (agy, llama; see providers/) through a consistent interface.
+MCP server providing unified access to multiple LLM providers (agy, llama, claude; see providers/) through a consistent interface.
 
 ## Project Structure
 
 ```
 src/mcp_server_llm_cli_runner/
 ├── core/           # Core models and base classes
-├── providers/      # LLM provider implementations (agy, llama)
+├── providers/      # LLM provider implementations (agy, llama, claude)
 ├── lean_mcp_interface.py  # Lean FastMCP interface (entrypoint via __main__.py)
 ├── cache/          # Response caching backends
 └── utils/          # Configuration, logging, helpers
@@ -38,6 +38,7 @@ pixi run serve                    # Start MCP server
 ## Architecture Notes
 
 - Providers implement a common interface for LLM completions
+- `claude` (alias `anthropic`, `ProviderType.ANTHROPIC`) wraps the Claude Code CLI in isolated print mode using the user's subscription login (no API key). It is explicit-only: never auto-routed or used as a fallback
 - Configuration via `utils/config.py` with environment variable support
 - Structured logging via `utils/logging.py` with correlation IDs
 - MCP tools exposed via the lean FastMCP interface in `lean_mcp_interface.py` (`create_lean_interface`)

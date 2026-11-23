@@ -984,6 +984,8 @@ class ConfigManager:
                         "llama": "llama",
                         "gemini": "gemini",
                         "agy": "agy",
+                        "claude": "anthropic",  # CLI/OAuth, no API key
+                        "anthropic": "anthropic",
                     }
                     if name not in provider_type_map:
                         valid_names = ", ".join(sorted(provider_type_map))
@@ -993,15 +995,22 @@ class ConfigManager:
                         )
                     provider_config["provider_type"] = provider_type_map[name]
 
+                    # claude uses the CLI's own OAuth login: never read or store
+                    # an API key for it (ANTHROPIC_API_KEY must not leak in).
+                    is_cli_oauth = provider_type_map[name] == "anthropic"
+                    if is_cli_oauth:
+                        provider_config.pop("api_key", None)
+
                     # Environment API keys override file API keys
                     env_loader = EnvironmentLoader()
-                    env_api_key = env_loader.get_api_key(name)
+                    env_api_key = None if is_cli_oauth else env_loader.get_api_key(name)
                     if env_api_key:
                         provider_config["api_key"] = env_api_key
 
                     # Handle encrypted API keys
                     if (
-                        provider_config.get("encrypt_keys", False)
+                        not is_cli_oauth
+                        and provider_config.get("encrypt_keys", False)
                         and "api_key" in provider_config
                     ):
                         api_key = provider_config["api_key"]
@@ -1025,6 +1034,8 @@ class ConfigManager:
                             "llama": "llama-2-7b-chat",
                             "gemini": "gemini-pro",
                             "agy": "default",
+                            "claude": "sonnet",
+                            "anthropic": "sonnet",
                         }
                         provider_config["model_name"] = model_defaults.get(
                             name, "default-model"
@@ -1065,10 +1076,17 @@ class ConfigManager:
                 config_data["providers"] = provider_list
 
             elif isinstance(config_data.get("providers"), list):
-                supported_types = {"gemini", "agy", "llama"}
+                supported_types = {"gemini", "agy", "llama", "claude", "anthropic"}
                 for entry in config_data["providers"]:
                     if not isinstance(entry, dict):
                         continue
+                    # claude authenticates via the CLI's own OAuth login: never
+                    # keep an API key for it (also applies to list-form entries).
+                    if entry.get("name") in ("claude", "anthropic") or str(
+                        getattr(entry.get("provider_type"), "value", None)
+                        or entry.get("provider_type")
+                    ) in ("claude", "anthropic"):
+                        entry.pop("api_key", None)
                     ptype = entry.get("provider_type")
                     ptype_str = str(getattr(ptype, "value", ptype)) if ptype else ""
                     if ptype_str and ptype_str not in supported_types:
@@ -1083,7 +1101,13 @@ class ConfigManager:
                 config_data["providers"] = self._create_default_providers()
 
             # Validate and create configuration
-            return ServerConfig(**config_data)
+            server_config = ServerConfig(**config_data)
+            if (server_config.default_provider or "").strip().lower() in (
+                "claude",
+                "anthropic",
+            ):
+                logger.warning("claude is explicit-only; default ignored")
+            return server_config
 
         except Exception as e:
             # Roll back partial state so callers never see a mixed configuration
@@ -1212,6 +1236,18 @@ class ConfigManager:
                 "enabled": shutil.which(os.environ.get("AGY_CLI_PATH") or "agy")
                 is not None,
                 "model_name": "default",
+            }
+        )
+
+        # Claude (Claude Code CLI, subscription OAuth, no API key). Registered when
+        # the CLI is found, but never auto-routed: explicit provider="claude" only.
+        defaults.append(
+            {
+                "name": "claude",
+                "provider_type": "anthropic",
+                "enabled": shutil.which(os.environ.get("CLAUDE_CLI_PATH") or "claude")
+                is not None,
+                "model_name": "sonnet",
             }
         )
 

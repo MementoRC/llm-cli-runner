@@ -1,7 +1,7 @@
 """Lean MCP Interface for LLM CLI Runner - Dynamic Tool Discovery.
 
 This module implements the meta-tool pattern to reduce context consumption
-while exposing LLM CLI operations through multiple providers (agy, LLaMA).
+while exposing LLM CLI operations through multiple providers (agy, LLaMA, claude (explicit-only)).
 
 Meta-Tool Pattern:
 - Expose only 3 standard meta-tools with minimal definitions
@@ -109,6 +109,36 @@ class LeanMCPInterface:
             except Exception as e:
                 logger.warning(f"Failed to initialize agy provider: {e}")
 
+        if "claude" in enabled or "anthropic" in enabled:
+            try:
+                from mcp_server_llm_cli_runner.providers.claude import ClaudeProvider
+
+                claude_name = "claude" if "claude" in enabled else "anthropic"
+                if "claude" in enabled and "anthropic" in enabled:
+                    logger.warning(
+                        "Both 'claude' and 'anthropic' are enabled; they are the "
+                        "same provider. Using the 'claude' entry, ignoring 'anthropic'"
+                    )
+                claude_cfg = self.config_manager.get_provider_config(claude_name) or {}
+                claude_kwargs: dict[str, Any] = {
+                    "model": self._configured_model(claude_name) or None,
+                    "effort": claude_cfg.get("effort") or None,
+                    "cli_path": claude_cfg.get("cli_path") or None,
+                }
+                if claude_cfg.get("default_temperature") is not None:
+                    claude_kwargs["temperature"] = float(
+                        claude_cfg["default_temperature"]
+                    )
+                if claude_cfg.get("timeout_seconds"):
+                    claude_kwargs["timeout"] = int(claude_cfg["timeout_seconds"])
+                self.manager.registry.register_provider(ClaudeProvider)
+                self.manager.register_provider(
+                    "claude", ClaudeProvider(**claude_kwargs)
+                )
+                logger.info("Initialized and registered claude provider")
+            except Exception as e:
+                logger.warning(f"Failed to initialize claude provider: {e}")
+
         if "llama" in enabled:
             try:
                 from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
@@ -142,7 +172,7 @@ class LeanMCPInterface:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider to use (agy (alias gemini), llama). If omitted, prefers the configured default_provider and auto-routes if it is unavailable; a named provider fails with PROVIDER_UNAVAILABLE if it is unavailable (no fallback). 'gemini' is a deprecated alias for agy",
+                        "description": "Provider to use (agy (alias gemini), llama, claude (alias anthropic)). If omitted, prefers the configured default_provider and auto-routes if it is unavailable; a named provider fails with PROVIDER_UNAVAILABLE if it is unavailable (no fallback). 'gemini' is a deprecated alias for agy. 'claude' (Claude Code CLI, subscription login, billed to your Claude plan) is explicit-only: it is never auto-selected or used as a fallback",
                     },
                     "model": {
                         "type": "string",
@@ -179,7 +209,7 @@ class LeanMCPInterface:
         # List Providers Tool
         registry["list_providers"] = {
             "implementation": self._list_providers,
-            "description": "List available LLM providers and their status",
+            "description": "List available LLM providers and their status (claude is explicit-only: never auto-routed)",
             "domain": "provider",
             "complexity": "focused",
             "schema": {"type": "object", "properties": {}, "required": []},
@@ -197,12 +227,16 @@ class LeanMCPInterface:
                 "properties": {
                     "provider": {
                         "type": "string",
-                        "description": "Provider name (agy (alias gemini), llama). 'gemini' is a deprecated alias for agy",
+                        "description": "Provider name (agy (alias gemini), llama, claude (alias anthropic; explicit-only)). 'gemini' is a deprecated alias for agy",
                     }
                 },
                 "required": ["provider"],
             },
-            "examples": [{"provider": "agy"}, {"provider": "llama"}],
+            "examples": [
+                {"provider": "agy"},
+                {"provider": "llama"},
+                {"provider": "claude"},
+            ],
         }
 
         return registry

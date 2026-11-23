@@ -356,7 +356,7 @@ class TestConfigurationIntegration:
             os.unlink(config_file)
 
     @patch.dict(os.environ, {}, clear=True)
-    @pytest.mark.parametrize("ptype", ["agy", "gemini", "llama"])
+    @pytest.mark.parametrize("ptype", ["agy", "gemini", "llama", "claude", "anthropic"])
     def test_list_form_supported_provider_type_loads(self, tmp_path, ptype):
         """List-form provider entries with a supported provider_type load."""
         config_file = tmp_path / "config.json"
@@ -377,7 +377,7 @@ class TestConfigurationIntegration:
         assert [p.name for p in manager.config.providers] == [ptype]
 
     @patch.dict(os.environ, {}, clear=True)
-    @pytest.mark.parametrize("ptype", ["openai", "codex", "anthropic"])
+    @pytest.mark.parametrize("ptype", ["openai", "codex"])
     def test_list_form_retired_provider_type_raises(self, tmp_path, ptype):
         """List-form provider entries with a retired provider_type are rejected."""
         config_file = tmp_path / "config.json"

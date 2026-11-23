@@ -410,7 +410,10 @@ class ProviderRouter:
     availability, and cost optimization strategies.
     """
 
-    # Routing rules based on complexity score
+    # Routing rules based on complexity score.
+    # ProviderType.ANTHROPIC (claude) is deliberately absent from every rule and
+    # from the fallback lists: it bills the user's Claude plan, so it is only
+    # reachable through an explicit provider="claude"/"anthropic" request.
     ROUTING_RULES = {
         ComplexityLevel.SIMPLE: {
             "primary": [ProviderType.AGY],
@@ -486,6 +489,9 @@ class ProviderRouter:
                 extra={"preferred_provider": hint},
             )
             return None
+        if provider_type == ProviderType.ANTHROPIC:
+            self.logger.info("Ignoring claude as default: it is explicit-only")
+            return None
         if not self._is_provider_available(provider_type):
             self.logger.info(
                 "Preferred provider unavailable, using automatic routing",
@@ -527,7 +533,9 @@ class ProviderRouter:
                     error_code="INVALID_PROVIDER",
                     context={
                         "requested_provider": request.provider,
-                        "valid_providers": sorted({"agy", "llama", *PROVIDER_ALIASES}),
+                        "valid_providers": sorted(
+                            {"agy", "llama", "claude", "anthropic", *PROVIDER_ALIASES}
+                        ),
                     },
                 ) from None
             if self._is_provider_available(provider_type):
