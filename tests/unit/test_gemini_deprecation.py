@@ -70,6 +70,18 @@ def _interface(agy_available: bool = True, registered: bool = True):
         interface = LeanMCPInterface(config_manager)
     manager = interface.manager
     manager.route_request = AsyncMock(return_value=_response())
+
+    async def _probe(name: str):
+        from mcp_server_llm_cli_runner.core.models import ProviderStatus
+        from mcp_server_llm_cli_runner.providers.manager import ProviderHealthStatus
+
+        health = ProviderHealthStatus(name)
+        health.update_status(
+            ProviderStatus.HEALTHY if agy_available else ProviderStatus.UNAVAILABLE
+        )
+        return health
+
+    manager.health_monitor.probe = AsyncMock(side_effect=_probe)
     agy = MagicMock()
     agy.is_available = AsyncMock(return_value=agy_available)
     manager.get_provider.side_effect = lambda name: (
@@ -231,6 +243,7 @@ def _manager(agy_available: bool, llama_available: bool = True):
     manager.initialized = True
     manager.registry = registry
     manager.router = ProviderRouter(registry)
+    manager.health_monitor = MagicMock()
     manager.logger = MagicMock()
     manager.usage_metrics = {}
     manager.quota_trackers = {}
@@ -353,13 +366,12 @@ async def test_get_healthy_provider_gemini_returns_agy():
     assert await manager.get_healthy_provider("gemini") == "inst-agy"
 
 
-def test_list_providers_hides_gemini_and_lists_deprecation():
+async def test_list_providers_hides_gemini_and_lists_deprecation():
     interface = _interface()
-    interface.manager.health_monitor.get_all_health_statuses.return_value = {}
     interface.manager.registry.list_providers.return_value = ["gemini", "agy"]
     interface.config_manager.get_enabled_providers.return_value = ["gemini", "agy"]
 
-    result = interface._list_providers()
+    result = await interface._list_providers()
 
     assert result["providers"] == ["agy"]
     assert result["count"] == 1
@@ -370,7 +382,6 @@ def test_list_providers_hides_gemini_and_lists_deprecation():
 async def test_provider_info_gemini_returns_agy_info_flagged_deprecated():
     interface = _interface()
     interface.manager.get_provider_stats.return_value = {}
-    interface.manager.health_monitor.get_provider_health.return_value = None
 
     info = await interface._provider_info("gemini")
 
@@ -382,7 +393,6 @@ async def test_provider_info_gemini_returns_agy_info_flagged_deprecated():
 async def test_provider_info_agy_not_flagged():
     interface = _interface()
     interface.manager.get_provider_stats.return_value = {}
-    interface.manager.health_monitor.get_provider_health.return_value = None
 
     info = await interface._provider_info("agy")
 

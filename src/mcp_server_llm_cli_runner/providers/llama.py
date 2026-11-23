@@ -291,6 +291,21 @@ class LLaMAProvider(LLMProvider):
             ProviderCapabilities.ASYNC_GENERATION,
         }
 
+    async def probe_available(self) -> bool:
+        """Cheap availability probe for periodic health checks.
+
+        Unlike ``is_available()`` this never loads the model: it only checks
+        for llama-cpp, a configured model path and an accessible model file.
+        """
+        return bool(
+            LLAMA_CPP_AVAILABLE
+            and self.model_path
+            and (
+                self.model_manager.model_loaded
+                or self.model_manager.is_model_available()
+            )
+        )
+
     async def is_available(self) -> bool:
         """Check if the LLaMA provider is available."""
         if not LLAMA_CPP_AVAILABLE:
