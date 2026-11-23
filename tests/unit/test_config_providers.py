@@ -120,4 +120,5 @@ class TestAgyDefaultEnabled:
 
         monkeypatch.setattr("shutil.which", fake_which)
         assert self._agy_default()["enabled"] is True
-        assert seen == ["/opt/custom/agy"]
+        # other providers (e.g. claude) also probe their own binaries
+        assert [name for name in seen if "agy" in name] == ["/opt/custom/agy"]

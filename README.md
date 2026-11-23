@@ -4,6 +4,7 @@ A Model Context Protocol server providing access to multi-provider Large Languag
 
 ## 🚀 Features
 
+- **Claude provider (explicit-only)**: `claude` (alias `anthropic`) wraps the Claude Code CLI (`claude -p`) using your existing Claude subscription login (OAuth, no API key). It runs isolated (no hooks, CLAUDE.md, MCP servers or tools; empty temp cwd) and is billed to your Claude plan, so it is never auto-selected or used as a fallback; only `provider="claude"` reaches it. Set `CLAUDE_CLI_PATH` if `claude` is not on the service `PATH`; default model `sonnet`.
 - **Multiple Provider Support**: Antigravity CLI (`agy`, default) and local LLaMA models. The `gemini` provider is a deprecated alias for `agy` (see [Gemini deprecation](#gemini-deprecation))
 - **Cost-Effective**: Optimized for efficient LLM access
 - **MCP Protocol**: Full Model Context Protocol compliance

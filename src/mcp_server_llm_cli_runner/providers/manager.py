@@ -767,7 +767,9 @@ class ProviderManager:
             routing_decision = self.router.route_request(request)
 
             # Get the selected provider and make the actual request
-            provider_name = routing_decision.selected_provider.value
+            provider_name = resolve_provider_name(
+                routing_decision.selected_provider.value
+            )[0]
             request = self._drop_model_for_fallback(request, provider_name)
             provider = self.get_provider(provider_name)
 

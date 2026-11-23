@@ -8,6 +8,8 @@ info:
     This API provides MCP-compliant access to multiple LLM providers:
     - **agy** (Antigravity CLI, default). **Gemini** is a deprecated alias served by agy
     - **LLaMA**: Local inference with llama-cpp-python
+    - **claude** (alias **anthropic**): Claude Code CLI in isolated print mode using the
+      user's Claude subscription login. Explicit-only: never auto-selected or used as a fallback
 
     Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
 
@@ -17,7 +19,8 @@ info:
 
     ## Authentication
     No API keys are required. agy needs an installed, authenticated `agy` CLI
-    (`GEMINI_API_KEY` has no effect); LLaMA runs locally without authentication.
+    (`GEMINI_API_KEY` has no effect); claude uses the logged-in `claude` CLI (OAuth, no API key);
+    LLaMA runs locally without authentication.
 
   version: 0.1.0
   contact:
@@ -284,8 +287,8 @@ components:
           description: The prompt to send to the LLM
         provider:
           type: string
-          description: "Provider to use. 'gemini' is a deprecated alias for agy. If omitted, the configured default is used and auto-routing applies if it is unavailable."
-          enum: [agy, gemini, llama]
+          description: "Provider to use. 'gemini' is a deprecated alias for agy. If omitted, the configured default is used and auto-routing applies if it is unavailable. 'claude' (alias 'anthropic') is explicit-only and never auto-selected."
+          enum: [agy, gemini, llama, claude, anthropic]
         model:
           type: string
           description: Optional model name (provider-specific)
@@ -310,8 +313,8 @@ components:
       properties:
         provider:
           type: string
-          description: Provider name
-          enum: [agy, gemini, llama]
+          description: Provider name ('claude' / alias 'anthropic' is explicit-only)
+          enum: [agy, gemini, llama, claude, anthropic]
 
 x-mcp-tools:
   llm_complete:

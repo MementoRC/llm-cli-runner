@@ -128,7 +128,7 @@ The server implements the **Model Context Protocol (MCP)** using JSON-RPC 2.0 ov
 
 ## Available Tools
 
-The server registers three tools. Providers are `agy` (Antigravity CLI; `gemini` is a deprecated alias) and `llama`. Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
+The server registers three tools. Providers are `agy` (Antigravity CLI; `gemini` is a deprecated alias), `llama`, and `claude` (alias `anthropic`; Claude Code CLI via your subscription login, explicit-only: never auto-selected or used as a fallback). Codex is not a provider here; use the `codex` MCP server (`codex mcp-server`) directly.
 
 ### llm_complete
 
@@ -139,7 +139,7 @@ Execute an LLM completion with provider selection and optional streaming.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `prompt` | string | Yes | - | The prompt to send to the LLM |
-| `provider` | string | No | server default | `agy` (alias `gemini`) or `llama`. If omitted, the configured default is used and auto-routing applies if it is unavailable; a named provider fails with `PROVIDER_UNAVAILABLE` if unavailable |
+| `provider` | string | No | server default | `agy` (alias `gemini`), `llama`, or `claude` (alias `anthropic`, explicit-only). If omitted, the configured default is used and auto-routing applies if it is unavailable; a named provider fails with `PROVIDER_UNAVAILABLE` if unavailable |
 | `model` | string | No | provider default | Provider-specific model name |
 | `temperature` | number | No | 0.7 | Sampling temperature (0.0-2.0) |
 | `max_tokens` | integer | No | provider default | Maximum tokens to generate |
@@ -168,7 +168,7 @@ Get detailed information about one provider.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `provider` | string | Yes | `agy` (alias `gemini`) or `llama` |
+| `provider` | string | Yes | `agy` (alias `gemini`), `llama`, or `claude` (alias `anthropic`) |
 
 ## Error Handling
 

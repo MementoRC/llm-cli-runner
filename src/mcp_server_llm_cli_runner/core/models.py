@@ -33,8 +33,18 @@ class ProviderType(StrEnum):
     LLAMA = "llama"
     ANTHROPIC = "anthropic"
 
+    @classmethod
+    def _missing_(cls, value: object) -> "ProviderType | None":
+        """Accept "claude" (the provider name) for ProviderType.ANTHROPIC."""
+        if isinstance(value, str) and value.strip().lower() == "claude":
+            return cls.ANTHROPIC
+        return None
 
+
+# Deprecated aliases: resolving one warns and remaps models (see lean interface).
 PROVIDER_ALIASES: dict[str, str] = {"gemini": "agy"}
+# Plain synonyms of a canonical provider name; not deprecated, no warnings.
+PROVIDER_SYNONYMS: dict[str, str] = {"anthropic": "claude"}
 
 AGY_MODELS: tuple[str, ...] = (
     "gemini-3.8-flash-high",
@@ -47,12 +57,16 @@ AGY_MODELS: tuple[str, ...] = (
 
 
 def resolve_provider_name(name: str) -> tuple[str, bool]:
-    """Resolve a deprecated provider alias.
+    """Resolve a provider alias or synonym to its canonical name.
 
     Returns:
-        (resolved_name, was_aliased)
+        (resolved_name, was_aliased); was_aliased is True only for deprecated
+        aliases (gemini), never for plain synonyms (anthropic -> claude).
     """
     key = name.strip().lower() if isinstance(name, str) else name
+    synonym = PROVIDER_SYNONYMS.get(key)
+    if synonym is not None:
+        return synonym, False
     target = PROVIDER_ALIASES.get(key)
     if target is None:
         return name, False
