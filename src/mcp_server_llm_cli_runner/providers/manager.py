@@ -63,11 +63,22 @@ class ProviderHealthStatus:
         self.status = ProviderStatus.UNKNOWN
         self.last_check = None
         self.consecutive_failures = 0
+        # Probe counters (periodic health checks)
+        self.probe_count = 0
+        self.probe_failures = 0
+        self.last_probe_at: datetime | None = None
+        self.last_probe_ms: float | None = None
+        # Usage counters (real completions recorded by the request path only)
         self.total_requests = 0
         self.successful_requests = 0
         self.average_response_time = 0.0
         self.last_error: str | None = None
         self.uptime_start = datetime.now(UTC)
+
+    @property
+    def available(self) -> bool:
+        """Whether the last probe found the provider able to serve requests."""
+        return self.status == ProviderStatus.HEALTHY
 
     def update_status(
         self,
@@ -75,29 +86,29 @@ class ProviderHealthStatus:
         response_time: float | None = None,
         error: str | None = None,
     ) -> None:
-        """Update provider health status.
+        """Record the outcome of a health probe.
+
+        Probes never touch the usage counters (total_requests, success_rate).
 
         Args:
             status: New provider status
-            response_time: Response time in milliseconds
+            response_time: Probe duration in milliseconds
             error: Error message if status indicates failure
 
         """
-        self.last_check = datetime.now(UTC)
+        now = datetime.now(UTC)
+        self.last_check = now
+        self.last_probe_at = now
         previous_status = self.status
         self.status = status
-        self.total_requests += 1
+        self.probe_count += 1
 
         if status == ProviderStatus.HEALTHY:
-            self.successful_requests += 1
             self.consecutive_failures = 0
-            if response_time:
-                # Simple moving average update
-                self.average_response_time = (
-                    self.average_response_time * (self.successful_requests - 1)
-                    + response_time
-                ) / self.successful_requests
+            if response_time is not None:
+                self.last_probe_ms = response_time
         else:
+            self.probe_failures += 1
             self.consecutive_failures += 1
             if error:
                 self.last_error = error
@@ -108,6 +119,31 @@ class ProviderHealthStatus:
             and status == ProviderStatus.HEALTHY
         ):
             self.uptime_start = datetime.now(UTC)
+
+    def record_completion(
+        self,
+        success: bool,
+        response_time: float | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Record the outcome of a real completion request.
+
+        Args:
+            success: Whether the completion succeeded
+            response_time: Response time in milliseconds
+            error: Error message if the completion failed
+
+        """
+        self.total_requests += 1
+        if success:
+            self.successful_requests += 1
+            if response_time:
+                self.average_response_time = (
+                    self.average_response_time * (self.successful_requests - 1)
+                    + response_time
+                ) / self.successful_requests
+        elif error:
+            self.last_error = error
 
     def get_success_rate(self) -> float:
         """Calculate success rate percentage.
@@ -140,7 +176,13 @@ class ProviderHealthStatus:
             "provider_name": self.provider_name,
             "status": self.status.value,
             "last_check": self.last_check.isoformat() if self.last_check else None,
+            "available": self.available,
             "consecutive_failures": self.consecutive_failures,
+            "probe_count": self.probe_count,
+            "probe_failures": self.probe_failures,
+            "last_probe_at": (
+                self.last_probe_at.isoformat() if self.last_probe_at else None
+            ),
             "total_requests": self.total_requests,
             "successful_requests": self.successful_requests,
             "success_rate": self.get_success_rate(),
@@ -403,6 +445,8 @@ class QuotaTracker:
 class ProviderHealthMonitor:
     """Comprehensive health monitoring for all providers."""
 
+    PROBE_TIMEOUT = 10.0  # seconds allowed for one availability probe
+
     def __init__(self, registry: ProviderRegistry) -> None:
         """Initialize health monitor.
 
@@ -415,6 +459,8 @@ class ProviderHealthMonitor:
         self.logger = StructuredLogger(__name__)
         self.monitoring_task: asyncio.Task[None] | None = None
         self.check_interval = 30  # seconds
+        self._probe_seq = 0  # monotonically increasing probe start counter
+        self._applied_probe_seq: dict[str, int] = {}
 
     async def start_monitoring(self) -> None:
         """Start background health monitoring."""
@@ -459,6 +505,9 @@ class ProviderHealthMonitor:
 
         """
         start_time = time.time()
+        # Ordered by probe start: a slower, older probe must not overwrite the
+        # result of a newer probe that finished first.
+        seq = self._probe_seq = self._probe_seq + 1
 
         try:
             provider = self.registry.get_provider(provider_name)
@@ -467,48 +516,95 @@ class ProviderHealthMonitor:
                     provider_name,
                     ProviderStatus.UNAVAILABLE,
                     error="Provider not found",
+                    probe_seq=seq,
                 )
                 return
 
-            # Perform health check (this would call provider-specific health check)
-            health_ok = await self._perform_health_check(provider)
+            available = await self._perform_health_check(provider)
             response_time = (time.time() - start_time) * 1000  # Convert to ms
 
-            if health_ok:
+            if available:
                 self._update_provider_status(
                     provider_name,
                     ProviderStatus.HEALTHY,
                     response_time=response_time,
+                    probe_seq=seq,
                 )
             else:
                 self._update_provider_status(
                     provider_name,
-                    ProviderStatus.UNHEALTHY,
-                    error="Health check failed",
+                    ProviderStatus.UNAVAILABLE,
+                    error="Provider unavailable",
+                    probe_seq=seq,
                 )
 
         except Exception as e:
+            # A probe that raises or times out means the provider is unhealthy
             response_time = (time.time() - start_time) * 1000
             self._update_provider_status(
                 provider_name,
-                ProviderStatus.ERROR,
+                ProviderStatus.UNHEALTHY,
                 response_time=response_time,
-                error=str(e),
+                error=str(e) or type(e).__name__,
+                probe_seq=seq,
             )
 
     async def _perform_health_check(self, provider: LLMProvider) -> bool:
-        """Perform actual health check on provider.
+        """Probe the provider's real availability under a timeout.
+
+        Uses the provider's ``probe_available()`` (a cheap check that never
+        loads models) when it has one, else ``is_available()``. Never calls
+        ``generate()``. ``is_available()`` is preferred over ``health_check()``
+        because it also covers quota exhaustion, matching what callers see.
 
         Args:
             provider: Provider instance
 
         Returns:
-            True if healthy, False otherwise
+            True if available, False otherwise
+
+        Raises:
+            TimeoutError: If the probe exceeds ``PROBE_TIMEOUT``
+            Exception: Any error raised by the provider's check
 
         """
-        # This would implement provider-specific health checks
-        # For now, return True as placeholder
-        return True
+        probe = getattr(provider, "probe_available", None) or provider.is_available
+        return bool(await asyncio.wait_for(probe(), timeout=self.PROBE_TIMEOUT))
+
+    async def probe(self, provider_name: str) -> ProviderHealthStatus:
+        """Probe one provider now and return its updated health status.
+
+        Args:
+            provider_name: Name of provider to probe
+
+        Returns:
+            The provider's health status after the probe
+
+        """
+        await self._check_provider_health(provider_name)
+        return self.health_statuses[provider_name]
+
+    def record_completion(
+        self,
+        provider_name: str,
+        success: bool,
+        response_time: float | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Record a real completion outcome for a provider.
+
+        Args:
+            provider_name: Name of provider
+            success: Whether the completion succeeded
+            response_time: Response time in milliseconds
+            error: Error message if the completion failed
+
+        """
+        if provider_name not in self.health_statuses:
+            self.health_statuses[provider_name] = ProviderHealthStatus(provider_name)
+        self.health_statuses[provider_name].record_completion(
+            success, response_time, error
+        )
 
     def _update_provider_status(
         self,
@@ -516,6 +612,7 @@ class ProviderHealthMonitor:
         status: ProviderStatus,
         response_time: float | None = None,
         error: str | None = None,
+        probe_seq: int | None = None,
     ) -> None:
         """Update provider health status.
 
@@ -524,8 +621,15 @@ class ProviderHealthMonitor:
             status: New status
             response_time: Response time in milliseconds
             error: Error message if any
+            probe_seq: Probe start sequence; results older than one already
+                applied for this provider are discarded
 
         """
+        if probe_seq is not None:
+            if probe_seq < self._applied_probe_seq.get(provider_name, 0):
+                return
+            self._applied_probe_seq[provider_name] = probe_seq
+
         if provider_name not in self.health_statuses:
             self.health_statuses[provider_name] = ProviderHealthStatus(provider_name)
 
@@ -782,10 +886,21 @@ class ProviderManager:
                 )
 
             # Make the actual request to the provider
-            response = await provider.generate(request)
+            try:
+                response = await provider.generate(request)
+            except Exception as gen_error:
+                self._record_completion(provider_name, start_time, False, gen_error)
+                raise
 
             # Record metrics
             response_time = time.time() - start_time
+            succeeded = getattr(response, "success", True) is not False
+            self._record_completion(
+                provider_name,
+                start_time,
+                succeeded,
+                None if succeeded else self._response_error(response),
+            )
 
             if provider_name in self.usage_metrics:
                 token_count = getattr(response, "tokens_used", 0)
@@ -813,6 +928,29 @@ class ProviderManager:
                 error_code="ROUTING_FAILED",
                 context={"error": str(e)},
             ) from e
+
+    def _record_completion(
+        self,
+        provider_name: str,
+        start_time: float,
+        success: bool,
+        error: Exception | str | None = None,
+    ) -> None:
+        """Record a real completion outcome into the provider's health usage."""
+        self.health_monitor.record_completion(
+            resolve_provider_name(provider_name)[0],
+            success,
+            response_time=(time.time() - start_time) * 1000,
+            error=str(error) if error else None,
+        )
+
+    @staticmethod
+    def _response_error(response: Any) -> str:
+        """Error text for an unsuccessful response (never empty)."""
+        return (
+            getattr(response, "error_message", None)
+            or "Provider returned an unsuccessful response"
+        )
 
     def _drop_model_for_fallback(
         self, request: LLMRequest, selected: str
@@ -998,10 +1136,21 @@ class ProviderManager:
             )
 
             # Call the provider's generate method
-            result = await provider_instance.generate(llm_request)
+            try:
+                result = await provider_instance.generate(llm_request)
+            except Exception as gen_error:
+                self._record_completion(provider, start_time, False, gen_error)
+                raise
 
             # Record metrics if successful
             response_time = time.time() - start_time
+            succeeded = result.success is not False
+            self._record_completion(
+                provider,
+                start_time,
+                succeeded,
+                None if succeeded else self._response_error(result),
+            )
             if provider in self.usage_metrics:
                 token_count = result.tokens_used
                 cost = result.cost
