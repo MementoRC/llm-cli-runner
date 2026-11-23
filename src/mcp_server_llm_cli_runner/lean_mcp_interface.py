@@ -472,7 +472,11 @@ class LeanMCPInterface:
             configured = self.config_manager.get_enabled_providers()
 
             visible = [p for p in initialized if p != "gemini"]
-            status = {name: await self._probe_health(name) for name in visible}
+            # Probe concurrently; each probe is bounded by the monitor's
+            # PROBE_TIMEOUT and reports its own failure, so one slow or broken
+            # provider cannot delay or fail the rest.
+            results = await asyncio.gather(*(self._probe_health(n) for n in visible))
+            status = dict(zip(visible, results, strict=True))
             return {
                 "providers": visible,
                 "count": len(visible),

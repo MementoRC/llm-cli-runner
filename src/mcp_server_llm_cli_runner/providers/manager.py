@@ -459,6 +459,8 @@ class ProviderHealthMonitor:
         self.logger = StructuredLogger(__name__)
         self.monitoring_task: asyncio.Task[None] | None = None
         self.check_interval = 30  # seconds
+        self._probe_seq = 0  # monotonically increasing probe start counter
+        self._applied_probe_seq: dict[str, int] = {}
 
     async def start_monitoring(self) -> None:
         """Start background health monitoring."""
@@ -503,6 +505,9 @@ class ProviderHealthMonitor:
 
         """
         start_time = time.time()
+        # Ordered by probe start: a slower, older probe must not overwrite the
+        # result of a newer probe that finished first.
+        seq = self._probe_seq = self._probe_seq + 1
 
         try:
             provider = self.registry.get_provider(provider_name)
@@ -511,6 +516,7 @@ class ProviderHealthMonitor:
                     provider_name,
                     ProviderStatus.UNAVAILABLE,
                     error="Provider not found",
+                    probe_seq=seq,
                 )
                 return
 
@@ -522,12 +528,14 @@ class ProviderHealthMonitor:
                     provider_name,
                     ProviderStatus.HEALTHY,
                     response_time=response_time,
+                    probe_seq=seq,
                 )
             else:
                 self._update_provider_status(
                     provider_name,
                     ProviderStatus.UNAVAILABLE,
                     error="Provider unavailable",
+                    probe_seq=seq,
                 )
 
         except Exception as e:
@@ -538,6 +546,7 @@ class ProviderHealthMonitor:
                 ProviderStatus.UNHEALTHY,
                 response_time=response_time,
                 error=str(e) or type(e).__name__,
+                probe_seq=seq,
             )
 
     async def _perform_health_check(self, provider: LLMProvider) -> bool:
@@ -603,6 +612,7 @@ class ProviderHealthMonitor:
         status: ProviderStatus,
         response_time: float | None = None,
         error: str | None = None,
+        probe_seq: int | None = None,
     ) -> None:
         """Update provider health status.
 
@@ -611,8 +621,15 @@ class ProviderHealthMonitor:
             status: New status
             response_time: Response time in milliseconds
             error: Error message if any
+            probe_seq: Probe start sequence; results older than one already
+                applied for this provider are discarded
 
         """
+        if probe_seq is not None:
+            if probe_seq < self._applied_probe_seq.get(provider_name, 0):
+                return
+            self._applied_probe_seq[provider_name] = probe_seq
+
         if provider_name not in self.health_statuses:
             self.health_statuses[provider_name] = ProviderHealthStatus(provider_name)
 
@@ -877,10 +894,12 @@ class ProviderManager:
 
             # Record metrics
             response_time = time.time() - start_time
+            succeeded = getattr(response, "success", True) is not False
             self._record_completion(
                 provider_name,
                 start_time,
-                getattr(response, "success", True) is not False,
+                succeeded,
+                None if succeeded else self._response_error(response),
             )
 
             if provider_name in self.usage_metrics:
@@ -915,7 +934,7 @@ class ProviderManager:
         provider_name: str,
         start_time: float,
         success: bool,
-        error: Exception | None = None,
+        error: Exception | str | None = None,
     ) -> None:
         """Record a real completion outcome into the provider's health usage."""
         self.health_monitor.record_completion(
@@ -923,6 +942,14 @@ class ProviderManager:
             success,
             response_time=(time.time() - start_time) * 1000,
             error=str(error) if error else None,
+        )
+
+    @staticmethod
+    def _response_error(response: Any) -> str:
+        """Error text for an unsuccessful response (never empty)."""
+        return (
+            getattr(response, "error_message", None)
+            or "Provider returned an unsuccessful response"
         )
 
     def _drop_model_for_fallback(
@@ -1117,7 +1144,13 @@ class ProviderManager:
 
             # Record metrics if successful
             response_time = time.time() - start_time
-            self._record_completion(provider, start_time, result.success is not False)
+            succeeded = result.success is not False
+            self._record_completion(
+                provider,
+                start_time,
+                succeeded,
+                None if succeeded else self._response_error(result),
+            )
             if provider in self.usage_metrics:
                 token_count = result.tokens_used
                 cost = result.cost

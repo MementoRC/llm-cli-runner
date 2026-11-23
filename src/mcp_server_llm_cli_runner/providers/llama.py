@@ -84,7 +84,11 @@ class LLaMAModelManager:
 
         try:
             model_file = Path(self.model_path)
-            return model_file.exists() and model_file.is_file()
+            return (
+                model_file.exists()
+                and model_file.is_file()
+                and os.access(model_file, os.R_OK)
+            )
         except (OSError, ValueError):
             return False
 

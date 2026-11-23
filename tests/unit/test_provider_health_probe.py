@@ -169,6 +169,99 @@ async def test_llama_probe_does_not_load_model(tmp_path):
     assert status.status == ProviderStatus.HEALTHY
 
 
+async def test_unsuccessful_response_records_error_message():
+    manager = _manager(agy=_Stub())
+    stub = manager.get_provider("agy")
+    stub.generate.return_value = SimpleNamespace(
+        success=False,
+        tokens_used=0,
+        cost=0.0,
+        content="",
+        provider="agy",
+        model="m",
+        response_time_ms=1,
+        error_message="quota exceeded",
+        metadata={},
+    )
+
+    await manager.generate("hi", provider="agy")
+
+    health = manager.health_monitor.get_provider_health("agy")
+    assert health.total_requests == 1
+    assert health.successful_requests == 0
+    assert health.last_error == "quota exceeded"
+
+
+async def test_unsuccessful_route_response_records_error_message():
+    stub = _Stub()
+    stub.generate.return_value = SimpleNamespace(
+        success=False, tokens_used=0, cost=0.0, error_message="bad output"
+    )
+    manager = _manager(agy=stub)
+    manager.initialized = True
+    manager.router = MagicMock()
+    manager.router.route_request.return_value = SimpleNamespace(
+        selected_provider=SimpleNamespace(value="agy")
+    )
+
+    await manager.route_request(LLMRequest(prompt="hi", provider="agy"))
+
+    health = manager.health_monitor.get_provider_health("agy")
+    assert health.last_error == "bad output"
+
+
+async def test_older_probe_finishing_late_does_not_overwrite_newer():
+    class _Ordered(_Stub):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        async def is_available(self) -> bool:
+            self.calls += 1
+            if self.calls == 1:  # older probe: slow, reports unavailable
+                await asyncio.sleep(0.1)
+                return False
+            return True  # newer probe: fast, reports available
+
+    manager = _manager(agy=_Ordered())
+    monitor = manager.health_monitor
+
+    await asyncio.gather(monitor.probe("agy"), monitor.probe("agy"))
+
+    assert monitor.get_provider_health("agy").status == ProviderStatus.HEALTHY
+
+
+async def test_list_providers_probes_concurrently():
+    class _Slow(_Stub):
+        async def is_available(self) -> bool:
+            await asyncio.sleep(0.2)
+            return True
+
+    interface = _interface(_manager(agy=_Slow(), llama=_Slow(), claude=_Slow()))
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    result = await interface._list_providers()
+    elapsed = loop.time() - started
+
+    assert set(result["health_status"]) == {"agy", "llama", "claude"}
+    assert elapsed < 0.5  # sequential probing would take >= 0.6s
+
+
+async def test_llama_model_unreadable_is_not_available(tmp_path):
+    import os
+
+    from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
+
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"x")
+    provider = LLaMAProvider(model_path=str(model_file))
+
+    with patch.object(os, "access", return_value=False):
+        assert provider.model_manager.is_model_available() is False
+    assert provider.model_manager.is_model_available() is True
+
+
 async def test_llama_probe_unavailable_when_model_missing(tmp_path):
     from mcp_server_llm_cli_runner.providers import llama as llama_mod
     from mcp_server_llm_cli_runner.providers.llama import LLaMAProvider
