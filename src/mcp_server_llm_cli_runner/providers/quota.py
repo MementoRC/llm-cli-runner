@@ -56,6 +56,11 @@ class QuotaManager:
             if amount is not None:
                 self.requests_today = max(0, self.requests_today - amount)
 
+    def commit(self, token: int) -> None:
+        """Finalize a successful reservation: keep its usage, drop the bookkeeping."""
+        with self._lock:
+            self._outstanding.pop(token, None)
+
     def consume_quota(self, amount: int = 1) -> bool:
         """Consume quota and return True if successful."""
         return self.reserve(amount) is not None

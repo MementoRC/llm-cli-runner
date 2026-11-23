@@ -114,10 +114,26 @@ class LeanMCPInterface:
                 from mcp_server_llm_cli_runner.providers.claude import ClaudeProvider
 
                 claude_name = "claude" if "claude" in enabled else "anthropic"
-                claude_model = self._configured_model(claude_name)
+                if "claude" in enabled and "anthropic" in enabled:
+                    logger.warning(
+                        "Both 'claude' and 'anthropic' are enabled; they are the "
+                        "same provider. Using the 'claude' entry, ignoring 'anthropic'"
+                    )
+                claude_cfg = self.config_manager.get_provider_config(claude_name) or {}
+                claude_kwargs: dict[str, Any] = {
+                    "model": self._configured_model(claude_name) or None,
+                    "effort": claude_cfg.get("effort") or None,
+                    "cli_path": claude_cfg.get("cli_path") or None,
+                }
+                if claude_cfg.get("default_temperature") is not None:
+                    claude_kwargs["temperature"] = float(
+                        claude_cfg["default_temperature"]
+                    )
+                if claude_cfg.get("timeout_seconds"):
+                    claude_kwargs["timeout"] = int(claude_cfg["timeout_seconds"])
                 self.manager.registry.register_provider(ClaudeProvider)
                 self.manager.register_provider(
-                    "claude", ClaudeProvider(model=claude_model)
+                    "claude", ClaudeProvider(**claude_kwargs)
                 )
                 logger.info("Initialized and registered claude provider")
             except Exception as e:

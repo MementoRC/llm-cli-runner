@@ -281,9 +281,14 @@ class TestExecution:
         provider = ClaudeProvider(max_retries=3)
         process = _process(stdout=payload, returncode=1)
         with patch("asyncio.create_subprocess_exec", return_value=process) as mock_exec:
-            with pytest.raises(ProviderError, match="authentication"):
+            with pytest.raises(ProviderError, match="authentication") as exc:
                 await provider.generate(LLMRequest(prompt="hi"))
+        # generate() wraps non-ProviderError exceptions; the classification
+        # must still be a ConfigurationError underneath.
+        assert isinstance(exc.value.__cause__, ConfigurationError)
         assert mock_exec.call_count == 1
+        with pytest.raises(ConfigurationError, match="authentication"):
+            ClaudeProvider._raise_for_error("Not logged in")
 
     @pytest.mark.asyncio
     async def test_rate_limit_maps_to_rate_limit_error(self):
@@ -454,14 +459,80 @@ class TestTimeoutAndCancellation:
         assert mock_exec.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_transient_overloaded_error_retries(self):
+    async def test_cli_reported_overloaded_error_not_retried(self):
+        # The request may already have been accepted/billed: never resubmit.
         bad = json.dumps({"is_error": True, "result": "API Error: 529 overloaded"})
         procs = [_process(stdout=bad, returncode=1), _process(stdout=SUCCESS_JSON)]
         provider = ClaudeProvider(max_retries=3, retry_delay=0)
         with patch("asyncio.create_subprocess_exec", side_effect=procs) as mock_exec:
-            response = await provider.generate(LLMRequest(prompt="hi"))
-        assert response.content == "OK"
-        assert mock_exec.call_count == 2
+            with pytest.raises(ProviderError, match="overloaded"):
+                await provider.generate(LLMRequest(prompt="hi"))
+        assert mock_exec.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_cancel_during_spawn_kills_late_child(self):
+        process = _process()
+        gate = asyncio.Event()
+
+        async def slow_spawn(*_args, **_kwargs):
+            await gate.wait()
+            return process
+
+        provider = ClaudeProvider(daily_quota=5)
+        with patch("asyncio.create_subprocess_exec", side_effect=slow_spawn):
+            task = asyncio.create_task(provider.generate(LLMRequest(prompt="hi")))
+            await asyncio.sleep(0.05)
+            task.cancel()
+            await asyncio.sleep(0.05)
+            gate.set()  # the OS "started" the child after cancellation
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        process.kill.assert_called()
+        process.wait.assert_awaited()
+        assert provider.quota_manager.get_current_usage() == 0
+
+    @pytest.mark.asyncio
+    async def test_success_commits_quota_and_updates_usage(self):
+        provider = ClaudeProvider(daily_quota=5)
+        await _run(provider, LLMRequest(prompt="hi"), _process(stdout=SUCCESS_JSON))
+        assert provider.quota_manager.get_current_usage() == 1
+        assert provider.quota_manager._outstanding == {}
+        stats = (await provider.get_usage()).model_copy()
+        assert stats.total_requests == 1
+        assert stats.successful_requests == 1
+        assert stats.total_tokens == 15
+        provider.get_usage_stats()
+        assert provider._usage_stats.total_requests == 1  # reads do not inflate
+
+    @pytest.mark.asyncio
+    async def test_explicit_zero_temperature_preserved(self):
+        provider = ClaudeProvider()
+        response, _ = await _run(
+            provider,
+            LLMRequest(prompt="hi", temperature=0.0),
+            _process(stdout=SUCCESS_JSON),
+        )
+        assert response.metadata["temperature"] == 0.0
+        assert response.metadata["sampling_params_enforced"] is False
+
+    def test_streaming_not_advertised(self):
+        from mcp_server_llm_cli_runner.providers.base import ProviderCapabilities
+
+        assert ProviderCapabilities.STREAMING not in ClaudeProvider().capabilities
+
+    def test_child_env_strips_anthropic_and_session_vars(self, monkeypatch):
+        for key in (
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_BASE_URL",
+            "CLAUDECODE",
+            "CLAUDE_CODE_ENTRYPOINT",
+        ):
+            monkeypatch.setenv(key, "x")
+        env = ClaudeProvider._child_env()
+        assert "PATH" in env
+        assert not [k for k in env if k.startswith(("ANTHROPIC_", "CLAUDE_CODE_"))]
+        assert "CLAUDECODE" not in env
 
     @pytest.mark.asyncio
     async def test_spawn_failure_retries(self):
@@ -522,8 +593,9 @@ class TestHealth:
         with patch(
             "asyncio.create_subprocess_exec",
             return_value=_process(stdout="2.1.323 (Claude Code)\n"),
-        ):
+        ) as mock_exec:
             result = await provider.health_check()
+        assert mock_exec.call_args.args == (provider._cli_binary(), "--version")
         assert result["status"] == "healthy"
         assert result["version"].startswith("2.1.323")
 
@@ -543,8 +615,9 @@ class TestHealth:
         provider = ClaudeProvider()
         with patch(
             "asyncio.create_subprocess_exec", return_value=_process(returncode=0)
-        ):
+        ) as mock_exec:
             assert await provider.is_available() is True
+        assert mock_exec.call_args.args == (provider._cli_binary(), "--version")
 
         hung = _process()
 
@@ -600,6 +673,36 @@ class TestNamingAndConfig:
         config_file.write_text(
             json.dumps({"providers": [{"name": "claude", "provider_type": ptype}]})
         )
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+        assert manager.get_provider_config("claude") is not None
+
+    def test_list_form_config_drops_api_key(self, tmp_path):
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
+
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {
+                            "name": "claude",
+                            "provider_type": "claude",
+                            "api_key": "sk-ant-api03-" + "x" * 40,
+                        }
+                    ]
+                }
+            )
+        )
+        manager = ConfigManager(str(config_file))
+        manager.load_configuration()
+        assert manager.get_provider_config("claude")["api_key"] is None
+
+    def test_config_without_default_provider_loads(self, tmp_path):
+        from mcp_server_llm_cli_runner.utils.config import ConfigManager
+
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"providers": {"claude": {}}}))
         manager = ConfigManager(str(config_file))
         manager.load_configuration()
         assert manager.get_provider_config("claude") is not None

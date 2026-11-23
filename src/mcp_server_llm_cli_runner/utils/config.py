@@ -1080,6 +1080,13 @@ class ConfigManager:
                 for entry in config_data["providers"]:
                     if not isinstance(entry, dict):
                         continue
+                    # claude authenticates via the CLI's own OAuth login: never
+                    # keep an API key for it (also applies to list-form entries).
+                    if entry.get("name") in ("claude", "anthropic") or str(
+                        getattr(entry.get("provider_type"), "value", None)
+                        or entry.get("provider_type")
+                    ) in ("claude", "anthropic"):
+                        entry.pop("api_key", None)
                     ptype = entry.get("provider_type")
                     ptype_str = str(getattr(ptype, "value", ptype)) if ptype else ""
                     if ptype_str and ptype_str not in supported_types:
@@ -1095,7 +1102,7 @@ class ConfigManager:
 
             # Validate and create configuration
             server_config = ServerConfig(**config_data)
-            if server_config.default_provider.strip().lower() in (
+            if (server_config.default_provider or "").strip().lower() in (
                 "claude",
                 "anthropic",
             ):

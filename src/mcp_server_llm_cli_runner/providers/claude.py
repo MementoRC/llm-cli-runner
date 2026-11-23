@@ -70,23 +70,14 @@ _AUTH_MARKERS = (
 )
 _RATE_LIMIT_MARKERS = ("rate limit", "usage limit", "limit reached", "quota", "429")
 _MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:\[\]-]*")
-_TRANSIENT_MARKERS = (
-    "overloaded",
-    "internal server error",
-    "bad gateway",
-    "service unavailable",
-    "gateway timeout",
-    "api error: 5",
-    "529",
-    "500",
-    "502",
-    "503",
-    "504",
-)
 
 
 class _TransientError(ProviderError):
-    """A clearly transient failure that is safe to retry (spawn failure, 5xx)."""
+    """A failure to spawn the process: nothing reached Claude, so it is safe to retry.
+
+    Failures reported by the CLI itself (including overloaded/5xx text) are NOT
+    retried: the request may already have been accepted and billed.
+    """
 
 
 class ClaudeProvider(LLMProvider):
@@ -104,6 +95,8 @@ class ClaudeProvider(LLMProvider):
         max_retries: int = 3,
         retry_delay: float = 1.0,
         daily_quota: int | None = None,
+        cli_path: str | None = None,
+        timeout: int | None = None,
     ) -> None:
         """Initialize Claude provider.
 
@@ -140,22 +133,21 @@ class ClaudeProvider(LLMProvider):
         super().__init__(config)
         self.name = "claude"
 
-        self.capabilities = {
-            ProviderCapabilities.STREAMING,
-            ProviderCapabilities.ASYNC_GENERATION,
-        }
+        # No STREAMING: the CLI is run to completion (stream_generate returns
+        # one final chunk), so incremental output is not advertised.
+        self.capabilities = {ProviderCapabilities.ASYNC_GENERATION}
 
         self.model = model
         self.temperature = temperature
         self.effort = effort
         self.max_tokens = 4096
-        self._cli_path: str | None = specific.get("cli_path") or None
+        self._cli_path: str | None = cli_path or specific.get("cli_path") or None
 
         self._usage_stats = UsageStats(provider_name="claude")
         self.cache_metrics = CacheMetrics()
         self.metrics = SimpleMetrics()
 
-        self.timeout = config.timeout if config else 120
+        self.timeout = timeout or (config.timeout if config else 120)
         self.retry_attempts = max_retries
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -192,11 +184,18 @@ class ClaudeProvider(LLMProvider):
 
     @staticmethod
     def _child_env() -> dict[str, str]:
-        """Copy the environment minus Claude-session markers (keeps HOME/PATH)."""
+        """Copy the environment minus Claude-session markers and API credentials.
+
+        ANTHROPIC_* (API key, auth token, base URL, ...) is stripped so the CLI
+        cannot silently switch from the subscription login to metered API
+        billing or a different endpoint. HOME/PATH are kept.
+        """
         return {
             key: value
             for key, value in os.environ.items()
-            if key != _NESTED_ENV_EXACT and not key.startswith(_NESTED_ENV_PREFIX)
+            if key != _NESTED_ENV_EXACT
+            and not key.startswith(_NESTED_ENV_PREFIX)
+            and not key.startswith("ANTHROPIC_")
         }
 
     @property
@@ -275,7 +274,13 @@ class ClaudeProvider(LLMProvider):
             self._validate_request(request)
 
             model = request.model or self.model
-            temperature = request.temperature or self.temperature
+            # NOTE: the claude CLI has no temperature or max-tokens flag, so
+            # these are validated and reported in metadata but NOT enforced.
+            temperature = (
+                request.temperature
+                if request.temperature is not None
+                else self.temperature
+            )
             max_tokens = min(request.max_tokens or self.max_tokens, self.max_tokens)
 
             cmd = self._build_command(model=model, system_prompt=request.system_prompt)
@@ -289,6 +294,7 @@ class ClaudeProvider(LLMProvider):
             except BaseException:
                 self.quota_manager.release(token)
                 raise
+            self.quota_manager.commit(token)
 
             response_time = time.time() - start_time
             response_content = result["response"]
@@ -306,6 +312,7 @@ class ClaudeProvider(LLMProvider):
                 token_count=tokens_used,
                 cost=cost,
             )
+            self._record_usage(True, response_time, tokens_used, cost)
 
             response = LLMResponse(
                 content=response_content,
@@ -319,6 +326,7 @@ class ClaudeProvider(LLMProvider):
                     "model": model,
                     "temperature": temperature,
                     "max_tokens": max_tokens,
+                    "sampling_params_enforced": False,
                     "session_id": result.get("session_id"),
                     "total_cost_usd": result.get("total_cost_usd"),
                     "usage": actual_tokens
@@ -348,6 +356,7 @@ class ClaudeProvider(LLMProvider):
                 cost=0.0,
                 error=str(e),
             )
+            self._record_usage(False, time.time() - start_time, 0, 0.0)
             logger.error(f"claude generation failed: {e}", error=e, model=request.model)
             raise
         except Exception as e:
@@ -357,6 +366,7 @@ class ClaudeProvider(LLMProvider):
                 cost=0.0,
                 error=str(e),
             )
+            self._record_usage(False, time.time() - start_time, 0, 0.0)
             error_msg = f"claude generation failed: {e}"
             logger.exception(error_msg, error=e, model=request.model)
             raise ProviderError(error_msg, provider=self.name) from e
@@ -413,9 +423,25 @@ class ClaudeProvider(LLMProvider):
             "average_response_time_ms": self._usage_stats.average_response_time,
             "last_request_time": self._usage_stats.last_updated,
         }
-        self._usage_stats.total_requests += 1
-        self._usage_stats.last_updated = datetime.now()
         return provider_stats
+
+    def _record_usage(
+        self, success: bool, response_time: float, tokens: int, cost: float
+    ) -> None:
+        """Update the aggregate usage statistics for one finished request."""
+        stats = self._usage_stats
+        previous = stats.total_requests
+        stats.total_requests = previous + 1
+        if success:
+            stats.successful_requests += 1
+        else:
+            stats.failed_requests += 1
+        stats.total_tokens += tokens
+        stats.total_cost += cost
+        stats.average_response_time = (
+            stats.average_response_time * previous + response_time * 1000
+        ) / stats.total_requests
+        stats.last_updated = datetime.now()
 
     def _validate_request(self, request: LLMRequest) -> None:
         """Validate LLM request parameters."""
@@ -540,6 +566,32 @@ class ClaudeProvider(LLMProvider):
             result["total_cost_usd"] = payload["total_cost_usd"]
         return result
 
+    async def _spawn(self, cmd: list[str], workdir: str) -> asyncio.subprocess.Process:
+        """Start the child; a child started while cancelled is killed and reaped."""
+        spawn = asyncio.ensure_future(
+            asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=workdir,
+                env=self._child_env(),
+            )
+        )
+        try:
+            return await asyncio.shield(spawn)
+        except asyncio.CancelledError:
+            # The spawn task keeps running (shielded); wait for it so a child
+            # the OS already started is obtained, killed and reaped.
+            while not spawn.done():
+                try:
+                    await asyncio.wait({spawn})
+                except asyncio.CancelledError:
+                    continue
+            if not spawn.cancelled() and spawn.exception() is None:
+                await self._kill_process(spawn.result())
+            raise
+
     async def _run_once(self, cmd: list[str], prompt: str) -> dict[str, Any]:
         """Run one isolated CLI invocation and return the normalized result.
 
@@ -550,14 +602,7 @@ class ClaudeProvider(LLMProvider):
         process: asyncio.subprocess.Process | None = None
         with tempfile.TemporaryDirectory(prefix="llm-cli-runner-claude-") as workdir:
             try:
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=workdir,
-                    env=self._child_env(),
-                )
+                process = await self._spawn(cmd, workdir)
                 stdout, stderr = await self._communicate(
                     process, input_data=prompt.encode("utf-8")
                 )
@@ -588,12 +633,7 @@ class ClaudeProvider(LLMProvider):
                 or f"exit code {process.returncode}"
             )
             self._raise_for_error(error_msg)
-            error_cls = (
-                _TransientError
-                if any(m in error_msg.lower() for m in _TRANSIENT_MARKERS)
-                else ProviderError
-            )
-            raise error_cls(f"claude CLI error: {error_msg}", provider="claude")
+            raise ProviderError(f"claude CLI error: {error_msg}", provider="claude")
 
         if payload is None:
             raise ProviderError(
