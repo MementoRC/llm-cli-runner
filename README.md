@@ -42,7 +42,9 @@ Set up environment variables for your chosen providers:
 # For agy (Antigravity CLI): install the `agy` binary, or point to it
 export AGY_CLI_PATH="/path/to/agy"   # optional if `agy` is on PATH
 
-# LLaMA runs locally (no API key needed)
+# LLaMA runs locally (no API key needed); llama-cpp-python comes from conda-forge via pixi
+export LLAMA_MODEL_PATH="/path/to/model.gguf"
+# verify the native library loads: pixi run check-llama
 ```
 
 ## 🧪 Testing

@@ -28,6 +28,10 @@ pixi run -e quality pyright src/  # Type checking
 pixi run serve                    # Start MCP server
 ```
 
+## Llama Setup
+
+`llama-cpp-python` comes from conda-forge (pixi default feature; no PyPI build). Set `LLAMA_MODEL_PATH` to a GGUF file and verify with `pixi run check-llama`.
+
 ## Quality Standards
 
 - **Linting**: Ruff with critical rules (F, E9) as blocking

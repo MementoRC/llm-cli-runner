@@ -269,7 +269,15 @@ class TestLLaMAProvider:
             provider.is_available = AsyncMock(return_value=True)
 
             mock_response = {
-                "choices": [{"text": "Generated response", "finish_reason": "stop"}],
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "Generated response",
+                        },
+                        "finish_reason": "stop",
+                    },
+                ],
                 "usage": {
                     "prompt_tokens": 10,
                     "completion_tokens": 20,
@@ -429,7 +437,12 @@ class TestLLaMAProviderIntegration:
 
         # Mock successful responses
         mock_response = {
-            "choices": [{"text": "Response", "finish_reason": "stop"}],
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                },
+            ],
             "usage": {"prompt_tokens": 5, "completion_tokens": 10, "total_tokens": 15},
         }
         provider._generate_sync = Mock(return_value=mock_response)
@@ -451,3 +464,243 @@ class TestLLaMAProviderIntegration:
         # Verify statistics updated correctly
         assert provider.request_count == 5
         assert provider.total_tokens == 75  # 5 requests * 15 tokens each
+
+
+class TestLLaMAProviderSerialization:
+    """Inference lock and streaming chunk format (llama_cpp mocked)."""
+
+    @staticmethod
+    def _provider(model: MagicMock) -> LLaMAProvider:
+        provider = LLaMAProvider()
+        provider.is_available = AsyncMock(return_value=True)
+        provider.model_manager.model = model
+        return provider
+
+    async def test_concurrent_generate_never_overlaps(self):
+        """Two concurrent generate calls never overlap inside the model call."""
+        import threading
+        import time
+
+        state = {"active": 0, "max_active": 0}
+        guard = threading.Lock()
+
+        def fake_model(**_params):
+            with guard:
+                state["active"] += 1
+                state["max_active"] = max(state["max_active"], state["active"])
+            time.sleep(0.05)
+            with guard:
+                state["active"] -= 1
+            return {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": "ok"},
+                        "finish_reason": "stop",
+                    },
+                ],
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "total_tokens": 2,
+                },
+            }
+
+        model = MagicMock()
+        model.create_chat_completion.side_effect = fake_model
+        provider = self._provider(model)
+        await asyncio.gather(
+            provider.generate(LLMRequest(prompt="a")),
+            provider.generate(LLMRequest(prompt="b")),
+        )
+
+        assert state["max_active"] == 1
+
+    async def test_generate_uses_chat_completion_with_user_message(self):
+        """Non-streaming uses create_chat_completion and returns message content."""
+        model = MagicMock()
+        model.create_chat_completion.return_value = {
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": "ERROR"},
+                    "finish_reason": "stop",
+                },
+            ],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+        }
+        provider = self._provider(model)
+
+        response = await provider.generate(LLMRequest(prompt="classify"))
+
+        assert response.content == "ERROR"
+        model.assert_not_called()
+        kwargs = model.create_chat_completion.call_args.kwargs
+        assert kwargs["messages"] == [{"role": "user", "content": "classify"}]
+        assert "prompt" not in kwargs
+
+    async def test_generate_includes_system_prompt(self):
+        """A system prompt becomes a leading system message."""
+        model = MagicMock()
+        model.create_chat_completion.return_value = {
+            "choices": [
+                {"message": {"content": "x"}, "finish_reason": "stop"},
+            ],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+        provider = self._provider(model)
+
+        await provider.generate(LLMRequest(prompt="hi", system_prompt="be terse"))
+
+        messages = model.create_chat_completion.call_args.kwargs["messages"]
+        assert messages == [
+            {"role": "system", "content": "be terse"},
+            {"role": "user", "content": "hi"},
+        ]
+
+    async def test_streaming_reads_chat_delta_chunks(self):
+        """Streaming yields delta content and skips role-only chunks."""
+        chunks = [
+            {"choices": [{"delta": {"role": "assistant"}, "finish_reason": None}]},
+            {"choices": [{"delta": {"content": "Hel"}, "finish_reason": None}]},
+            {"choices": [{"delta": {"content": "lo"}, "finish_reason": None}]},
+            {"choices": [{"delta": {}, "finish_reason": "stop"}]},
+        ]
+        model = MagicMock()
+        model.create_chat_completion.return_value = iter(chunks)
+        provider = self._provider(model)
+
+        out = [
+            r.content
+            async for r in provider.generate_streaming_response(
+                LLMRequest(prompt="hi"),
+            )
+        ]
+
+        assert out == ["Hel", "lo"]
+        kwargs = model.create_chat_completion.call_args.kwargs
+        assert kwargs["stream"] is True
+        assert kwargs["messages"] == [{"role": "user", "content": "hi"}]
+
+    async def test_lock_released_after_streaming_error(self):
+        """The inference lock is free again after a streaming failure."""
+
+        def failing_model(**_params):
+            yield {"choices": [{"delta": {"content": "x"}, "finish_reason": None}]}
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        model = MagicMock()
+        model.create_chat_completion.side_effect = failing_model
+        provider = self._provider(model)
+
+        with pytest.raises(ProviderError):
+            async for _ in provider.generate_streaming_response(
+                LLMRequest(prompt="hi"),
+            ):
+                pass
+
+        assert not provider._inference_lock.locked()
+
+    async def test_cancel_keeps_lock_until_native_call_finishes(self):
+        """Cancelling generate must not free the lock while the native call runs."""
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def slow(**_params):
+            started.set()
+            release.wait(5)
+            return {
+                "choices": [{"message": {"content": "x"}, "finish_reason": "stop"}],
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "total_tokens": 2,
+                },
+            }
+
+        model = MagicMock()
+        model.create_chat_completion.side_effect = slow
+        provider = self._provider(model)
+
+        task = asyncio.create_task(provider.generate(LLMRequest(prompt="hi")))
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+        task.cancel()
+        await asyncio.sleep(0.1)
+        assert provider._inference_lock.locked()
+        assert not task.done()
+
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not provider._inference_lock.locked()
+
+    async def test_shutdown_waits_for_inference_lock(self):
+        """shutdown unloads the model only while holding the inference lock."""
+        provider = self._provider(MagicMock())
+        seen: list[bool] = []
+
+        async def fake_unload() -> None:
+            seen.append(provider._inference_lock.locked())
+
+        provider.model_manager.unload_model = fake_unload  # type: ignore[method-assign]
+        await provider.shutdown()
+
+        assert seen == [True]
+        assert not provider._inference_lock.locked()
+
+    async def test_generate_falls_back_to_raw_without_chat_template(self):
+        """A GGUF without a chat template uses raw text completion."""
+        model = MagicMock()
+        model.metadata = {}
+        model.return_value = {
+            "choices": [{"text": "raw out", "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4},
+        }
+        provider = self._provider(model)
+
+        response = await provider.generate(
+            LLMRequest(prompt="hi", system_prompt="sys"),
+        )
+
+        assert response.content == "raw out"
+        model.create_chat_completion.assert_not_called()
+        assert model.call_args.kwargs["prompt"] == "sys\n\nhi"
+
+    async def test_generate_falls_back_when_chat_completion_raises(self):
+        """create_chat_completion failure falls back to raw completion."""
+        model = MagicMock()
+        model.create_chat_completion.side_effect = ValueError("no template")
+        model.return_value = {
+            "choices": [{"text": "fallback", "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+        provider = self._provider(model)
+
+        response = await provider.generate(LLMRequest(prompt="hi"))
+
+        assert response.content == "fallback"
+
+    async def test_streaming_falls_back_to_raw_without_chat_template(self):
+        """Streaming uses raw text chunks when there is no chat template."""
+        model = MagicMock()
+        model.metadata = {}
+        model.return_value = iter(
+            [
+                {"choices": [{"text": "a", "finish_reason": None}]},
+                {"choices": [{"text": "b", "finish_reason": "stop"}]},
+            ],
+        )
+        provider = self._provider(model)
+
+        out = [
+            r.content
+            async for r in provider.generate_streaming_response(
+                LLMRequest(prompt="hi"),
+            )
+        ]
+
+        assert out == ["a", "b"]
+        model.create_chat_completion.assert_not_called()
+        assert model.call_args.kwargs["stream"] is True

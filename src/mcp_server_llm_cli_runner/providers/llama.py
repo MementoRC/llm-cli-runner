@@ -284,6 +284,9 @@ class LLaMAProvider(LLMProvider):
                 **kwargs,
             )
 
+        # Serializes all use of the single shared Llama object (load + inference)
+        self._inference_lock = asyncio.Lock()
+
         # Performance tracking
         self.request_count = 0
         self.total_tokens = 0
@@ -326,7 +329,9 @@ class LLaMAProvider(LLMProvider):
 
         # Ensure model is loaded
         if not self.model_manager.model_loaded:
-            await self.model_manager.load_model()
+            async with self._inference_lock:
+                if not self.model_manager.model_loaded:
+                    await self._shielded(self.model_manager.load_model)
 
         return self.model_manager.model_loaded
 
@@ -340,29 +345,20 @@ class LLaMAProvider(LLMProvider):
 
         try:
             # Prepare generation parameters
-            generation_params = {
-                "prompt": request.prompt,
-                "max_tokens": min(
-                    request.max_tokens or self.max_tokens,
-                    self.max_tokens,
-                ),
-                "temperature": request.temperature or self.temperature,
-                "top_p": self.top_p,
-                "top_k": self.top_k,
-                "stop": [],
-                "echo": False,
-            }
+            generation_params = self._build_chat_params(request)
 
             # Run generation in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                self._generate_sync,
-                generation_params,
+            response = await self._run_exclusive(
+                lambda: loop.run_in_executor(
+                    None,
+                    self._generate_sync,
+                    generation_params,
+                ),
             )
 
             # Extract response data
-            response_text = response["choices"][0]["text"]
+            response_text = response["choices"][0]["message"]["content"]
             finish_reason = response["choices"][0]["finish_reason"]
 
             # Calculate timing and token usage
@@ -414,8 +410,89 @@ class LLaMAProvider(LLMProvider):
             msg = "Model not loaded"
             raise ProviderError(msg, provider="llama")
 
-        return self.model_manager.model(**params)
-        # llama-cpp-python returns response objects that can be used as dicts
+        model = self.model_manager.model
+        if not self._has_chat_template(model):
+            return self._raw_completion_as_chat(model, params)
+        try:
+            return model.create_chat_completion(**params)
+        except Exception as e:
+            logger.warning(f"Chat completion failed ({e}); using raw completion")
+            return self._raw_completion_as_chat(model, params)
+
+    @staticmethod
+    def _has_chat_template(model: Any) -> bool:
+        """Return False only when metadata proves the GGUF has no chat template."""
+        metadata = getattr(model, "metadata", None)
+        if isinstance(metadata, dict):
+            return bool(metadata.get("tokenizer.chat_template"))
+        return True
+
+    @staticmethod
+    def _raw_params(params: dict[str, Any]) -> dict[str, Any]:
+        """Convert chat params to raw text-completion params."""
+        prompt = "\n\n".join(m["content"] for m in params["messages"])
+        raw = {k: v for k, v in params.items() if k != "messages"}
+        raw["prompt"] = prompt
+        return raw
+
+    def _raw_completion_as_chat(self, model: Any, params: dict[str, Any]) -> Any:
+        """Run raw text completion; non-streaming result gets chat shape."""
+        raw_params = self._raw_params(params)
+        result = model(**raw_params)
+        if params.get("stream"):
+            return result
+        choice = result["choices"][0]
+        return {
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": choice["text"]},
+                    "finish_reason": choice.get("finish_reason"),
+                },
+            ],
+            "usage": result["usage"],
+        }
+
+    async def _run_exclusive(self, make_awaitable: Any) -> Any:
+        """Run awaitable under the inference lock, surviving cancellation.
+
+        On cancellation the native work keeps running in its executor thread,
+        so the lock is held until it actually finishes.
+        """
+        async with self._inference_lock:
+            return await self._shielded(make_awaitable)
+
+    @staticmethod
+    async def _shielded(make_awaitable: Any) -> Any:
+        """Await work to completion even if the caller is cancelled."""
+        task = asyncio.ensure_future(make_awaitable())
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            while not task.done():
+                try:
+                    await asyncio.wait([task])
+                except asyncio.CancelledError:
+                    continue
+            if not task.cancelled():
+                task.exception()  # mark retrieved
+            raise
+
+    def _build_chat_params(self, request: LLMRequest) -> dict[str, Any]:
+        """Build create_chat_completion parameters (GGUF chat template applies)."""
+        messages: list[dict[str, str]] = []
+        if request.system_prompt:
+            messages.append({"role": "system", "content": request.system_prompt})
+        messages.append({"role": "user", "content": request.prompt})
+        return {
+            "messages": messages,
+            "max_tokens": min(
+                request.max_tokens or self.max_tokens,
+                self.max_tokens,
+            ),
+            "temperature": request.temperature or self.temperature,
+            "top_p": self.top_p,
+            "top_k": self.top_k,
+        }
 
     async def generate_streaming_response(
         self,
@@ -428,19 +505,8 @@ class LLaMAProvider(LLMProvider):
 
         try:
             # Prepare generation parameters for streaming
-            generation_params = {
-                "prompt": request.prompt,
-                "max_tokens": min(
-                    request.max_tokens or self.max_tokens,
-                    self.max_tokens,
-                ),
-                "temperature": request.temperature or self.temperature,
-                "top_p": self.top_p,
-                "top_k": self.top_k,
-                "stop": [],
-                "stream": True,
-                "echo": False,
-            }
+            generation_params = self._build_chat_params(request)
+            generation_params["stream"] = True
 
             # Run streaming generation
             loop = asyncio.get_event_loop()
@@ -470,70 +536,79 @@ class LLaMAProvider(LLMProvider):
     ) -> AsyncGenerator[str, None]:
         """Async generator for streaming LLaMA responses."""
 
+        import queue
+        import threading
+
+        stop_event = threading.Event()
+
         def stream_sync():
             """Synchronous streaming generator."""
             if not self.model_manager.model:
                 msg = "Model not loaded"
                 raise ProviderError(msg, provider="llama")
 
-            for output in self.model_manager.model(**params):
-                # llama-cpp-python returns TypedDict objects
-                if (
-                    output
-                    and isinstance(output, dict)
-                    and "choices" in output
-                    and output["choices"]
-                ):
-                    choices = output["choices"]
-                    if choices and len(choices) > 0:
-                        choice = choices[0]
-                        if (
-                            isinstance(choice, dict)
-                            and "delta" in choice
-                            and isinstance(choice["delta"], dict)
-                            and "content" in choice["delta"]
-                        ):
-                            content = choice["delta"]["content"]
-                            if content:
-                                yield content
-
-        # Run in thread pool with queue for async communication
-        import queue
-        import threading
-
-        result_queue = queue.Queue()
-        exception_queue = queue.Queue()
-
-        def producer() -> None:
-            try:
-                for chunk in stream_sync():
-                    result_queue.put(chunk)
-                result_queue.put(None)  # Signal completion
-            except Exception as e:
-                exception_queue.put(e)
-                result_queue.put(None)
-
-        # Start producer thread
-        thread = threading.Thread(target=producer)
-        thread.start()
-
-        try:
-            while True:
-                # Check for exceptions
-                if not exception_queue.empty():
-                    raise exception_queue.get()
-
-                # Get next chunk
+            model = self.model_manager.model
+            if not self._has_chat_template(model):
+                stream = model(**self._raw_params(params))
+            else:
                 try:
-                    chunk = result_queue.get(timeout=0.1)
-                    if chunk is None:
-                        break
-                    yield chunk
-                except queue.Empty:
-                    await asyncio.sleep(0.01)  # Small delay to prevent busy waiting
+                    stream = model.create_chat_completion(**params)
+                except Exception as e:
+                    logger.warning(f"Chat completion failed ({e}); using raw stream")
+                    stream = model(**self._raw_params(params))
+            for output in stream:
+                if stop_event.is_set():
+                    return
+                # Chat chunks: choices[0]["delta"]["content"] (role-only deltas
+                # have no content); fallback: choices[0]["text"]
+                choices = output.get("choices") if isinstance(output, dict) else None
+                if choices and isinstance(choices[0], dict):
+                    choice = choices[0]
+                    delta = choice.get("delta")
+                    content = (
+                        delta.get("content") if isinstance(delta, dict) else None
+                    ) or choice.get("text")
+                    if content:
+                        yield content
 
-        finally:
-            thread.join(timeout=1.0)
+        # Hold the inference lock for the entire generation, until the
+        # producer thread has finished.
+        async with self._inference_lock:
+            result_queue: queue.Queue = queue.Queue()
+            exception_queue: queue.Queue = queue.Queue()
+
+            def producer() -> None:
+                try:
+                    for chunk in stream_sync():
+                        result_queue.put(chunk)
+                    result_queue.put(None)  # Signal completion
+                except Exception as e:
+                    exception_queue.put(e)
+                    result_queue.put(None)
+
+            thread = threading.Thread(target=producer)
+            thread.start()
+
+            try:
+                while True:
+                    # Check for exceptions
+                    if not exception_queue.empty():
+                        raise exception_queue.get()
+
+                    # Get next chunk
+                    try:
+                        chunk = result_queue.get(timeout=0.1)
+                        if chunk is None:
+                            if not exception_queue.empty():
+                                raise exception_queue.get()
+                            break
+                        yield chunk
+                    except queue.Empty:
+                        await asyncio.sleep(0.01)  # Avoid busy waiting
+
+            finally:
+                stop_event.set()
+                await loop.run_in_executor(None, thread.join)
 
     def validate_config(self, config: ProviderConfig) -> bool:
         """Validate provider configuration."""
@@ -694,5 +769,5 @@ class LLaMAProvider(LLMProvider):
     async def shutdown(self) -> None:
         """Cleanup provider resources."""
         logger.info("Shutting down LLaMA provider...")
-        await self.model_manager.unload_model()
+        await self._run_exclusive(self.model_manager.unload_model)
         # No super().shutdown() needed for base class
