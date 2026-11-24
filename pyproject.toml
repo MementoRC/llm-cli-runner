@@ -197,7 +197,7 @@ dev-setup = "echo 'Development environment ready'"
 # All tests enabled - TDD complete
 test = "pytest tests/ -v"
 test-cov = "pytest tests/ --cov=src/mcp_server_llm_cli_runner --cov-report=term-missing --cov-report=xml"
-test-unit = "pytest tests/unit/ -v"
+test-unit = "pytest tests/unit/ -q"
 test-integration = "pytest tests/integration/ -v"
 test-e2e = "pytest tests/test_llm_compliant_server_e2e.py -v"
 test-property = "pytest tests/ -m property -v"
@@ -245,6 +245,7 @@ install-pre-commit = "pre-commit install --install-hooks"
 # MCP server execution
 serve = "python -m mcp_server_llm_cli_runner"
 serve-debug = { cmd = "python -m mcp_server_llm_cli_runner --debug", env = { LOG_LEVEL = "DEBUG" } }
+check-llama = "python -c \"import llama_cpp; print(llama_cpp.__version__, llama_cpp.llama_supports_gpu_offload(), llama_cpp.llama_print_system_info().decode().strip()[:120])\""
 
 # ===== LEGACY/SPECIALIZED TASKS =====
 # Keep existing specialized tasks
