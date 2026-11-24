@@ -599,3 +599,108 @@ class TestLLaMAProviderSerialization:
                 pass
 
         assert not provider._inference_lock.locked()
+
+    async def test_cancel_keeps_lock_until_native_call_finishes(self):
+        """Cancelling generate must not free the lock while the native call runs."""
+        import threading
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def slow(**_params):
+            started.set()
+            release.wait(5)
+            return {
+                "choices": [{"message": {"content": "x"}, "finish_reason": "stop"}],
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "total_tokens": 2,
+                },
+            }
+
+        model = MagicMock()
+        model.create_chat_completion.side_effect = slow
+        provider = self._provider(model)
+
+        task = asyncio.create_task(provider.generate(LLMRequest(prompt="hi")))
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+        task.cancel()
+        await asyncio.sleep(0.1)
+        assert provider._inference_lock.locked()
+        assert not task.done()
+
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not provider._inference_lock.locked()
+
+    async def test_shutdown_waits_for_inference_lock(self):
+        """shutdown unloads the model only while holding the inference lock."""
+        provider = self._provider(MagicMock())
+        seen: list[bool] = []
+
+        async def fake_unload() -> None:
+            seen.append(provider._inference_lock.locked())
+
+        provider.model_manager.unload_model = fake_unload  # type: ignore[method-assign]
+        await provider.shutdown()
+
+        assert seen == [True]
+        assert not provider._inference_lock.locked()
+
+    async def test_generate_falls_back_to_raw_without_chat_template(self):
+        """A GGUF without a chat template uses raw text completion."""
+        model = MagicMock()
+        model.metadata = {}
+        model.return_value = {
+            "choices": [{"text": "raw out", "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4},
+        }
+        provider = self._provider(model)
+
+        response = await provider.generate(
+            LLMRequest(prompt="hi", system_prompt="sys"),
+        )
+
+        assert response.content == "raw out"
+        model.create_chat_completion.assert_not_called()
+        assert model.call_args.kwargs["prompt"] == "sys\n\nhi"
+
+    async def test_generate_falls_back_when_chat_completion_raises(self):
+        """create_chat_completion failure falls back to raw completion."""
+        model = MagicMock()
+        model.create_chat_completion.side_effect = ValueError("no template")
+        model.return_value = {
+            "choices": [{"text": "fallback", "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+        provider = self._provider(model)
+
+        response = await provider.generate(LLMRequest(prompt="hi"))
+
+        assert response.content == "fallback"
+
+    async def test_streaming_falls_back_to_raw_without_chat_template(self):
+        """Streaming uses raw text chunks when there is no chat template."""
+        model = MagicMock()
+        model.metadata = {}
+        model.return_value = iter(
+            [
+                {"choices": [{"text": "a", "finish_reason": None}]},
+                {"choices": [{"text": "b", "finish_reason": "stop"}]},
+            ],
+        )
+        provider = self._provider(model)
+
+        out = [
+            r.content
+            async for r in provider.generate_streaming_response(
+                LLMRequest(prompt="hi"),
+            )
+        ]
+
+        assert out == ["a", "b"]
+        model.create_chat_completion.assert_not_called()
+        assert model.call_args.kwargs["stream"] is True

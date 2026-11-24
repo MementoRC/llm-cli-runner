@@ -312,7 +312,7 @@ class LLaMAProvider(LLMProvider):
         if not self.model_manager.model_loaded:
             async with self._inference_lock:
                 if not self.model_manager.model_loaded:
-                    await self.model_manager.load_model()
+                    await self._shielded(self.model_manager.load_model)
 
         return self.model_manager.model_loaded
 
@@ -330,12 +330,13 @@ class LLaMAProvider(LLMProvider):
 
             # Run generation in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
-            async with self._inference_lock:
-                response = await loop.run_in_executor(
+            response = await self._run_exclusive(
+                lambda: loop.run_in_executor(
                     None,
                     self._generate_sync,
                     generation_params,
-                )
+                ),
+            )
 
             # Extract response data
             response_text = response["choices"][0]["message"]["content"]
@@ -390,7 +391,72 @@ class LLaMAProvider(LLMProvider):
             msg = "Model not loaded"
             raise ProviderError(msg, provider="llama")
 
-        return self.model_manager.model.create_chat_completion(**params)
+        model = self.model_manager.model
+        if not self._has_chat_template(model):
+            return self._raw_completion_as_chat(model, params)
+        try:
+            return model.create_chat_completion(**params)
+        except Exception as e:
+            logger.warning(f"Chat completion failed ({e}); using raw completion")
+            return self._raw_completion_as_chat(model, params)
+
+    @staticmethod
+    def _has_chat_template(model: Any) -> bool:
+        """Return False only when metadata proves the GGUF has no chat template."""
+        metadata = getattr(model, "metadata", None)
+        if isinstance(metadata, dict):
+            return bool(metadata.get("tokenizer.chat_template"))
+        return True
+
+    @staticmethod
+    def _raw_params(params: dict[str, Any]) -> dict[str, Any]:
+        """Convert chat params to raw text-completion params."""
+        prompt = "\n\n".join(m["content"] for m in params["messages"])
+        raw = {k: v for k, v in params.items() if k != "messages"}
+        raw["prompt"] = prompt
+        return raw
+
+    def _raw_completion_as_chat(self, model: Any, params: dict[str, Any]) -> Any:
+        """Run raw text completion; non-streaming result gets chat shape."""
+        raw_params = self._raw_params(params)
+        result = model(**raw_params)
+        if params.get("stream"):
+            return result
+        choice = result["choices"][0]
+        return {
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": choice["text"]},
+                    "finish_reason": choice.get("finish_reason"),
+                },
+            ],
+            "usage": result["usage"],
+        }
+
+    async def _run_exclusive(self, make_awaitable: Any) -> Any:
+        """Run awaitable under the inference lock, surviving cancellation.
+
+        On cancellation the native work keeps running in its executor thread,
+        so the lock is held until it actually finishes.
+        """
+        async with self._inference_lock:
+            return await self._shielded(make_awaitable)
+
+    @staticmethod
+    async def _shielded(make_awaitable: Any) -> Any:
+        """Await work to completion even if the caller is cancelled."""
+        task = asyncio.ensure_future(make_awaitable())
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            while not task.done():
+                try:
+                    await asyncio.wait([task])
+                except asyncio.CancelledError:
+                    continue
+            if not task.cancelled():
+                task.exception()  # mark retrieved
+            raise
 
     def _build_chat_params(self, request: LLMRequest) -> dict[str, Any]:
         """Build create_chat_completion parameters (GGUF chat template applies)."""
@@ -462,7 +528,16 @@ class LLaMAProvider(LLMProvider):
                 msg = "Model not loaded"
                 raise ProviderError(msg, provider="llama")
 
-            for output in self.model_manager.model.create_chat_completion(**params):
+            model = self.model_manager.model
+            if not self._has_chat_template(model):
+                stream = model(**self._raw_params(params))
+            else:
+                try:
+                    stream = model.create_chat_completion(**params)
+                except Exception as e:
+                    logger.warning(f"Chat completion failed ({e}); using raw stream")
+                    stream = model(**self._raw_params(params))
+            for output in stream:
                 if stop_event.is_set():
                     return
                 # Chat chunks: choices[0]["delta"]["content"] (role-only deltas
@@ -675,5 +750,5 @@ class LLaMAProvider(LLMProvider):
     async def shutdown(self) -> None:
         """Cleanup provider resources."""
         logger.info("Shutting down LLaMA provider...")
-        await self.model_manager.unload_model()
+        await self._run_exclusive(self.model_manager.unload_model)
         # No super().shutdown() needed for base class
