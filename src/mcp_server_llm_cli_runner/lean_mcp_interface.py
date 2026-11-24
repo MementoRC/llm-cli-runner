@@ -461,14 +461,22 @@ class LeanMCPInterface:
                 error_result["attempts"] = retry_attempts
             return error_result
 
-    def _list_providers(self) -> dict[str, Any]:
+    async def _probe_health(self, name: str) -> dict[str, Any]:
+        """Probe a provider and return its health dict (includes ``available``)."""
+        return (await self.manager.health_monitor.probe(name)).to_dict()
+
+    async def _list_providers(self) -> dict[str, Any]:
         """List available providers using ProviderManager."""
         try:
-            status = self.manager.health_monitor.get_all_health_statuses()
             initialized = self.manager.registry.list_providers()
             configured = self.config_manager.get_enabled_providers()
 
             visible = [p for p in initialized if p != "gemini"]
+            # Probe concurrently; each probe is bounded by the monitor's
+            # PROBE_TIMEOUT and reports its own failure, so one slow or broken
+            # provider cannot delay or fail the rest.
+            results = await asyncio.gather(*(self._probe_health(n) for n in visible))
+            status = dict(zip(visible, results, strict=True))
             return {
                 "providers": visible,
                 "count": len(visible),
@@ -485,22 +493,19 @@ class LeanMCPInterface:
         try:
             requested = provider
             provider, aliased = resolve_provider_name(provider)
-            health = self.manager.health_monitor.get_provider_health(provider)
             provider_instance = self.manager.get_provider(provider)
 
             if not provider_instance:
                 return {"error": f"Provider '{provider}' not initialized"}
 
-            # Try to get detailed health if available
-            is_available = False
-            if hasattr(provider_instance, "is_available"):
-                is_available = await provider_instance.is_available()
+            # Same probe as list_providers, so availability and status agree
+            health = await self._probe_health(provider)
 
             info = {
                 "provider": provider,
                 "initialized": True,
-                "available": is_available,
-                "health": health.to_dict() if health else None,
+                "available": health["available"],
+                "health": health,
                 "stats": self.manager.get_provider_stats(provider),
                 "metadata": getattr(provider_instance, "metadata", {}),
             }
