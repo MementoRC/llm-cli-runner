@@ -98,6 +98,67 @@ async def test_missing_file_warns_not_raises(tmp_path, llama_cpp, log):
     log.warning.assert_called_once()
 
 
+async def test_lifespan_registered_on_app_and_drives_preload(tmp_path, llama_cpp):
+    provider = _provider(tmp_path)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_preload() -> bool:
+        started.set()
+        await release.wait()
+        return True
+
+    provider.preload = slow_preload  # type: ignore[method-assign]
+    interface = _make_interface(provider)
+
+    # the hook is registered on the FastMCP app itself
+    assert interface.app._lifespan == interface._lifespan
+
+    # entering the app's lifespan schedules the preload, exiting cancels it
+    async with interface.app._lifespan_manager():
+        task = interface._preload_task
+        assert task is not None
+        await started.wait()
+        assert not task.done()
+    assert task.cancelled()
+    assert interface._preload_task is None
+
+
+async def test_shutdown_bounded_when_load_cannot_be_interrupted(
+    tmp_path, llama_cpp, log
+):
+    provider = _provider(tmp_path)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def stubborn_preload() -> bool:
+        started.set()
+        # emulate _shielded: a native load that ignores cancellation
+        while not release.is_set():
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                continue
+        return True
+
+    provider.preload = stubborn_preload  # type: ignore[method-assign]
+    interface = _make_interface(provider)
+    with (
+        patch(
+            "mcp_server_llm_cli_runner.lean_mcp_interface.PRELOAD_SHUTDOWN_TIMEOUT_S",
+            0.1,
+        ),
+        patch("mcp_server_llm_cli_runner.lean_mcp_interface.logger") as mock_logger,
+    ):
+        async with interface._lifespan(None):
+            await started.wait()
+        # we only get here because shutdown gave up waiting after the bound
+        mock_logger.warning.assert_called_once()
+    assert interface._preload_task is None
+    release.set()
+    await asyncio.sleep(0)
+
+
 async def test_startup_does_not_wait_for_load(tmp_path, llama_cpp):
     provider = _provider(tmp_path)
     release = asyncio.Event()

@@ -11,7 +11,6 @@ Meta-Tool Pattern:
 """
 
 import asyncio
-import contextlib
 import logging
 import warnings
 from collections.abc import AsyncIterator
@@ -28,6 +27,9 @@ from mcp_server_llm_cli_runner.core.models import (
 from mcp_server_llm_cli_runner.providers.manager import ProviderManager
 
 logger = logging.getLogger(__name__)
+
+# Max seconds shutdown waits for a cancelled background llama preload.
+PRELOAD_SHUTDOWN_TIMEOUT_S = 5.0
 
 _DEPRECATION_MESSAGE = (
     "Provider 'gemini' is deprecated and is served by 'agy' (Antigravity CLI); "
@@ -86,8 +88,19 @@ class LeanMCPInterface:
             task, self._preload_task = self._preload_task, None
             if task is not None and not task.done():
                 task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await task
+                # A native model load cannot be interrupted and _shielded waits
+                # for it, so bound the wait instead of hanging shutdown. The
+                # task alone holds the inference lock, which is moot at exit.
+                _, pending = await asyncio.wait(
+                    {task}, timeout=PRELOAD_SHUTDOWN_TIMEOUT_S
+                )
+                if pending:
+                    logger.warning(
+                        "LLaMA preload still running after "
+                        f"{PRELOAD_SHUTDOWN_TIMEOUT_S}s; continuing shutdown"
+                    )
+                elif not task.cancelled():
+                    task.exception()  # mark retrieved
 
     def _start_llama_preload(self) -> None:
         """Schedule the llama warm-up task when enabled and a model is set."""
