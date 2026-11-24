@@ -51,6 +51,12 @@ except ImportError:
     LLAMA_CPP_AVAILABLE = False
 
 
+def preload_enabled() -> bool:
+    """Return whether LLAMA_PRELOAD allows startup preloading (default on)."""
+    value = os.getenv("LLAMA_PRELOAD", "1").strip().lower()
+    return value not in {"0", "false", "no"}
+
+
 class LLaMAModelManager:
     """Manages LLaMA model loading, switching, and resource monitoring."""
 
@@ -312,6 +318,31 @@ class LLaMAProvider(LLMProvider):
                 or self.model_manager.is_model_available()
             )
         )
+
+    async def preload(self) -> bool:
+        """Load the model ahead of the first request (non-fatal).
+
+        Uses the same locked load path as ``is_available()``, so concurrent
+        requests queue behind the load instead of racing it.
+        """
+        started = time.monotonic()
+        try:
+            if not self.model_manager.is_model_available():
+                logger.warning(
+                    f"LLaMA preload skipped, model not found: {self.model_path}"
+                )
+                return False
+            async with self._inference_lock:
+                if not self.model_manager.model_loaded:
+                    await self._shielded(self.model_manager.load_model)
+        except Exception as e:
+            logger.warning(f"LLaMA preload failed: {e}")
+            return False
+        if not self.model_manager.model_loaded:
+            logger.warning("LLaMA preload failed: model did not load")
+            return False
+        logger.info(f"LLaMA model preloaded in {time.monotonic() - started:.1f}s")
+        return True
 
     async def is_available(self) -> bool:
         """Check if the LLaMA provider is available."""

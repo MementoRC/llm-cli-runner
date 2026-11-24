@@ -11,8 +11,11 @@ Meta-Tool Pattern:
 """
 
 import asyncio
+import contextlib
 import logging
 import warnings
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastmcp import FastMCP
@@ -57,7 +60,8 @@ class LeanMCPInterface:
             config_manager: Configuration manager instance
         """
         self.config_manager = config_manager
-        self.app = FastMCP("llm-cli-runner")
+        self._preload_task: asyncio.Task[bool] | None = None
+        self.app = FastMCP("llm-cli-runner", lifespan=self._lifespan)
 
         # Initialize provider manager
         self.manager = ProviderManager(config_manager)
@@ -67,6 +71,37 @@ class LeanMCPInterface:
 
         # Setup the 3 meta-tools
         self._setup_meta_tools()
+
+    @asynccontextmanager
+    async def _lifespan(self, _server: Any) -> AsyncIterator[dict[str, Any]]:
+        """Server lifespan: warm up the llama model in the background.
+
+        Runs inside the server's event loop, never blocks startup, and
+        cancels the warm-up on shutdown.
+        """
+        self._start_llama_preload()
+        try:
+            yield {}
+        finally:
+            task, self._preload_task = self._preload_task, None
+            if task is not None and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+    def _start_llama_preload(self) -> None:
+        """Schedule the llama warm-up task when enabled and a model is set."""
+        from mcp_server_llm_cli_runner.providers.llama import (
+            LLaMAProvider,
+            preload_enabled,
+        )
+
+        provider = self.manager.get_provider("llama")
+        if not isinstance(provider, LLaMAProvider) or not provider.model_path:
+            return
+        if not preload_enabled():
+            return
+        self._preload_task = asyncio.create_task(provider.preload())
 
     async def initialize(self) -> None:
         """Initialize the interface and its components."""

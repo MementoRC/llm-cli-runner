@@ -30,7 +30,7 @@ pixi run serve                    # Start MCP server
 
 ## Llama Setup
 
-`llama-cpp-python` comes from conda-forge (pixi default feature; no PyPI build). Set `LLAMA_MODEL_PATH` to a GGUF file and verify with `pixi run check-llama`.
+`llama-cpp-python` comes from conda-forge (pixi default feature; no PyPI build). Set `LLAMA_MODEL_PATH` to a GGUF file and verify with `pixi run check-llama`. The model is preloaded in the background at server start (FastMCP lifespan); set `LLAMA_PRELOAD=0` to disable.
 
 ## Quality Standards
 

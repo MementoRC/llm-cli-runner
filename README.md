@@ -45,6 +45,8 @@ export AGY_CLI_PATH="/path/to/agy"   # optional if `agy` is on PATH
 # LLaMA runs locally (no API key needed); llama-cpp-python comes from conda-forge via pixi
 export LLAMA_MODEL_PATH="/path/to/model.gguf"
 # verify the native library loads: pixi run check-llama
+# the model is preloaded in the background at server start (never blocks startup);
+# set LLAMA_PRELOAD=0 (or false/no) to disable and load lazily on first request
 ```
 
 ## 🧪 Testing
